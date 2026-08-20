@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Guard — Cost Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;   /* spend bars */
+    --series-1-wash:  rgba(42,120,214,0.10);
+    --status-good:    #0ca30c;
+    --status-warning: #fab219;
+    --status-critical:#d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-1-wash:  rgba(57,135,229,0.14);
+      --status-good:    #0ca30c;
+      --status-warning: #fab219;
+      --status-critical:#e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-1-wash:  rgba(57,135,229,0.14);
+    --status-good:    #0ca30c;
+    --status-warning: #fab219;
+    --status-critical:#e66767;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  .live { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+  .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-good); box-shadow: 0 0 0 3px var(--series-1-wash); }
+  .live .dot.off { background: var(--text-muted); box-shadow: none; }
+  #theme-toggle {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer;
+  }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .tile .value { font-size: 26px; font-weight: 600; color: var(--text-primary); }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 18px 8px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 14px; color: var(--text-primary); }
+
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .axis-label { fill: var(--text-muted); font-size: 10px; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .bar { fill: var(--series-1); cursor: pointer; }
+  .bar:hover, .bar.hover { fill: var(--series-1); opacity: 0.75; }
+  .hit-target { fill: transparent; cursor: pointer; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; color: var(--text-secondary);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    display: none; min-width: 120px;
+  }
+  #tooltip .tt-value { color: var(--text-primary); font-weight: 600; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; font-weight: 500; color: var(--text-muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 8px 10px; border-bottom: 1px solid var(--gridline);
+  }
+  tbody td { padding: 9px 10px; border-bottom: 1px solid var(--gridline); color: var(--text-secondary); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.primary { color: var(--text-primary); }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px;
+    background: rgba(250,178,25,0.15); color: var(--status-warning);
+  }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 16px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AI Guard — Cost Dashboard</h1>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="live"><span class="dot off" id="live-dot"></span><span id="live-text">connecting…</span></div>
+      <button id="theme-toggle" type="button">Toggle theme</button>
+    </div>
+  </header>
+
+  <section class="tiles">
+    <div class="tile"><div class="label">Spend today</div><div class="value" id="tile-spend">$0.00</div></div>
+    <div class="tile"><div class="label">Requests today</div><div class="value" id="tile-requests">0</div></div>
+    <div class="tile"><div class="label">Cache hit rate</div><div class="value" id="tile-cache">0%</div></div>
+    <div class="tile"><div class="label">Active users</div><div class="value" id="tile-users">0</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Spend by hour (last 24h)</h2>
+    <div id="chart-wrap"><svg id="chart" width="100%" height="180" role="img" aria-label="Hourly spend, last 24 hours"></svg></div>
+  </section>
+
+  <section class="card">
+    <h2>Spend by user (today)</h2>
+    <table id="users-table">
+      <thead><tr><th>User</th><th class="num">Requests</th><th class="num">Cache hits</th><th class="num">Spend</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="users-empty" style="display:none;">No requests logged yet.</div>
+  </section>
+
+  <section class="card">
+    <h2>Top expensive requests (today)</h2>
+    <table id="top-table">
+      <thead><tr><th>Time</th><th>User</th><th>Model</th><th class="num">Tokens</th><th class="num">Latency</th><th class="num">Cost</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="top-empty" style="display:none;">No requests logged yet.</div>
+  </section>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var tooltip = document.getElementById("tooltip");
+
+  function fmtUSD(v) {
+    if (v < 0.01 && v > 0) return "$" + v.toFixed(4);
+    return "$" + v.toFixed(2);
+  }
+  function fmtInt(v) { return Number(v).toLocaleString(); }
+  function fmtPct(v) { return Math.round(v * 100) + "%"; }
+  function fmtHour(iso) {
+    var d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  function fmtTime(iso) {
+    var d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function showTooltip(x, y, html) {
+    tooltip.innerHTML = "";
+    var node = document.createElement("div");
+    node.innerHTML = html; // built from trusted, escaped fragments only
+    tooltip.appendChild(node);
+    tooltip.style.display = "block";
+    tooltip.style.left = Math.min(x + 12, window.innerWidth - 180) + "px";
+    tooltip.style.top = Math.max(y - 40, 8) + "px";
+  }
+  function hideTooltip() { tooltip.style.display = "none"; }
+
+  function renderChart(rows) {
+    var svg = document.getElementById("chart");
+    var width = svg.clientWidth || 1000;
+    var height = 180;
+    var padLeft = 8, padRight = 8, padTop = 10, padBottom = 22;
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    if (!rows.length) return;
+
+    var max = 0;
+    rows.forEach(function (r) { if (r.cost_usd > max) max = r.cost_usd; });
+    if (max <= 0) max = 0.01;
+
+    var n = rows.length;
+    var slot = plotW / n;
+    var barW = Math.min(24, slot * 0.6);
+    var gap = 2;
+
+    var ns = "http://www.w3.org/2000/svg";
+
+    // baseline
+    var baseline = document.createElementNS(ns, "line");
+    baseline.setAttribute("class", "baseline");
+    baseline.setAttribute("x1", padLeft); baseline.setAttribute("x2", width - padRight);
+    baseline.setAttribute("y1", padTop + plotH); baseline.setAttribute("y2", padTop + plotH);
+    svg.appendChild(baseline);
+
+    rows.forEach(function (r, i) {
+      var cx = padLeft + slot * i + slot / 2;
+      var h = Math.max(2, (r.cost_usd / max) * (plotH - 4));
+      var y = padTop + plotH - h;
+
+      var rect = document.createElementNS(ns, "rect");
+      rect.setAttribute("class", "bar");
+      rect.setAttribute("x", cx - barW / 2 + gap / 2);
+      rect.setAttribute("y", y);
+      rect.setAttribute("width", Math.max(1, barW - gap));
+      rect.setAttribute("height", h);
+      rect.setAttribute("rx", 4);
+      rect.setAttribute("ry", 4);
+      svg.appendChild(rect);
+
+      // wider invisible hit target, per interaction spec
+      var hit = document.createElementNS(ns, "rect");
+      hit.setAttribute("class", "hit-target");
+      hit.setAttribute("x", cx - slot / 2);
+      hit.setAttribute("y", padTop);
+      hit.setAttribute("width", slot);
+      hit.setAttribute("height", plotH);
+      hit.tabIndex = 0;
+      hit.addEventListener("pointermove", function (e) {
+        rect.classList.add("hover");
+        showTooltip(e.clientX, e.clientY,
+          '<div class="tt-value">' + fmtUSD(r.cost_usd) + '</div>' +
+          '<div>' + fmtHour(r.hour) + ' &middot; ' + fmtInt(r.requests) + ' req</div>');
+      });
+      hit.addEventListener("pointerleave", function () { rect.classList.remove("hover"); hideTooltip(); });
+      hit.addEventListener("focus", function () {
+        showTooltip(cx, padTop + 40,
+          '<div class="tt-value">' + fmtUSD(r.cost_usd) + '</div><div>' + fmtHour(r.hour) + '</div>');
+      });
+      hit.addEventListener("blur", hideTooltip);
+      svg.appendChild(hit);
+
+      // sparse hour labels: every ~4th bar, plus the last one
+      if (i % 4 === 0 || i === n - 1) {
+        var label = document.createElementNS(ns, "text");
+        label.setAttribute("class", "axis-label");
+        label.setAttribute("x", cx);
+        label.setAttribute("y", height - 6);
+        label.setAttribute("text-anchor", "middle");
+        label.textContent = fmtHour(r.hour);
+        svg.appendChild(label);
+      }
+    });
+  }
+
+  function renderTiles(today) {
+    document.getElementById("tile-spend").textContent = fmtUSD(today.total_cost_usd);
+    document.getElementById("tile-requests").textContent = fmtInt(today.requests);
+    document.getElementById("tile-cache").textContent = fmtPct(today.cache_hit_rate);
+    document.getElementById("tile-users").textContent = fmtInt(today.active_users);
+  }
+
+  function renderUsers(users) {
+    var tbody = document.querySelector("#users-table tbody");
+    tbody.innerHTML = "";
+    document.getElementById("users-empty").style.display = users.length ? "none" : "block";
+    users.forEach(function (u) {
+      var tr = document.createElement("tr");
+      addCell(tr, u.user_id, "primary");
+      addCell(tr, fmtInt(u.requests), "num");
+      addCell(tr, fmtInt(u.cache_hits), "num");
+      addCell(tr, fmtUSD(u.total_cost_usd), "num");
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTop(rows) {
+    var tbody = document.querySelector("#top-table tbody");
+    tbody.innerHTML = "";
+    document.getElementById("top-empty").style.display = rows.length ? "none" : "block";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      addCell(tr, fmtTime(r.timestamp));
+      addCell(tr, r.user_id);
+      var modelTd = document.createElement("td");
+      modelTd.textContent = r.model;
+      if (r.finish_reason === "length") {
+        var badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = "truncated";
+        badge.style.marginLeft = "6px";
+        modelTd.appendChild(badge);
+      }
+      tr.appendChild(modelTd);
+      addCell(tr, fmtInt(r.prompt_tokens + r.completion_tokens), "num");
+      addCell(tr, fmtInt(r.latency_ms) + "ms", "num");
+      addCell(tr, fmtUSD(r.cost_usd), "num");
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addCell(tr, text, cls) {
+    var td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    tr.appendChild(td);
+  }
+
+  function render(snap) {
+    renderTiles(snap.today);
+    renderChart(snap.timeseries || []);
+    renderUsers(snap.users || []);
+    renderTop(snap.top || []);
+  }
+
+  function setLive(on) {
+    var dot = document.getElementById("live-dot");
+    var text = document.getElementById("live-text");
+    dot.classList.toggle("off", !on);
+    text.textContent = on ? "live" : "reconnecting…";
+  }
+
+  function connect() {
+    var es = new EventSource("/dashboard/events");
+    es.onopen = function () { setLive(true); };
+    es.onerror = function () { setLive(false); };
+    es.onmessage = function (e) {
+      try { render(JSON.parse(e.data)); } catch (err) { /* ignore malformed frame */ }
+    };
+  }
+
+  // Initial paint from the plain JSON endpoint, then switch to live SSE.
+  fetch("/dashboard/api/data").then(function (r) { return r.json(); }).then(render).catch(function () {});
+  connect();
+  window.addEventListener("resize", function () {
+    fetch("/dashboard/api/data").then(function (r) { return r.json(); }).then(function (s) { renderChart(s.timeseries || []); }).catch(function () {});
+  });
+
+  var themeBtn = document.getElementById("theme-toggle");
+  themeBtn.addEventListener("click", function () {
+    var root = document.documentElement;
+    var current = root.getAttribute("data-theme");
+    if (current === "dark") root.setAttribute("data-theme", "light");
+    else if (current === "light") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", "dark");
+  });
+})();
+</script>
+</body>
+</html>

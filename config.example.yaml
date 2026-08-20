@@ -1,0 +1,56 @@
+# ai-guard configuration.
+# Copy this to config.yaml (or run `ai-guard init` to generate one interactively).
+
+port: 8787
+data_dir: .
+
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    base_url: https://api.anthropic.com/v1
+  groq:
+    api_key: ${GROQ_API_KEY}
+    base_url: https://api.groq.com/openai/v1
+
+cache:
+  enabled: true
+  ttl_seconds: 300
+  backend: memory        # "memory" or "redis"
+  redis_url: redis://localhost:6379/0
+
+# Where budget-enforcement state (in-flight reservations, and for redis,
+# settled spend) lives. "local" (default) is correct for a single ai-guard
+# instance. If you run more than one instance behind a load balancer, use
+# "redis" so they share one view of each user's spend — with "local",
+# each instance enforces its own copy of the budget, so a user's real
+# spend can be up to (instance count)x the configured limit.
+# budget:
+#   backend: redis
+#   redis_url: redis://localhost:6379/0   # omit to reuse cache.redis_url above
+
+# Per-user daily spend limits in USD, keyed by user_id (your own label,
+# e.g. a customer or service name — not something the caller sends).
+users:
+  user_123:
+    daily_limit_usd: 5
+  user_456:
+    daily_limit_usd: 10
+
+# Virtual API keys: what callers actually send as their Authorization
+# bearer token, mapped to the user_id whose budget above applies. Your
+# real provider keys above are never exposed to callers. `ai-guard init`
+# generates these for you; if this map is empty, ai-guard runs in
+# single-tenant mode (every caller is unauthenticated and shares one
+# "default" identity — fine for local/solo use only).
+keys:
+  sk-guard-replace-with-a-real-random-value: user_123
+  sk-guard-another-random-value: user_456
+
+# If the primary model's request fails or rate-limits, try these models
+# in order (first configured provider wins per model).
+fallback:
+  - gpt-4o-mini
+  - claude-3-haiku

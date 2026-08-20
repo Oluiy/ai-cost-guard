@@ -1,0 +1,8 @@
+/ai-guard
+/dist/
+*.db
+*.db-journal
+config.yaml
+.env
+dashboard-ui/node_modules/
+dashboard-ui/dist/

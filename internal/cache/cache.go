@@ -43,11 +43,7 @@ type MemoryCache struct {
 }
 
 // NewMemoryCache creates an empty in-memory cache and starts a background
-// janitor that periodically evicts expired entries. Call Close when done
-// with it to stop that goroutine — without it, each MemoryCache leaks its
-// janitor for the life of the process, which is harmless for the single
-// long-lived instance ai-guard normally creates but would add up if
-// something ever created these more dynamically (e.g. one per test case).
+// janitor that periodically evicts expired entries.
 func NewMemoryCache() *MemoryCache {
 	c := &MemoryCache{entries: make(map[string]memoryEntry), closed: make(chan struct{})}
 	go c.janitor()
@@ -74,8 +70,7 @@ func (c *MemoryCache) janitor() {
 	}
 }
 
-// Close stops the background janitor goroutine. Safe to call once; the
-// cache is no longer usable afterward.
+// Close stops the background janitor goroutine. Safe to call once, cache now expired.
 func (c *MemoryCache) Close() {
 	close(c.closed)
 }

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Providers — AI Guard</title>
+<meta name="description" content="Call OpenAI, Anthropic, and Gemini through AI Guard. Code samples in curl, Python, TypeScript, C#, and Java for each provider." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./commands.html">CLI</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Guide</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./providers.html" class="active">Providers</a>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>Providers</h1>
+    <p class="dek">OpenAI, Anthropic, and Gemini all go through the same endpoint, the same virtual key, and the same client code. The only thing that changes between them is the <code class="inline">model</code> field.</p>
+
+    <h2 id="how-it-works">How this works</h2>
+    <p>
+      AI Guard exposes one endpoint, shaped like OpenAI's chat completions API: <code class="inline">POST /v1/chat/completions</code>.
+      It reads the <code class="inline">model</code> field, works out which upstream provider that model belongs to, translates
+      the request into that provider's native format if needed, and translates the response back. Your client only ever speaks
+      the OpenAI shape. It never sees Anthropic's or Gemini's actual request format, and it never sees your real provider keys.
+    </p>
+    <p>
+      Every example on this page uses the same two values: your AI Guard URL as <code class="inline">base_url</code>, and a
+      virtual key from <code class="inline">ai-guard init</code> as the API key. Switching providers means changing one string,
+      the model name. Nothing else in your code changes.
+    </p>
+
+    <h2 id="openai">OpenAI</h2>
+    <p>Model names pass through unchanged: <code class="inline">gpt-4o</code>, <code class="inline">gpt-4o-mini</code>, <code class="inline">o1</code>, and so on. Vision and tool calling work exactly as documented in OpenAI's own API reference, since no translation is needed.</p>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="ts">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      </div>
+      <div class="panel" data-lang="curl">
+<pre>curl https://your-ai-guard-host/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+      </div>
+      <div class="panel" data-lang="python">
+<pre>from openai import OpenAI
+
+client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+resp = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "hello"}],
+)
+print(resp.choices[0].message.content)</pre>
+      </div>
+      <div class="panel" data-lang="ts">
+<pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://your-ai-guard-host/v1",
+  apiKey: "sk-guard-...",
+});
+
+const resp = await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "hello" }],
+});
+console.log(resp.choices[0].message.content);</pre>
+      </div>
+      <div class="panel" data-lang="csharp">
+<pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+
+var payload = new {
+    model = "gpt-4o",
+    messages = new[] { new { role = "user", content = "hello" } }
+};
+var response = await client.PostAsJsonAsync("chat/completions", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre>
+      </div>
+      <div class="panel" data-lang="java">
+<pre>HttpClient client = HttpClient.newHttpClient();
+
+String json = """
+    {"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre>
+      </div>
+    </div>
+
+    <h2 id="anthropic">Anthropic</h2>
+    <p>
+      Use Claude model names: <code class="inline">claude-3-5-sonnet</code>, <code class="inline">claude-3-haiku</code>, and so on.
+      AI Guard translates the request into Anthropic's Messages API and translates the response back into the OpenAI shape your
+      client already expects, so the client code below is identical to the OpenAI examples except for the model name.
+    </p>
+    <div class="callout">
+      If your app currently calls Claude with Anthropic's own SDK (<code class="inline">anthropic.Anthropic(...)</code>, <code class="inline">.messages.create(...)</code>), see
+      <a href="./getting-started.html#anthropic-sdk">Already using Anthropic's own SDK?</a> in the getting started guide.
+      It's not a drop-in swap the way switching OpenAI models is: Anthropic's client speaks a different request shape than
+      AI Guard's OpenAI-compatible endpoint expects, so that section walks through the actual change needed.
+    </div>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="ts">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      </div>
+      <div class="panel" data-lang="curl">
+<pre>curl https://your-ai-guard-host/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+      </div>
+      <div class="panel" data-lang="python">
+<pre>from openai import OpenAI
+
+client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+resp = client.chat.completions.create(
+    model="claude-3-5-sonnet",
+    messages=[{"role": "user", "content": "hello"}],
+)
+print(resp.choices[0].message.content)</pre>
+      </div>
+      <div class="panel" data-lang="ts">
+<pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://your-ai-guard-host/v1",
+  apiKey: "sk-guard-...",
+});
+
+const resp = await client.chat.completions.create({
+  model: "claude-3-5-sonnet",
+  messages: [{ role: "user", content: "hello" }],
+});
+console.log(resp.choices[0].message.content);</pre>
+      </div>
+      <div class="panel" data-lang="csharp">
+<pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+
+var payload = new {
+    model = "claude-3-5-sonnet",
+    messages = new[] { new { role = "user", content = "hello" } }
+};
+var response = await client.PostAsJsonAsync("chat/completions", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre>
+      </div>
+      <div class="panel" data-lang="java">
+<pre>HttpClient client = HttpClient.newHttpClient();
+
+String json = """
+    {"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"hello"}]}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre>
+      </div>
+    </div>
+
+    <h2 id="gemini">Gemini</h2>
+    <p>Use Gemini model names: <code class="inline">gemini-2.5-pro</code>, <code class="inline">gemini-2.5-flash</code>, <code class="inline">gemini-1.5-pro</code>, and so on. AI Guard translates the request into Gemini's <code class="inline">generateContent</code> format and translates the response back, the same way it does for Anthropic.</p>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="ts">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      </div>
+      <div class="panel" data-lang="curl">
+<pre>curl https://your-ai-guard-host/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-2.5-flash",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+      </div>
+      <div class="panel" data-lang="python">
+<pre>from openai import OpenAI
+
+client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+resp = client.chat.completions.create(
+    model="gemini-2.5-flash",
+    messages=[{"role": "user", "content": "hello"}],
+)
+print(resp.choices[0].message.content)</pre>
+      </div>
+      <div class="panel" data-lang="ts">
+<pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://your-ai-guard-host/v1",
+  apiKey: "sk-guard-...",
+});
+
+const resp = await client.chat.completions.create({
+  model: "gemini-2.5-flash",
+  messages: [{ role: "user", content: "hello" }],
+});
+console.log(resp.choices[0].message.content);</pre>
+      </div>
+      <div class="panel" data-lang="csharp">
+<pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+
+var payload = new {
+    model = "gemini-2.5-flash",
+    messages = new[] { new { role = "user", content = "hello" } }
+};
+var response = await client.PostAsJsonAsync("chat/completions", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre>
+      </div>
+      <div class="panel" data-lang="java">
+<pre>HttpClient client = HttpClient.newHttpClient();
+
+String json = """
+    {"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hello"}]}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre>
+      </div>
+    </div>
+    <div class="callout warn">
+      One real limitation, not a bug: if you send an image as a remote URL (<code class="inline">image_url.url</code> pointing
+      at <code class="inline">https://...</code>), Gemini rejects it. Gemini only accepts inline base64 image data or a file
+      already uploaded through its own File API, and AI Guard does not fetch remote URLs on your behalf to convert them,
+      since that would let a request make AI Guard's server fetch arbitrary attacker-supplied URLs. Send images as base64
+      data URIs (<code class="inline">data:image/png;base64,...</code>) when using Gemini. OpenAI and Anthropic both accept
+      remote image URLs directly, so this restriction is specific to Gemini.
+    </div>
+
+    <h2 id="mixing">Mixing providers in one app</h2>
+    <p>Nothing about the client changes between providers, so a single app can call all three without any conditional logic. The only difference is which string you put in <code class="inline">model</code>:</p>
+    <pre>await client.chat.completions.create({ model: "gpt-4o-mini", ... });        // OpenAI
+await client.chat.completions.create({ model: "claude-3-haiku", ... });     // Anthropic
+await client.chat.completions.create({ model: "gemini-2.5-flash", ... });   // Gemini</pre>
+    <p>Each of these still goes through the same cache, the same budget check, and the same cost log. See <a href="./configuration.html#fallback">Fallback</a> in the configuration reference if you want AI Guard to try a different provider automatically when the primary one fails.</p>
+
+    <div class="page-nav">
+      <a href="./getting-started.html"><span class="label">Previous</span>Getting started</a>
+      <a href="./configuration.html" class="next"><span class="label">Next</span>Configuration reference</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#how-it-works">How this works</a>
+    <a href="#openai">OpenAI</a>
+    <a href="#anthropic">Anthropic</a>
+    <a href="#gemini">Gemini</a>
+    <a href="#mixing">Mixing providers</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

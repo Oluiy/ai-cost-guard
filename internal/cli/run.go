@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -10,14 +11,15 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/pterm/pterm"
 
-	"github.com/aicostguard/ai-cost-guard/internal/budget"
-	"github.com/aicostguard/ai-cost-guard/internal/cache"
-	"github.com/aicostguard/ai-cost-guard/internal/config"
-	"github.com/aicostguard/ai-cost-guard/internal/dashboard"
-	"github.com/aicostguard/ai-cost-guard/internal/logging"
-	"github.com/aicostguard/ai-cost-guard/internal/proxy"
+	"github.com/Oluiy/ai-cost-guard/internal/budget"
+	"github.com/Oluiy/ai-cost-guard/internal/cache"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/dashboard"
+	"github.com/Oluiy/ai-cost-guard/internal/logging"
+	"github.com/Oluiy/ai-cost-guard/internal/proxy"
 )
 
 // RunServer loads configPath and starts the ai-guard proxy server. It
@@ -50,10 +52,10 @@ func RunServer(configPath string) error {
 		case "redis":
 			rc, err := cache.NewRedisCache(cfg.Cache.RedisURL)
 			if err != nil {
-				return fmt.Errorf("connecting to redis at %s: %w (is Redis running and reachable?)", cfg.Cache.RedisURL, err)
+				return fmt.Errorf("connecting to redis at %s: %w (is Redis running and reachable?)", maskRedisURL(cfg.Cache.RedisURL), err)
 			}
 			c = rc
-			pterm.Info.Printfln("cache: redis @ %s", cfg.Cache.RedisURL)
+			pterm.Info.Printfln("cache: redis @ %s", maskRedisURL(cfg.Cache.RedisURL))
 		default:
 			mc := cache.NewMemoryCache()
 			defer mc.Close()
@@ -68,10 +70,10 @@ func RunServer(configPath string) error {
 		re, err := budget.NewRedisEnforcer(cfg.BudgetBackend.RedisURL, cfg.Users)
 		if err != nil {
 			return fmt.Errorf("connecting budget backend to redis at %s: %w (is Redis running and reachable?)",
-				cfg.BudgetBackend.RedisURL, err)
+				maskRedisURL(cfg.BudgetBackend.RedisURL), err)
 		}
 		enforcer = re
-		pterm.Info.Printfln("budget backend: redis @ %s (correct across multiple ai-guard instances)", cfg.BudgetBackend.RedisURL)
+		pterm.Info.Printfln("budget backend: redis @ %s (correct across multiple ai-guard instances)", maskRedisURL(cfg.BudgetBackend.RedisURL))
 	default:
 		enforcer = budget.New(store, cfg.Users)
 		pterm.Info.Println("budget backend: local (correct for a single ai-guard instance only)")
@@ -81,14 +83,31 @@ func RunServer(configPath string) error {
 	app := fiber.New(fiber.Config{
 		AppName:               "ai-guard",
 		DisableStartupMessage: true,
+		// ReadTimeout/IdleTimeout close connections that open but never
+		// finish sending a request (or sit idle between keep-alive
+		// requests) — standard hardening against slowloris-style
+		// connection exhaustion, which is otherwise unbounded (fasthttp
+		// defaults to no timeout at all). WriteTimeout is deliberately
+		// left unset: a streamed chat completion can legitimately take
+		// minutes to finish writing, and capping that risks cutting off
+		// a real in-progress response rather than an attack.
+		ReadTimeout: 30 * time.Second,
+		IdleTimeout: 60 * time.Second,
 	})
+	// A panic in any handler (a malformed upstream response, a nil map
+	// access, anything unanticipated) would otherwise crash the entire
+	// process — every tenant, the dashboard, everything — since Go
+	// terminates the whole program on an unrecovered panic in any
+	// goroutine, not just the one it happened in. This converts that into
+	// a single 500 for the request that triggered it.
+	app.Use(recover.New())
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 	app.Post("/v1/chat/completions", handler.ChatCompletions)
 	app.Post("/v1/embeddings", handler.Embeddings)
-	dashboard.New(store).Register(app)
+	dashboard.New(store, cfg.Dashboard).Register(app)
 
 	printBanner(cfg)
 
@@ -118,6 +137,23 @@ func RunServer(configPath string) error {
 		pterm.Success.Println("stopped")
 		return nil
 	}
+}
+
+// maskRedisURL strips embedded credentials before a Redis URL is logged.
+// Managed Redis (DigitalOcean, Upstash, Redis Cloud, ...) commonly embeds
+// a password directly in the URL (redis://default:PASSWORD@host:port) —
+// printing that verbatim on every startup, and in the error path if the
+// connection fails, would leak it into terminal scrollback, systemd
+// journal logs, and Docker logs. Falls back to a generic placeholder
+// rather than the raw string if the URL doesn't parse, so a malformed
+// URL can't accidentally bypass the masking.
+func maskRedisURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "[redis url]"
+	}
+	u.User = nil
+	return u.String()
 }
 
 func printBanner(cfg *config.Config) {

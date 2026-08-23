@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getting started — AI Guard</title>
+<meta name="description" content="Install AI Guard, generate a config, point your app at it, and see your first blocked request. Includes the exact steps for switching an existing Anthropic SDK integration." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./commands.html">CLI</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Guide</div>
+      <a href="./getting-started.html" class="active">Getting started</a>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>Getting started</h1>
+    <p class="dek">Install it, generate a config, point your app at it. Ten minutes, most of which is waiting for your first API key to save.</p>
+
+    <h2 id="install">Install</h2>
+    <p>Requires Go 1.22+. There's no published release yet, so build from source:</p>
+    <pre>git clone https://github.com/Oluiy/ai-cost-guard.git
+cd ai-cost-guard
+go install ./cmd/ai-guard</pre>
+    <p>That puts <code class="inline">ai-guard</code> in <code class="inline">$(go env GOPATH)/bin</code>. Make sure that's on your <code class="inline">PATH</code>, then <code class="inline">ai-guard</code> works as a command from any directory, not just the repo you just cloned.</p>
+
+    <h2 id="init">Set it up</h2>
+    <p>Run this from wherever you want <code class="inline">config.yaml</code> and the request log to live, commonly the root of the project you're protecting:</p>
+    <pre>ai-guard init</pre>
+    <p>It asks which providers you're using, your real API key for each, and how much daily budget to give each caller. For every budgeted user it hands back a virtual key that looks like this:</p>
+    <pre>Authorization: Bearer sk-guard-f81e09e76c5533dcb8e47e6eeeca09c354f2fbc8c24b2ab5</pre>
+    <div class="callout warn">
+      <strong>Copy it now.</strong> It's written into <code class="inline">config.yaml</code> but never shown again by the CLI itself, and that file also holds your real provider keys. Both are already in <code class="inline">.gitignore</code> if you're working inside a git repo, don't check either into source control.
+    </div>
+    <p>Last step, it'll ask you to set up a login for the dashboard &mdash; a username and password, the same way Grafana or Coolify would. Say yes unless you're the only person who can reach this machine at all.</p>
+
+    <h2 id="run">Run it</h2>
+    <pre>ai-guard run</pre>
+    <p>Starts listening on <code class="inline">:8787</code> and prints the port, the providers it loaded, and a link to the dashboard. Leave it running, this is now the thing your app talks to instead of the provider directly.</p>
+
+    <h2 id="point-your-app">Point your app at it</h2>
+    <p>Same request shape you already send, different <code class="inline">base_url</code> and a virtual key instead of your real one:</p>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="ts">TypeScript</button>
+      </div>
+      <div class="panel" data-lang="curl">
+<pre>curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+      </div>
+      <div class="panel" data-lang="python">
+<pre>from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")
+client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "hello"}],
+)</pre>
+      </div>
+      <div class="panel" data-lang="ts">
+<pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:8787/v1",
+  apiKey: "sk-guard-...",
+});
+
+await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "hello" }],
+});</pre>
+      </div>
+    </div>
+    <p>Anthropic and Groq models route automatically from the <code class="inline">model</code> field, no other change needed. Your real provider key never leaves <code class="inline">config.yaml</code>.</p>
+
+    <h2 id="anthropic-sdk">Already using Anthropic's own SDK?</h2>
+    <p>
+      This is the part worth reading carefully if your app currently calls Claude with
+      <code class="inline">anthropic.Anthropic(...)</code> and <code class="inline">.messages.create(...)</code>.
+      AI Guard's client-facing endpoint is OpenAI-shaped, not Anthropic-shaped. There is no
+      <code class="inline">/v1/messages</code> route to point the native SDK's base URL at, and the
+      auth header is different (<code class="inline">Authorization: Bearer</code>, not
+      <code class="inline">x-api-key</code>). Pointing the Anthropic SDK straight at AI Guard will not work.
+    </p>
+    <p>The integration is a small, mechanical swap: use an OpenAI-compatible client, keep the same Claude model name.</p>
+    <p><strong>Before</strong> — direct to Anthropic:</p>
+    <pre>from anthropic import Anthropic
+
+client = Anthropic(api_key="sk-ant-...")
+resp = client.messages.create(
+    model="claude-5-sonnet",
+    max_tokens=1024,
+    system="You are a helpful assistant.",
+    messages=[{"role": "user", "content": "hello"}],
+)
+print(resp.content[0].text)</pre>
+    <p><strong>After</strong> — the OpenAI Python package, not Anthropic's, still returning a Claude answer:</p>
+    <pre>from openai import OpenAI  # yes, the OpenAI package — AI Guard speaks its request format
+
+client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")
+resp = client.chat.completions.create(
+    model="claude-5-sonnet",  # unchanged: still the same Claude model
+    max_tokens=1024,
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "hello"},
+    ],
+)
+print(resp.choices[0].message.content)</pre>
+    <p>The system prompt moves from a top-level field into a normal <code class="inline">role: "system"</code> message; AI Guard translates it back to Anthropic's shape on the way out. Tool calls and image content in messages are translated the same way, in both directions.</p>
+
+    <h2 id="streaming">Streaming</h2>
+    <p>Set <code class="inline">stream: true</code> like you would against the provider directly. Two things behave a little differently because of what streaming actually is:</p>
+    <ul>
+      <li><strong>Fallback still works, but only before anything reaches you.</strong> If the primary model's connection fails, the next model in <code class="inline">fallback:</code> is tried before a single byte is sent to your client. Once a stream has started, there's no handing it to a different provider mid-flight.</li>
+      <li><strong>A cache hit still returns a real stream.</strong> The full answer is already known, so it's sent as one content chunk instead of the original token-by-token timing, but the response is still valid SSE your client parses the same way.</li>
+    </ul>
+
+    <h2 id="budgets">Budgets and virtual keys</h2>
+    <p>
+      A budget only means something if it's tied to an identity the caller can't choose for
+      itself. That's why authentication isn't an <code class="inline">X-User-Id</code> header or a
+      <code class="inline">user</code> field you set on the request, either of which a bug (or a bored
+      intern) can just omit. It's the <code class="inline">Authorization: Bearer</code> key
+      <code class="inline">ai-guard init</code> generated for you, mapped server-side to a
+      <code class="inline">user_id</code> and a <code class="inline">daily_limit_usd</code> in
+      <code class="inline">config.yaml</code>.
+    </p>
+    <p>Go over budget and the request never reaches the provider:</p>
+    <pre>HTTP/1.1 429 Too Many Requests
+
+{"error":{"message":"daily budget of $5.00 exceeded or would be exceeded by this request (spent $4.87)","type":"budget_exceeded"}}</pre>
+    <p>See the <a href="./configuration.html">configuration reference</a> for adding more users, and the Redis backend if you're running more than one AI Guard instance.</p>
+
+    <h2 id="dashboard">The dashboard</h2>
+    <p>Open <code class="inline">http://localhost:8787/dashboard</code> while <code class="inline">ai-guard run</code> is up. It's served by the same binary, no separate setup: spend today, cache hit rate, spend by hour, spend by user, and the requests that cost the most, updating live. Pick a different time range or a single user from the controls at the top to narrow what you're looking at.</p>
+    <p>If you set up a login during <code class="inline">ai-guard init</code>, you'll see a login form first &mdash; that account is separate from the virtual API keys above, it's not something your app ever sends, just you in a browser. Forgot the password? Run this on the machine ai-guard is on, server doesn't need to be running:</p>
+    <pre>ai-guard reset-dashboard-password</pre>
+    <p>It also works if you skipped the login during <code class="inline">init</code> and want to add one now.</p>
+
+    <div class="page-nav">
+      <a href="../index.html"><span class="label">Previous</span>Home</a>
+      <a href="./configuration.html" class="next"><span class="label">Next</span>Configuration reference</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#install">Install</a>
+    <a href="#init">Set it up</a>
+    <a href="#run">Run it</a>
+    <a href="#point-your-app">Point your app at it</a>
+    <a href="#anthropic-sdk">Using Anthropic's SDK?</a>
+    <a href="#streaming">Streaming</a>
+    <a href="#budgets">Budgets and virtual keys</a>
+    <a href="#dashboard">The dashboard</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

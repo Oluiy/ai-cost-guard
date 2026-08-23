@@ -10,7 +10,7 @@ func RouteProvider(model string) string {
 	if idx := strings.Index(model, "/"); idx > 0 {
 		prefix := model[:idx]
 		switch prefix {
-		case "openai", "anthropic", "groq", "together":
+		case "openai", "anthropic", "gemini", "groq", "together":
 			return prefix
 		}
 		// e.g. "meta-llama/Llama-3-70b-chat-hf" -> together by default
@@ -23,6 +23,8 @@ func RouteProvider(model string) string {
 		return "openai"
 	case strings.HasPrefix(lower, "claude"):
 		return "anthropic"
+	case strings.HasPrefix(lower, "gemini"):
+		return "gemini"
 	case strings.HasPrefix(lower, "llama"), strings.HasPrefix(lower, "mixtral"), strings.HasPrefix(lower, "gemma"), strings.HasPrefix(lower, "deepseek"):
 		return "groq"
 	default:

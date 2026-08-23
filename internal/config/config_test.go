@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -122,6 +123,24 @@ func TestValidate_RedisBudgetBackendExplicitURLNotOverridden(t *testing.T) {
 	}
 }
 
+func TestValidate_RejectsDashboardUsersWithoutSessionSecret(t *testing.T) {
+	cfg := validConfig()
+	cfg.Dashboard.Users = []DashboardUser{{Username: "admin", PasswordHash: "$2a$10$..."}}
+	cfg.Dashboard.SessionSecret = ""
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for a dashboard login with no session_secret (would sign sessions with an empty HMAC key)")
+	}
+}
+
+func TestValidate_AllowsDashboardUsersWithSessionSecret(t *testing.T) {
+	cfg := validConfig()
+	cfg.Dashboard.Users = []DashboardUser{{Username: "admin", PasswordHash: "$2a$10$..."}}
+	cfg.Dashboard.SessionSecret = "some-generated-secret"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestWarnings_FlagsEmptyProviderAPIKey(t *testing.T) {
 	cfg := validConfig()
 	cfg.Providers["anthropic"] = Provider{APIKey: ""}
@@ -170,9 +189,70 @@ func TestWarnings_CleanConfigHasNoWarnings(t *testing.T) {
 	cfg := validConfig()
 	cfg.Users["user_123"] = Budget{DailyLimitUSD: 5}
 	cfg.Keys["sk-guard-abc123456789"] = "user_123"
+	cfg.Dashboard.Users = []DashboardUser{{Username: "admin", PasswordHash: "$2a$10$..."}}
 	if warnings := cfg.Warnings(); len(warnings) != 0 {
 		t.Fatalf("expected no warnings for a fully-specified config, got: %v", warnings)
 	}
+}
+
+func TestWarnings_FlagsEmptyDashboardUsers(t *testing.T) {
+	cfg := validConfig()
+	warnings := cfg.Warnings()
+	if !anyContains(warnings, "no dashboard users configured") {
+		t.Fatalf("expected a warning about the dashboard having no login, got: %v", warnings)
+	}
+}
+
+func TestWarnings_NoWarningWhenDashboardUserConfigured(t *testing.T) {
+	cfg := validConfig()
+	cfg.Dashboard.Users = []DashboardUser{{Username: "admin", PasswordHash: "$2a$10$..."}}
+	for _, w := range cfg.Warnings() {
+		if strings.Contains(w, "dashboard") {
+			t.Fatalf("did not expect a dashboard warning once a user is configured, got: %v", w)
+		}
+	}
+}
+
+func TestLoad_ExpandsBracedEnvVars(t *testing.T) {
+	t.Setenv("AI_GUARD_TEST_KEY", "sk-from-env")
+	path := writeTempConfig(t, "providers:\n  openai:\n    api_key: ${AI_GUARD_TEST_KEY}\n")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := cfg.Providers["openai"].APIKey; got != "sk-from-env" {
+		t.Fatalf("got api_key %q, want expanded env var value", got)
+	}
+}
+
+// A bcrypt hash (dashboard.users[].password_hash) is a bare string like
+// $2a$10$..., which happens to look like shell variable syntax. Load must
+// not mangle it: only the ${VAR} braced form is env-var expansion, bare
+// $VAR is passed through unchanged. This is a regression test for exactly
+// that bug — a real bcrypt hash silently corrupted on every config load,
+// locking every dashboard password reset out immediately.
+func TestLoad_DoesNotMangleBareDollarSignsLikeBcryptHashes(t *testing.T) {
+	const hash = "$2a$10$XxDD2tqME/V4A2/IoFKWNezWxOK8QuzEG5mf3y5.qoupJIA/vX2PG"
+	path := writeTempConfig(t, "providers:\n  openai:\n    api_key: sk-test\n"+
+		"dashboard:\n  session_secret: test-secret\n  users:\n    - username: admin\n      password_hash: \""+hash+"\"\n")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Dashboard.Users) != 1 || cfg.Dashboard.Users[0].PasswordHash != hash {
+		t.Fatalf("got password_hash %q, want unchanged %q", cfg.Dashboard.Users[0].PasswordHash, hash)
+	}
+}
+
+func writeTempConfig(t *testing.T, body string) string {
+	t.Helper()
+	path := t.TempDir() + "/config.yaml"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("writing temp config: %v", err)
+	}
+	return path
 }
 
 func TestMaskKey(t *testing.T) {

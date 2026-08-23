@@ -8,8 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pterm/pterm"
 
-	"github.com/aicostguard/ai-cost-guard/internal/cache"
-	"github.com/aicostguard/ai-cost-guard/internal/cost"
+	"github.com/Oluiy/ai-cost-guard/internal/cache"
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
 // Embeddings handles POST /v1/embeddings. It shares ChatCompletions'

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Configuration reference — AI Guard</title>
+<meta name="description" content="Every config.yaml field: providers, cache, budget, users, keys, fallback, dashboard login, and when to turn on the Redis backend." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./commands.html">CLI</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Guide</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./configuration.html" class="active">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>Configuration reference</h1>
+    <p class="dek"><code class="inline">ai-guard init</code> writes this file for you. This is what every field in it means, for when you want to change one by hand.</p>
+
+    <pre>port: 8787
+data_dir: .
+
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+
+cache:
+  enabled: true
+  backend: memory        # or "redis"
+  ttl_seconds: 300
+
+budget:
+  backend: local          # or "redis", for more than one instance
+
+users:
+  user_123:
+    daily_limit_usd: 5
+
+keys:
+  sk-guard-...: user_123  # what the caller sends, never your real provider key
+
+fallback:
+  - gpt-4o-mini
+
+dashboard:                     # written by `ai-guard init` / `reset-dashboard-password`
+  session_secret: ...
+  users:
+    - username: admin
+      password_hash: $2a$10$...</pre>
+
+    <h2 id="providers">Providers</h2>
+    <p>One entry per provider you're routing through AI Guard. <code class="inline">${ENV_VAR}</code> is expanded when the file loads, so a real key never has to sit in the file itself.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">providers.&lt;name&gt;.api_key</code></td><td>Required. Supports <code class="inline">${ENV_VAR}</code></td></tr>
+        <tr><td><code class="inline">providers.&lt;name&gt;.base_url</code></td><td>Optional override, for self-hosted or proxied endpoints</td></tr>
+      </tbody>
+    </table>
+    <p>Recognized names are <code class="inline">openai</code>, <code class="inline">anthropic</code>, <code class="inline">gemini</code>, <code class="inline">groq</code>, and <code class="inline">together</code>. Anything else is still accepted and treated as an OpenAI-compatible endpoint, useful for a self-hosted model server, but routing only auto-detects those four names from the model field.</p>
+
+    <h2 id="cache">Cache</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Default</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">cache.enabled</code></td><td><code class="inline">false</code></td><td></td></tr>
+        <tr><td><code class="inline">cache.ttl_seconds</code></td><td><code class="inline">300</code></td><td></td></tr>
+        <tr><td><code class="inline">cache.backend</code></td><td><code class="inline">memory</code></td><td><code class="inline">memory</code> or <code class="inline">redis</code></td></tr>
+        <tr><td><code class="inline">cache.redis_url</code></td><td>&mdash;</td><td>Required if backend is <code class="inline">redis</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="redis">Budget backend and Redis</h2>
+    <p>
+      <code class="inline">budget.backend: local</code> (the default) tracks spend in memory. It's
+      correct for exactly one running AI Guard instance. Run more than one behind a load
+      balancer without changing this, and each instance enforces its own copy of the budget,
+      so a user's real spend can land at roughly (instance count) &times; their limit.
+    </p>
+    <pre>budget:
+  backend: redis
+  redis_url: redis://localhost:6379/0   # omit to reuse cache.redis_url</pre>
+    <p>With this set, every instance reserves and settles spend against the same Redis key, atomically, so the budget holds regardless of which instance a request lands on. Get Redis running locally with <code class="inline">docker run -d -p 6379:6379 redis:7-alpine</code> or <code class="inline">brew install redis</code>.</p>
+    <div class="callout">
+      If AI Guard can't reach the Redis you've configured, it refuses to start rather than silently falling back to unprotected local tracking. A connection error at startup means Redis isn't reachable, not that anything is broken.
+    </div>
+
+    <h2 id="users">Users and keys</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">users.&lt;id&gt;.daily_limit_usd</code></td><td>Omit the user entirely for an unlimited budget</td></tr>
+        <tr><td><code class="inline">keys.&lt;token&gt;</code></td><td>Maps a virtual key to the <code class="inline">user_id</code> whose budget applies</td></tr>
+      </tbody>
+    </table>
+    <p>If <code class="inline">keys:</code> is empty, AI Guard runs in single-tenant mode: every request is unauthenticated and shares one <code class="inline">"default"</code> identity. Fine for a solo local setup, not once more than one caller can reach the port.</p>
+
+    <h2 id="fallback">Fallback</h2>
+    <p>A flat list of model names, tried in order if the primary model's request errors, rate-limits, or 5xxs. Each one is routed the same way the primary model was, so a fallback to <code class="inline">claude-3-haiku</code> after a <code class="inline">gpt-4o</code> failure hits your <code class="inline">anthropic</code> provider entry, if you've configured one.</p>
+
+    <h2 id="dashboard-auth">Dashboard login</h2>
+    <p>Separate from <code class="inline">keys:</code> above &mdash; this gates the human-facing <code class="inline">/dashboard</code> page, not API callers. Set by <code class="inline">ai-guard init</code> or <code class="inline">ai-guard reset-dashboard-password</code>, never by hand.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">dashboard.session_secret</code></td><td>Signs session cookies. Generated once; don't edit</td></tr>
+        <tr><td><code class="inline">dashboard.users[].username</code></td><td>Dashboard login username (one account, currently)</td></tr>
+        <tr><td><code class="inline">dashboard.users[].password_hash</code></td><td>bcrypt hash, not the password itself</td></tr>
+      </tbody>
+    </table>
+    <p>If <code class="inline">dashboard.users:</code> is empty, <code class="inline">/dashboard</code> has no login at all &mdash; anyone who can reach the port can see it. AI Guard warns about this at every startup.</p>
+
+    <div class="page-nav">
+      <a href="./getting-started.html"><span class="label">Previous</span>Getting started</a>
+      <a href="./commands.html" class="next"><span class="label">Next</span>CLI reference</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#providers">Providers</a>
+    <a href="#cache">Cache</a>
+    <a href="#redis">Budget backend and Redis</a>
+    <a href="#users">Users and keys</a>
+    <a href="#fallback">Fallback</a>
+    <a href="#dashboard-auth">Dashboard login</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

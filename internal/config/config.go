@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
 )
@@ -31,6 +32,10 @@ type Config struct {
 	Keys     map[string]string `yaml:"keys"`
 	Fallback []string          `yaml:"fallback"`
 	Default  RouteConfig       `yaml:"default"`
+	// Dashboard gates the human-facing /dashboard UI behind a login,
+	// entirely separate from Keys above (which authenticates API callers,
+	// not people looking at the spend dashboard in a browser).
+	Dashboard DashboardConfig `yaml:"dashboard"`
 }
 
 // Provider holds credentials/config for an upstream LLM provider.
@@ -64,7 +69,40 @@ type RouteConfig struct {
 	Model string `yaml:"model"`
 }
 
+// DashboardConfig protects the /dashboard UI with a login. Users is a
+// list, not a single username/password pair, so a later move to more
+// than one account (e.g. a read-only account for someone who should see
+// spend but not change anything) is additive — no config migration needed
+// when that gets built. `ai-guard init` only ever creates one entry today.
+type DashboardConfig struct {
+	// SessionSecret signs session cookies (see internal/auth). Generated
+	// once by `ai-guard init` and persisted here so sessions survive
+	// `ai-guard run` restarts instead of logging everyone out each time.
+	SessionSecret string          `yaml:"session_secret"`
+	Users         []DashboardUser `yaml:"users"`
+}
+
+// DashboardUser is one dashboard login. Password is never stored — only
+// its bcrypt hash (see internal/auth.HashPassword).
+type DashboardUser struct {
+	Username     string `yaml:"username"`
+	PasswordHash string `yaml:"password_hash"`
+}
+
 const DefaultPort = 8787
+
+var bracedEnvVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+// expandBracedEnvVars replaces ${VAR} with os.Getenv("VAR") (empty string
+// if unset). Unlike os.ExpandEnv, it leaves bare $VAR untouched, so values
+// that legitimately contain a literal '$' followed by non-identifier-safe
+// text (bcrypt hashes: $2a$10$...) pass through unchanged.
+func expandBracedEnvVars(s string) string {
+	return bracedEnvVarPattern.ReplaceAllStringFunc(s, func(m string) string {
+		name := bracedEnvVarPattern.FindStringSubmatch(m)[1]
+		return os.Getenv(name)
+	})
+}
 
 // Load reads and parses a YAML config file at path.
 func Load(path string) (*Config, error) {
@@ -74,8 +112,13 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Expand ${ENV_VAR} references (e.g. api_key: ${OPENAI_API_KEY}) so
-	// secrets don't need to live in the config file itself.
-	data = []byte(os.ExpandEnv(string(data)))
+	// secrets don't need to live in the config file itself. Deliberately
+	// only the braced form, via our own regexp, not os.ExpandEnv's bare
+	// $VAR too: bcrypt hashes (dashboard.users[].password_hash) are bare
+	// strings like $2a$10$..., which os.ExpandEnv would silently mangle
+	// by treating "2a", "10", etc. as (undefined, so empty) variable
+	// names, corrupting every stored password hash on load.
+	data = []byte(expandBracedEnvVars(string(data)))
 
 	cfg := &Config{
 		Port:    DefaultPort,
@@ -136,6 +179,18 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("budget.backend is \"redis\" but budget.redis_url is not set")
 		}
 	}
+
+	// A dashboard login with no session_secret would still "work" —
+	// sessions get signed with an empty HMAC key instead of failing to
+	// start — which is exactly the kind of silently-weak state that's
+	// worse than an error. `ai-guard init`/`reset-dashboard-password`
+	// always generate one together with the account, so this only fires
+	// if config.yaml was hand-edited to add a dashboard user directly.
+	if len(c.Dashboard.Users) > 0 && c.Dashboard.SessionSecret == "" {
+		return fmt.Errorf("dashboard.users is set but dashboard.session_secret is empty — " +
+			"run `ai-guard reset-dashboard-password` instead of hand-editing dashboard.users, " +
+			"it generates both together")
+	}
 	return nil
 }
 
@@ -165,6 +220,11 @@ func (c *Config) Warnings() []string {
 	if len(c.Keys) == 0 {
 		warnings = append(warnings, "no keys configured — running in single-tenant mode: "+
 			"every request is unauthenticated and shares one \"default\" budget")
+	}
+
+	if len(c.Dashboard.Users) == 0 {
+		warnings = append(warnings, "no dashboard users configured — the /dashboard UI has no login "+
+			"and is visible to anyone who can reach it; run `ai-guard reset-dashboard-password` to set one up")
 	}
 
 	return warnings

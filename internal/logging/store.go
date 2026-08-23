@@ -125,13 +125,19 @@ type Summary struct {
 	CacheHits    int64
 }
 
-// SummarySince returns per-user summaries for all activity since the given time.
-func (s *Store) SummarySince(ctx context.Context, since time.Time) ([]Summary, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT user_id, SUM(cost_usd), COUNT(*), SUM(cache_hit)
-		 FROM requests WHERE timestamp >= ? GROUP BY user_id ORDER BY SUM(cost_usd) DESC`,
-		toDBTime(since),
-	)
+// SummarySince returns per-user summaries for activity since the given
+// time. If userID is non-empty, results are scoped to that one user.
+func (s *Store) SummarySince(ctx context.Context, since time.Time, userID string) ([]Summary, error) {
+	query := `SELECT user_id, SUM(cost_usd), COUNT(*), SUM(cache_hit)
+		 FROM requests WHERE timestamp >= ?`
+	args := []any{toDBTime(since)}
+	if userID != "" {
+		query += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	query += ` GROUP BY user_id ORDER BY SUM(cost_usd) DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying summary: %w", err)
 	}
@@ -148,70 +154,127 @@ func (s *Store) SummarySince(ctx context.Context, since time.Time) ([]Summary, e
 	return out, rows.Err()
 }
 
-// HourBucket is total spend/requests for one hour.
+// DistinctUsers returns every user_id with at least one request since the
+// given time, alphabetically. Used to populate the dashboard's user
+// filter with a stable list, independent of whatever range/user filter
+// is currently applied to the rest of the snapshot.
+func (s *Store) DistinctUsers(ctx context.Context, since time.Time) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT user_id FROM requests WHERE timestamp >= ? ORDER BY user_id ASC`,
+		toDBTime(since),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying distinct users: %w", err)
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var u string
+		if err := rows.Scan(&u); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// HourBucket is total spend/requests for one time bucket (an hour or a
+// day, depending on the granularity TimeSeriesSince was called with).
 type HourBucket struct {
 	Hour     time.Time
 	CostUSD  float64
 	Requests int64
 }
 
-// TimeSeriesSince returns hourly spend buckets from since to now, including
-// empty hours (cost 0) so charts don't have gaps.
-func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time) ([]HourBucket, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT strftime('%Y-%m-%dT%H:00:00Z', timestamp) AS hour, SUM(cost_usd), COUNT(*)
-		 FROM requests WHERE timestamp >= ? GROUP BY hour ORDER BY hour ASC`,
-		toDBTime(since),
-	)
+// Granularity is how TimeSeriesSince buckets time. Hourly buckets over a
+// multi-day range would mean hundreds of bars in a chart meant to be
+// readable at a glance, so the dashboard switches to daily buckets once
+// the selected range is longer than a day.
+type Granularity string
+
+const (
+	GranularityHour Granularity = "hour"
+	GranularityDay  Granularity = "day"
+)
+
+// TimeSeriesSince returns spend buckets from since to now at the given
+// granularity, including empty buckets (cost 0) so charts don't have gaps.
+// If userID is non-empty, results are scoped to that one user.
+func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time, granularity Granularity, userID string) ([]HourBucket, error) {
+	format := "%Y-%m-%dT%H:00:00Z"
+	step := time.Hour
+	if granularity == GranularityDay {
+		format = "%Y-%m-%dT00:00:00Z"
+		step = 24 * time.Hour
+	}
+
+	query := `SELECT strftime('` + format + `', timestamp) AS bucket, SUM(cost_usd), COUNT(*)
+		 FROM requests WHERE timestamp >= ?`
+	args := []any{toDBTime(since)}
+	if userID != "" {
+		query += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	query += ` GROUP BY bucket ORDER BY bucket ASC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying time series: %w", err)
 	}
 	defer rows.Close()
 
-	byHour := make(map[string]HourBucket)
+	byBucket := make(map[string]HourBucket)
 	for rows.Next() {
-		var hourStr sql.NullString
+		var bucketStr sql.NullString
 		var cost float64
 		var requests int64
-		if err := rows.Scan(&hourStr, &cost, &requests); err != nil {
+		if err := rows.Scan(&bucketStr, &cost, &requests); err != nil {
 			return nil, err
 		}
-		if !hourStr.Valid {
+		if !bucketStr.Valid {
 			continue
 		}
-		t, err := time.Parse(time.RFC3339, hourStr.String)
+		t, err := time.Parse(time.RFC3339, bucketStr.String)
 		if err != nil {
 			continue
 		}
-		byHour[hourStr.String] = HourBucket{Hour: t, CostUSD: cost, Requests: requests}
+		byBucket[bucketStr.String] = HourBucket{Hour: t, CostUSD: cost, Requests: requests}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Fill in empty hours so the chart has a continuous axis.
-	start := since.UTC().Truncate(time.Hour)
-	end := time.Now().UTC().Truncate(time.Hour)
+	// Fill in empty buckets so the chart has a continuous axis.
+	start := since.UTC().Truncate(step)
+	end := time.Now().UTC().Truncate(step)
 	var out []HourBucket
-	for h := start; !h.After(end); h = h.Add(time.Hour) {
-		key := h.Format(time.RFC3339)
-		if b, ok := byHour[key]; ok {
+	for t := start; !t.After(end); t = t.Add(step) {
+		key := t.Format(time.RFC3339)
+		if b, ok := byBucket[key]; ok {
 			out = append(out, b)
 		} else {
-			out = append(out, HourBucket{Hour: h})
+			out = append(out, HourBucket{Hour: t})
 		}
 	}
 	return out, nil
 }
 
-// TopExpensive returns the most expensive recent requests.
-func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int) ([]Record, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, timestamp, user_id, model, prompt_tokens, completion_tokens,
+// TopExpensive returns the most expensive recent requests. If userID is
+// non-empty, results are scoped to that one user.
+func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, userID string) ([]Record, error) {
+	query := `SELECT id, timestamp, user_id, model, prompt_tokens, completion_tokens,
 			cost_usd, latency_ms, cache_hit, finish_reason, status_code
-		 FROM requests WHERE timestamp >= ? ORDER BY cost_usd DESC LIMIT ?`,
-		toDBTime(since), limit,
-	)
+		 FROM requests WHERE timestamp >= ?`
+	args := []any{toDBTime(since)}
+	if userID != "" {
+		query += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	query += ` ORDER BY cost_usd DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying top expensive: %w", err)
 	}
@@ -233,6 +296,141 @@ func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int) ([
 		r.CacheHit = cacheHit != 0
 		r.FinishReason = finishReason.String
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// requestFilterWhere builds the WHERE clause + args shared by ListRequests
+// and PeriodSummary, so the two can't silently drift apart on what a given
+// filter combination actually means. until is optional (zero value = no
+// upper bound, i.e. through now) — ListRequests's other callers (the live
+// dashboard) never set it; the report/export feature does, for an
+// explicit closed date range.
+func requestFilterWhere(since, until time.Time, userID, model, status string) (string, []any) {
+	where := ` WHERE timestamp >= ?`
+	args := []any{toDBTime(since)}
+	if !until.IsZero() {
+		where += ` AND timestamp <= ?`
+		args = append(args, toDBTime(until))
+	}
+	if userID != "" {
+		where += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	if model != "" {
+		where += ` AND model = ?`
+		args = append(args, model)
+	}
+	switch status {
+	case "success":
+		where += ` AND status_code < 400`
+	case "error":
+		where += ` AND status_code >= 400`
+	}
+	return where, args
+}
+
+// ListRequests returns a page of individual request records, along with
+// the total count matching the same filters (for a "showing X of Y"
+// caption). Unlike TopExpensive — sorted by cost, capped at a small fixed
+// N for "worst offenders today" — this is the full, paginated request
+// log. userID/model filters are optional (empty = no filter). status is
+// one of "" (no filter), "success" (status_code < 400), or "error"
+// (status_code >= 400); any other value is treated as "". until is
+// optional (zero value = no upper bound). sortBy is "time" (newest first,
+// the default for any unrecognized value) or "cost" (most expensive
+// first, ties broken by newest first).
+func (s *Store) ListRequests(ctx context.Context, since, until time.Time, userID, model, status, sortBy string, limit, offset int) ([]Record, int64, error) {
+	where, args := requestFilterWhere(since, until, userID, model, status)
+
+	var total int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM requests`+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting requests: %w", err)
+	}
+
+	orderBy := ` ORDER BY timestamp DESC`
+	if sortBy == "cost" {
+		orderBy = ` ORDER BY cost_usd DESC, timestamp DESC`
+	}
+
+	query := `SELECT id, timestamp, user_id, model, prompt_tokens, completion_tokens,
+			cost_usd, latency_ms, cache_hit, finish_reason, status_code
+		 FROM requests` + where + orderBy + ` LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("querying requests: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Record
+	for rows.Next() {
+		var r Record
+		var cacheHit int
+		var finishReason sql.NullString
+		var timestampStr string
+		if err := rows.Scan(&r.ID, &timestampStr, &r.UserID, &r.Model, &r.PromptTokens,
+			&r.CompletionTokens, &r.CostUSD, &r.LatencyMS, &cacheHit, &finishReason, &r.StatusCode); err != nil {
+			return nil, 0, err
+		}
+		if t, err := fromDBTime(timestampStr); err == nil {
+			r.Timestamp = t
+		}
+		r.CacheHit = cacheHit != 0
+		r.FinishReason = finishReason.String
+		out = append(out, r)
+	}
+	return out, total, rows.Err()
+}
+
+// PeriodSummary is the aggregate spend/usage total for one arbitrary
+// date range + filter set — used by the report/export feature, where the
+// caller wants a single total for a custom period ("Aug 1–15, model X"),
+// not a per-user breakdown like SummarySince returns.
+type PeriodSummary struct {
+	TotalCostUSD float64
+	Requests     int64
+	CacheHits    int64
+}
+
+// PeriodSummary computes totals for [since, until] (until optional, zero
+// value = through now), scoped by the same userID/model/status filters
+// ListRequests uses.
+func (s *Store) PeriodSummary(ctx context.Context, since, until time.Time, userID, model, status string) (PeriodSummary, error) {
+	where, args := requestFilterWhere(since, until, userID, model, status)
+
+	var out PeriodSummary
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(cost_usd), 0), COUNT(*), COALESCE(SUM(cache_hit), 0) FROM requests`+where,
+		args...,
+	).Scan(&out.TotalCostUSD, &out.Requests, &out.CacheHits)
+	if err != nil {
+		return PeriodSummary{}, fmt.Errorf("querying period summary: %w", err)
+	}
+	return out, nil
+}
+
+// DistinctModels returns every model with at least one request since the
+// given time, alphabetically. Mirrors DistinctUsers — populates the
+// requests page's model filter.
+func (s *Store) DistinctModels(ctx context.Context, since time.Time) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT model FROM requests WHERE timestamp >= ? ORDER BY model ASC`,
+		toDBTime(since),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying distinct models: %w", err)
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var m string
+		if err := rows.Scan(&m); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
 	}
 	return out, rows.Err()
 }

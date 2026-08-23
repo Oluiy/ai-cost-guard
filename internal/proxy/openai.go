@@ -6,12 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/aicostguard/ai-cost-guard/internal/cost"
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
 // OpenAICompatProvider talks to any provider that implements the OpenAI
@@ -66,7 +65,7 @@ func (p *OpenAICompatProvider) Embeddings(ctx context.Context, model string, raw
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readUpstreamBody(resp.Body)
 	if err != nil {
 		return nil, Usage{}, resp.StatusCode, err
 	}
@@ -102,7 +101,7 @@ func (p *OpenAICompatProvider) ChatCompletion(ctx context.Context, model string,
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readUpstreamBody(resp.Body)
 	if err != nil {
 		return nil, Usage{}, "", resp.StatusCode, err
 	}
@@ -224,7 +223,7 @@ func (p *OpenAICompatProvider) OpenStream(ctx context.Context, model string, raw
 	}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
-		errBody, _ := io.ReadAll(resp.Body)
+		errBody, _ := readUpstreamBody(resp.Body)
 		return nil, resp.StatusCode, fmt.Errorf("upstream returned status %d: %s", resp.StatusCode, errBody)
 	}
 	return &openAIStreamSession{resp: resp, requestBody: body}, resp.StatusCode, nil

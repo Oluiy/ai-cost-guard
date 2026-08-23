@@ -4,5 +4,7 @@
 *.db-journal
 config.yaml
 .env
+.DS_Store
+nk_test/
 dashboard-ui/node_modules/
 dashboard-ui/dist/

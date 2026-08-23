@@ -8,38 +8,22 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/aicostguard/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
+
 
 // RedisEnforcer enforces per-user daily budgets using Redis as a shared,
 // atomic ledger, so budget enforcement is correct across multiple ai-guard
-// instances behind a load balancer — not just within one process, unlike
-// MemoryEnforcer.
-//
-// MemoryEnforcer has two separate sources of truth per user: "already
-// spent" (a SQLite query) and "currently reserved" (an in-process map).
-// That works because both live in the same process. Across processes it
-// doesn't: instance A's in-flight reservation is invisible to instance B,
-// and each instance has its own SQLite file, so "already spent" doesn't
-// even agree between them either.
-//
-// RedisEnforcer collapses both into a single atomically-updated running
-// total per user per day, stored as one Redis key. Reserve adds the
-// request's worst-case estimate to that key immediately — atomically, via
-// a Lua script, so the read-check-increment can't race across instances
-// the way it would with separate GET then INCR calls. Release then
-// adjusts the same key down to the request's real cost once it's known.
-// The Redis key is the sole source of truth for "how much of today's
-// budget is committed" — there's no separate persisted-spend query to
-// fall out of sync with it.
+// instances behind a load balancer — not just within one process, unlike MemoryEnforcer.
+// RedisEnforcer is the Redis-backed implementation of the Enforcer interface,
+// providing a distributed, atomic budget enforcement solution.
 type RedisEnforcer struct {
 	client *redis.Client
 	users  map[string]config.Budget
 	prefix string
 }
 
-// NewRedisEnforcer connects to a Redis instance at the given URL
-// (e.g. "redis://localhost:6379/0") and returns an Enforcer backed by it.
+// NewRedisEnforcer connects to a Redis instance at the given URL, and returns an Enforcer backed by it.
 func NewRedisEnforcer(url string, users map[string]config.Budget) (*RedisEnforcer, error) {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
@@ -52,17 +36,10 @@ func NewRedisEnforcer(url string, users map[string]config.Budget) (*RedisEnforce
 	return &RedisEnforcer{client: client, users: users, prefix: "aiguard:budget:"}, nil
 }
 
-// budgetKeyTTL bounds how long a day's budget key lives: a full UTC day
-// plus slack, so a finished day's key expires on its own instead of
-// accumulating forever, without needing a cleanup job.
+// budgetKeyTTL bounds how long a day's budget key lives: a full UTC day + slack (24 + 2am slack)
 const budgetKeyTTL = 26 * time.Hour
 
-// reserveScript atomically checks whether current+estimate would exceed
-// limit, and if not, commits the reservation — all inside Redis, so two
-// instances calling this concurrently for the same user can't both read
-// "room available" before either commits (the classic race MemoryEnforcer
-// closes with an in-process mutex; here Redis's single-threaded script
-// execution is the mutex, shared across every instance).
+// validation check, to prevent deadlocks(mutex lock), and commit the reservation if it passes, redis reserveScript
 var reserveScript = redis.NewScript(`
 local current = tonumber(redis.call('GET', KEYS[1]) or '0')
 local estimate = tonumber(ARGV[1])
@@ -90,11 +67,7 @@ func (e *RedisEnforcer) key(userID string) string {
 	return e.prefix + userID + ":" + time.Now().UTC().Format("2006-01-02")
 }
 
-// reconcileTimeout bounds the best-effort Release call. It deliberately
-// doesn't reuse the request's context: by the time Release runs, the
-// response has already been sent, so the request context may already be
-// cancelled/torn down even though the reconciliation itself is still
-// legitimate work worth attempting on its own, short budget.
+// reconcileTimeout bounds the best-effort Release call.
 const reconcileTimeout = 5 * time.Second
 
 func (e *RedisEnforcer) Reserve(ctx context.Context, userID string, estimatedCost float64) (Result, Release, error) {
@@ -144,12 +117,8 @@ func (e *RedisEnforcer) Reserve(ctx context.Context, userID string, estimatedCos
 		}
 		rctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 		defer cancel()
-		// Best-effort: if this fails, the reservation's estimate (an
-		// upper bound by construction) stays committed instead of being
-		// trued up to the lower real cost. That leaves the budget
-		// slightly more conservative than exact, which is the safe
-		// direction to fail in — not worth erroring the request that
-		// already got its response over.
+		// Best-effort: if this fails, Reservation still succeeds, so we don't error the request.
+		// We don't return the error, because we already have the reservation result to return to the caller.
 		_ = reconcileScript.Run(rctx, e.client, []string{key}, delta).Err()
 	}
 

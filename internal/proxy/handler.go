@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"strings"
 	"time"
@@ -12,11 +13,11 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/valyala/fasthttp"
 
-	"github.com/aicostguard/ai-cost-guard/internal/budget"
-	"github.com/aicostguard/ai-cost-guard/internal/cache"
-	"github.com/aicostguard/ai-cost-guard/internal/config"
-	"github.com/aicostguard/ai-cost-guard/internal/cost"
-	"github.com/aicostguard/ai-cost-guard/internal/logging"
+	"github.com/Oluiy/ai-cost-guard/internal/budget"
+	"github.com/Oluiy/ai-cost-guard/internal/cache"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
+	"github.com/Oluiy/ai-cost-guard/internal/logging"
 )
 
 // backgroundOpTimeout bounds work that outlives the triggering request in
@@ -48,6 +49,11 @@ func New(cfg *config.Config, c cache.Cache, enforcer budget.Enforcer, store *log
 				baseURL = "https://api.anthropic.com/v1"
 			}
 			providers[name] = NewAnthropicProvider(baseURL, p.APIKey)
+		case "gemini":
+			if baseURL == "" {
+				baseURL = "https://generativelanguage.googleapis.com/v1beta"
+			}
+			providers[name] = NewGeminiProvider(baseURL, p.APIKey)
 		case "groq":
 			if baseURL == "" {
 				baseURL = "https://api.groq.com/openai/v1"
@@ -87,8 +93,18 @@ func (h *Handler) authenticate(c *fiber.Ctx) (userID string, ok bool) {
 	if !hasBearer || token == "" {
 		return "", false
 	}
-	userID, found := h.Cfg.Keys[token]
-	return userID, found
+	// Constant-time, and deliberately checks every configured key rather
+	// than returning on the first match: standard practice for comparing
+	// a caller-supplied secret against a set of valid ones, so the
+	// comparison itself can't become a side channel regardless of how
+	// many keys are configured or where a near-match sits in the map.
+	tokenBytes := []byte(token)
+	for key, uid := range h.Cfg.Keys {
+		if len(key) == len(token) && subtle.ConstantTimeCompare([]byte(key), tokenBytes) == 1 {
+			userID, ok = uid, true
+		}
+	}
+	return userID, ok
 }
 
 // ChatCompletions handles POST /v1/chat/completions.

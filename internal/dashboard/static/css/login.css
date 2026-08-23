@@ -1,0 +1,140 @@
+/* AI Guard dashboard login. Loaded alongside dashboard.css, which supplies
+   the design tokens (--page, --surface-1, --series-1, etc.) and the base
+   html/body/#theme-toggle rules — this file only adds what the login
+   screen needs on top of those. */
+
+/* Same grid-line texture as the marketing site (docs/assets/css/style.css)
+   — the two are separately deployed static trees with no shared build
+   step, so this is duplicated rather than imported, but it keeps a mostly
+   empty full-viewport login screen from reading as broken/unstyled
+   instead of deliberately spacious. */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.3;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 40%, transparent 90%);
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-wrap {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+}
+
+.login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.login-header .brand {
+  min-width: 0;
+}
+
+.login-header .mark svg {
+  width: 26px;
+  height: 26px;
+}
+
+.login-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.login-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 36px;
+  box-shadow: var(--shadow);
+}
+
+.login-field {
+  margin-bottom: 20px;
+}
+
+.login-field label {
+  display: block;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.login-field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 13px 14px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: var(--series-1);
+  box-shadow: 0 0 0 3px var(--series-1-wash);
+}
+
+.login-submit {
+  width: 100%;
+  border: none;
+  background: var(--series-1);
+  color: #fff;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: opacity 0.15s ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.login-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-error {
+  color: var(--status-critical);
+  background: var(--status-critical-wash);
+  border-radius: 8px;
+  font-size: 13.5px;
+  padding: 10px 12px;
+  margin: 0 0 20px;
+  display: none;
+}
+
+.login-error.visible {
+  display: block;
+}
+
+.login-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 24px;
+  text-align: center;
+  line-height: 1.5;
+}

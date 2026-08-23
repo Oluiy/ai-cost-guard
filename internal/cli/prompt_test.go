@@ -83,3 +83,21 @@ func TestParseNonNegativeUSD_RejectsNegative(t *testing.T) {
 		t.Error("expected error for negative budget (would also silently mean 'unlimited' downstream)")
 	}
 }
+
+func TestValidateNewPassword_Valid(t *testing.T) {
+	if err := validateNewPassword("correct-horse-battery", "correct-horse-battery"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateNewPassword_RejectsTooShort(t *testing.T) {
+	if err := validateNewPassword("short", "short"); err == nil {
+		t.Fatal("expected error for a password under the minimum length")
+	}
+}
+
+func TestValidateNewPassword_RejectsMismatch(t *testing.T) {
+	if err := validateNewPassword("correct-horse-battery", "different-password"); err == nil {
+		t.Fatal("expected error when the confirmation doesn't match")
+	}
+}

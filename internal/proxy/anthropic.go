@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -318,7 +317,7 @@ func (p *AnthropicProvider) ChatCompletion(ctx context.Context, model string, ra
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readUpstreamBody(resp.Body)
 	if err != nil {
 		return nil, Usage{}, "", resp.StatusCode, err
 	}
@@ -475,7 +474,7 @@ func (p *AnthropicProvider) OpenStream(ctx context.Context, model string, rawBod
 	}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
-		errBody, _ := io.ReadAll(resp.Body)
+		errBody, _ := readUpstreamBody(resp.Body)
 		return nil, resp.StatusCode, fmt.Errorf("upstream returned status %d: %s", resp.StatusCode, errBody)
 	}
 	return &anthropicStreamSession{resp: resp, model: model}, resp.StatusCode, nil

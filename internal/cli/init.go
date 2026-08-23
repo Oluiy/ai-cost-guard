@@ -9,12 +9,12 @@ import (
 
 	"github.com/pterm/pterm"
 
-	"github.com/aicostguard/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/auth"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
-// generateKey returns a random gateway-issued virtual API key. Callers
-// authenticate to ai-guard with this instead of a real provider key, which
-// keeps provider credentials out of client code entirely.
+// generateKey returns a random gateway-issued virtual API key, 
+// that combines the apikey and ai-cost-guard capabilities.
 func generateKey() (string, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -26,6 +26,7 @@ func generateKey() (string, error) {
 var providerDefaults = map[string]string{
 	"openai":    "https://api.openai.com/v1",
 	"anthropic": "https://api.anthropic.com/v1",
+	"gemini":    "https://generativelanguage.googleapis.com/v1beta",
 	"groq":      "https://api.groq.com/openai/v1",
 	"together":  "https://api.together.xyz/v1",
 }
@@ -40,7 +41,7 @@ func RunInit(configPath string) error {
 		overwrite, err := pterm.DefaultInteractiveConfirm.
 			WithDefaultValue(false).
 			Show(fmt.Sprintf("%s already exists and will be overwritten, including any virtual API keys "+
-				"in it — those aren't stored anywhere else, so copy them out first if you still need them. Continue?", configPath))
+				"in it, note that those aren't stored anywhere else, so copy them out first if you still need them. Continue?", configPath))
 		if err != nil {
 			return err
 		}
@@ -51,12 +52,14 @@ func RunInit(configPath string) error {
 	}
 
 	selected, err := pterm.DefaultInteractiveMultiselect.
-		WithOptions([]string{"openai", "anthropic", "groq", "together"}).
+		WithOptions([]string{"openai", "anthropic", "gemini", "groq", "together"}).
 		WithDefaultText("Which providers do you want to route through ai-guard?").
 		Show()
+	
 	if err != nil {
 		return err
 	}
+	
 	if len(selected) == 0 {
 		return fmt.Errorf("select at least one provider")
 	}
@@ -182,6 +185,12 @@ func RunInit(configPath string) error {
 			"(e.g. try gpt-4o-mini or claude-3-haiku if your primary model fails or rate-limits).")
 	}
 
+	pterm.Println()
+	dashboardConfigured, err := setUpDashboardLogin(cfg)
+	if err != nil {
+		return err
+	}
+
 	if err := config.Save(configPath, cfg); err != nil {
 		return err
 	}
@@ -208,6 +217,60 @@ func RunInit(configPath string) error {
 		nextSteps += "\n\nAuthenticate with the issued key instead of your real provider key:\n" +
 			fmt.Sprintf("  Authorization: Bearer %s", issued[0].key)
 	}
+	if dashboardConfigured {
+		nextSteps += fmt.Sprintf("\n\nDashboard: http://localhost:%d/dashboard (log in with the account you just created)", cfg.Port)
+	}
 	pterm.DefaultBox.WithTitle("Next steps").Println(nextSteps)
 	return nil
+}
+
+// setUpDashboardLogin optionally creates the one dashboard admin account,
+// mirroring how Uptime Kuma/Grafana/Coolify all gate their dashboards:
+// without it, /dashboard has no login and is visible to anyone who can
+// reach the port (config.Warnings surfaces that loudly at every `ai-guard
+// run` if skipped). It's a confirm, not forced, consistent with everything
+// else in this wizard — cache, Redis, and budgeted users are all optional
+// too. Returns whether an account was actually created.
+func setUpDashboardLogin(cfg *config.Config) (bool, error) {
+	pterm.Info.Println("Last step: protect the dashboard with a login, so spend and usage data " +
+		"isn't visible to anyone who can reach the port — the same thing tools like Grafana and Coolify do.")
+
+	setUp, err := pterm.DefaultInteractiveConfirm.
+		WithDefaultValue(true).
+		Show("Set up a dashboard login?")
+	if err != nil {
+		return false, err
+	}
+	if !setUp {
+		pterm.Warning.Println("Skipped — the dashboard will be reachable by anyone with no login. " +
+			"Run `ai-guard reset-dashboard-password` any time to add one.")
+		return false, nil
+	}
+
+	username, err := pterm.DefaultInteractiveTextInput.
+		WithDefaultValue("admin").
+		Show("Dashboard username")
+	if err != nil {
+		return false, err
+	}
+
+	password, err := promptNewPassword(fmt.Sprintf("Password for %q", username))
+	if err != nil {
+		return false, err
+	}
+
+	passwordHash, err := auth.HashPassword(password)
+	if err != nil {
+		return false, err
+	}
+	sessionSecret, err := auth.GenerateSecret()
+	if err != nil {
+		return false, err
+	}
+
+	cfg.Dashboard = config.DashboardConfig{
+		SessionSecret: sessionSecret,
+		Users:         []config.DashboardUser{{Username: username, PasswordHash: passwordHash}},
+	}
+	return true, nil
 }

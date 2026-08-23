@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Guard — stop the bill before the loop does</title>
+<meta name="description" content="AI Guard is a self-hosted proxy that caps LLM spend before a request goes out, not after the invoice arrives. Drop it in front of OpenAI, Anthropic, Gemini, Groq, or Together with one baseURL change." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="./assets/css/style.css" />
+</head>
+<body data-site-root="./">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="./index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="./index.html">Home</a>
+    <a href="./guide/getting-started.html">Guide</a>
+    <!--<a href="./guide/providers.html">Providers</a>-->
+    <a href="./guide/configuration.html">Configuration</a>
+    <a href="./guide/commands.html">CLI</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./guide/getting-started.html">Get started</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <svg class="hero-illustration" viewBox="0 0 1200 420" fill="none" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="2">
+        <rect x="80" y="150" width="190" height="92" rx="14"/>
+        <path d="M108 242 L90 270 L140 242"/>
+      </g>
+      <g fill="currentColor">
+        <circle cx="140" cy="196" r="4"/>
+        <circle cx="165" cy="196" r="4"/>
+        <circle cx="190" cy="196" r="4"/>
+      </g>
+      <path d="M290 196H410" stroke="currentColor" stroke-width="2" stroke-dasharray="2 10" stroke-linecap="round"/>
+      <path d="M490 92 578 124V206C578 262 540 296 490 312 440 296 402 262 402 206V124Z" stroke="currentColor" stroke-width="2"/>
+      <g fill="currentColor">
+        <rect x="465" y="172" width="16" height="58" rx="8"/>
+        <rect x="499" y="172" width="16" height="58" rx="8"/>
+      </g>
+      <path d="M600 202C700 240 800 240 880 202" stroke="currentColor" stroke-width="2" stroke-dasharray="2 12" stroke-linecap="round"/>
+      <path d="M862 190l22 14-9 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <g stroke="currentColor" stroke-width="2">
+        <ellipse cx="1010" cy="150" rx="90" ry="30"/>
+        <path d="M920 150v55c0 16.6 40.3 30 90 30s90-13.4 90-30v-55"/>
+        <path d="M920 205v55c0 16.6 40.3 30 90 30s90-13.4 90-30v-55"/>
+      </g>
+      <circle cx="1092" cy="298" r="28" stroke="currentColor" stroke-width="2"/>
+      <path d="M1080 298l9 9 18-20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M555 258C610 302 645 322 682 334" stroke="currentColor" stroke-width="2" stroke-dasharray="2 10" stroke-linecap="round"/>
+      <circle cx="718" cy="346" r="19" stroke="currentColor" stroke-width="2"/>
+      <path d="M706 334l24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+
+    <span class="eyebrow"><span class="dot"></span> Open source &middot; self-hosted &middot; Apache 2.0 licensed</span>
+    <h1>Cap the bill <span class="accent">before the request goes out.</span></h1>
+    <p class="lead">
+      A stuck retry loop turned an unbounded <code class="inline">max_tokens</code> into an $8,000
+      bill in 11 days, and nobody noticed until the invoice did. AI Guard sits in front of
+      OpenAI, Anthropic, Gemini, Groq, or Together and blocks a request before it's sent if it
+      would blow a budget, not after you've already paid for it.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="./guide/getting-started.html">Get started &rarr;</a>
+      <a class="btn btn-ghost" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source</a>
+    </div>
+
+    <div class="terminal-window">
+      <div class="bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="title">~/orders-api</span>
+      </div>
+      <pre><span class="cmd muted">curl localhost:8787/v1/chat/completions -d '{"model":"claude-5-sonnet", "max_tokens":50000, ...}'</span>
+<span class="fail">429</span> <span class="muted">{"error":{"message":"daily budget of $5.00 exceeded or would be exceeded by this request","type":"budget_exceeded"}}</span>
+
+<span class="muted">→ nothing was sent upstream. nothing was spent.</span></pre>
+    </div>
+  </section>
+
+  <section class="engine-strip">
+    <span class="engine-strip-label">One proxy in front of the providers you already use</span>
+    <div class="engine-strip-row">
+      <span class="engine-badge" style="--eng: #10a37f;"><span class="glyph"><svg viewBox="0 0 24 24" fill="#10a37f"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg></span>OpenAI</span>
+      <span class="engine-badge" style="--eng: #d97757;"><span class="glyph"><svg viewBox="0 0 24 24" fill="#d97757"><path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/></svg></span>Anthropic</span>
+      <span class="engine-badge" style="--eng: #f55036;"><span class="glyph"><svg viewBox="0 0 24 24" fill="#f55036"><path d="M12.036 2c-3.853-.035-7 3-7.036 6.781-.035 3.782 3.055 6.872 6.908 6.907h2.42v-2.566h-2.292c-2.407.028-4.38-1.866-4.408-4.23-.029-2.362 1.901-4.298 4.308-4.326h.1c2.407 0 4.358 1.915 4.365 4.278v6.305c0 2.342-1.944 4.25-4.323 4.279a4.375 4.375 0 01-3.033-1.252l-1.851 1.818A7 7 0 0012.029 22h.092c3.803-.056 6.858-3.083 6.879-6.816v-6.5C18.907 4.963 15.817 2 12.036 2z"/></svg></span>Groq</span>
+      <span class="engine-badge" style="--eng: #0f6fff;"><span class="glyph"><svg viewBox="0 0 24 24" fill="#0f6fff"><path d="M23.197 4.503A6 6 0 0015 2.307a5.973 5.973 0 00-2.995 4.933l5.996.008v.515h-5.996c.039.937.298 1.87.8 2.74a6 6 0 1010.39-6z"/><path d="M.805 4.5A6 6 0 003 12.697a5.972 5.972 0 005.77.127L5.779 7.627l.446-.257 2.997 5.192A6 6 0 10.804 4.5z"/><path d="M12 23.894a6 6 0 005.999-6c0-2.13-1.1-3.996-2.775-5.06l-3.005 5.189-.444-.258 2.997-5.192A6 6 0 1012 23.894z"/></svg></span>Together AI</span>
+      <span class="engine-badge" style="--eng: #4c8bf5;"><span class="glyph"><svg viewBox="0 0 24 24" fill="#4c8bf5"><path d="M12 0c0 6.627-5.373 12-12 12 6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg></span>Gemini</span>
+    </div>
+  </section>
+
+  <section class="section tight" id="dashboard-preview">
+    <div class="section-head">
+      <h2>See it before you run it</h2>
+      <p>The live dashboard: spend, cache hit rate, request history, and custom reports, updating in real time.</p>
+    </div>
+    <div class="carousel" id="dashboard-carousel" tabindex="0">
+      <div class="carousel-viewport">
+        <div class="carousel-track" id="carousel-track">
+          <figure class="carousel-slide">
+            <img src="./assets/img/01-overview-dark.png" alt="AI Guard cost dashboard overview in dark theme: spend, requests, cache hit rate, and active users at a glance" loading="lazy" />
+            <figcaption>Spend, cache hit rate, and active users at a glance, updating live.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/04-overview-light.png" alt="AI Guard cost dashboard in light theme, showing spend trending by day" loading="lazy" />
+            <figcaption>Same dashboard, light theme. Spend trending by day, not just today.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/02-requests-dark.png" alt="AI Guard full request log with filters for time range, status, model, and user" loading="lazy" />
+            <figcaption>Every request, filterable by time range, status, model, and user.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/03-requests-dark-30d.png" alt="AI Guard request log over a 30-day range, showing full dates instead of just times" loading="lazy" />
+            <figcaption>Multi-day ranges show the actual date, not just the time.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/05-requests-light-status.png" alt="AI Guard request log with color-coded status and cache hit badges" loading="lazy" />
+            <figcaption>Errors and cache hits are color-coded, so problems jump out.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/06-requests-light-filtered.png" alt="AI Guard request log filtered by success status and a specific user" loading="lazy" />
+            <figcaption>Stack filters together: status, model, and user, all at once.</figcaption>
+          </figure>
+          <figure class="carousel-slide">
+            <img src="./assets/img/07-custom-report.png" alt="AI Guard custom report for a chosen date range, showing totals and a CSV export option" loading="lazy" />
+            <figcaption>Pick any date range, see the total, export it as CSV.</figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="carousel-controls">
+        <button type="button" class="carousel-btn" id="carousel-prev" aria-label="Previous screenshot">&larr;</button>
+        <div class="carousel-dots" id="carousel-dots"></div>
+        <button type="button" class="carousel-btn" id="carousel-next" aria-label="Next screenshot">&rarr;</button>
+      </div>
+    </div>
+
+    <div class="lightbox" id="carousel-lightbox" hidden>
+      <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+      <img src="" alt="" id="lightbox-img" />
+    </div>
+  </section>
+
+  <section class="section tight" id="why">
+    <div class="section-head">
+      <h2>Why this exists</h2>
+      <p>
+        A caching bug in a retry loop kept re-sending the same oversized prompt with
+        <code class="inline">max_tokens</code> set high enough to matter. Nothing crashed, so nothing
+        paged anyone. Eleven days later, the bill was $8,000 higher than usual. The API key
+        worked exactly as designed. Nobody had put anything between the code and the invoice
+        that could say no.
+      </p>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3.6v5.4c0 5-3.4 8.9-8 10-4.6-1.1-8-5-8-10V6.6L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8v5M12 16.2v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Blocks before it spends</h3>
+        <p>Every request's worst case is estimated and reserved against your budget before it leaves the building. A burst of concurrent requests can't slip through a check that only looked at spend already settled.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 12v6c0 1.1 3.6 2 8 2s8-.9 8-2v-6" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <h3>Caches the repeat prompts</h3>
+        <p>Identical requests inside the TTL are served for $0, whether or not the client asked to stream. A repeated question never reaches the provider twice.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.5 6 .6-4.5 4 1.3 5.9L12 15l-5.2 3 1.3-5.9-4.5-4 6-.6L12 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>
+        <h3>Falls back, doesn't fall over</h3>
+        <p>If a provider errors or rate-limits, the next model in your fallback list is tried before anything reaches the client, streaming included. One outage doesn't take your app down with it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 4v16" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <h3>A budget per key, not per vibe</h3>
+        <p>Callers authenticate with a gateway-issued key, not a header they can just leave off. A budget tied to something the caller doesn't control can't be evaded by accident.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6.5c0-1.4 3.6-2.5 8-2.5s8 1.1 8 2.5-3.6 2.5-8 2.5-8-1.1-8-2.5Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 6.5V17c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V6.5" stroke="currentColor" stroke-width="1.8"/><path d="M4 11.75c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <h3>An answer, not a guess</h3>
+        <p>Every request lands in a local log with its real cost, tokens, latency, and finish reason. "We spent $40 today, mostly on retries" becomes a query, not a hunch.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 17V7l8-4 8 4v10l-8 4-8-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 7l8 4 8-4" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <h3>One binary, your infrastructure</h3>
+        <p>No managed service, no third party in the request path. Your real provider keys live in your config, on your machine, never in your app's code.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>A budget alert tells you after. This stops it during.</h2>
+      <p>Spend monitoring is useful. It's also, by definition, too late.</p>
+    </div>
+    <table class="compare">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="center">Sees the spend</th>
+          <th class="center">Blocks it beforehand</th>
+          <th class="center">Survives a concurrent burst</th>
+          <th class="center">Keeps your keys local</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Calling the provider directly</td>
+          <td class="center">after</td>
+          <td class="center">&#10005;</td>
+          <td class="center">&#10005;</td>
+          <td class="center">&#10003;</td>
+        </tr>
+        <tr>
+          <td>A billing alert or Slack bot</td>
+          <td class="center">after</td>
+          <td class="center">&#10005;</td>
+          <td class="center">&#10005;</td>
+          <td class="center">&#10003;</td>
+        </tr>
+        <tr class="highlight">
+          <td>AI Guard</td>
+          <td class="center">before</td>
+          <td class="center">&#10003;</td>
+          <td class="center">&#10003;</td>
+          <td class="center">&#10003;</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section tight">
+    <div class="section-head">
+      <h2>One baseURL change, not a rewrite</h2>
+    </div>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="ts">TypeScript</button>
+      </div>
+      <div class="panel" data-lang="curl">
+<pre>curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-5-sonnet",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+      </div>
+      <div class="panel" data-lang="python">
+<pre>from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")
+client.chat.completions.create(
+    model="claude-5-sonnet",
+    messages=[{"role": "user", "content": "hello"}],
+)</pre>
+      </div>
+      <div class="panel" data-lang="ts">
+<pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:8787/v1",
+  apiKey: "sk-guard-...",
+});
+
+await client.chat.completions.create({
+  model: "claude-5-sonnet",
+  messages: [{ role: "user", content: "hello" }],
+});</pre>
+      </div>
+    </div>
+    <div class="cta-row" style="margin-top: 32px;">
+      <a class="btn btn-primary" href="./guide/getting-started.html">Read the guide &rarr;</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="./assets/js/search-index.js"></script>
+<script src="./assets/js/app.js"></script>
+</body>
+</html>

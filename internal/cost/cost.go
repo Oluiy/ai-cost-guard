@@ -23,12 +23,21 @@ var Table = map[string]Price{
 	"o3-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044},
 
 	// Anthropic
-	"claude-3-5-sonnet-20241022": {InputPer1K: 0.003, OutputPer1K: 0.015},
-	"claude-3-5-sonnet":          {InputPer1K: 0.003, OutputPer1K: 0.015},
-	"claude-3-5-haiku":           {InputPer1K: 0.0008, OutputPer1K: 0.004},
-	"claude-3-opus":              {InputPer1K: 0.015, OutputPer1K: 0.075},
-	"claude-3-sonnet":            {InputPer1K: 0.003, OutputPer1K: 0.015},
-	"claude-3-haiku":             {InputPer1K: 0.00025, OutputPer1K: 0.00125},
+	"claude-5-sonnet":   {InputPer1K: 0.003, OutputPer1K: 0.015},
+	"claude-3-5-sonnet": {InputPer1K: 0.003, OutputPer1K: 0.015},
+	"claude-3-5-haiku":  {InputPer1K: 0.0008, OutputPer1K: 0.004},
+	"claude-3-opus":     {InputPer1K: 0.015, OutputPer1K: 0.075},
+	"claude-3-sonnet":   {InputPer1K: 0.003, OutputPer1K: 0.015},
+	"claude-3-haiku":    {InputPer1K: 0.00025, OutputPer1K: 0.00125},
+
+	// Google Gemini
+	"gemini-2.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.010},
+	"gemini-2.5-flash":      {InputPer1K: 0.0003, OutputPer1K: 0.0025},
+	"gemini-2.5-flash-lite": {InputPer1K: 0.0001, OutputPer1K: 0.0004},
+	"gemini-2.0-flash":      {InputPer1K: 0.0001, OutputPer1K: 0.0004},
+	"gemini-1.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.005},
+	"gemini-1.5-flash":      {InputPer1K: 0.000075, OutputPer1K: 0.0003},
+	"gemini-embedding-001":  {InputPer1K: 0.00015},
 
 	// Groq (Llama / Mixtral hosted)
 	"llama-3.1-8b-instant":    {InputPer1K: 0.00005, OutputPer1K: 0.00008},

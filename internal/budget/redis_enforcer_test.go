@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/aicostguard/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
 // testRedisURL is used by every test in this file. Redis isn't a Go

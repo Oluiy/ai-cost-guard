@@ -11,6 +11,9 @@ providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
     base_url: https://api.anthropic.com/v1
+  gemini:
+    api_key: ${GEMINI_API_KEY}
+    base_url: https://generativelanguage.googleapis.com/v1beta
   groq:
     api_key: ${GROQ_API_KEY}
     base_url: https://api.groq.com/openai/v1
@@ -54,3 +57,14 @@ keys:
 fallback:
   - gpt-4o-mini
   - claude-3-haiku
+
+# The dashboard's login (one admin account). Don't hand-write this —
+# `ai-guard init` sets it up interactively, and `ai-guard
+# reset-dashboard-password` changes it later (also works if you skipped
+# this during init and want to add a login now). Leaving `users` empty
+# means `/dashboard` has no login at all.
+# dashboard:
+#   session_secret: ...
+#   users:
+#     - username: admin
+#       password_hash: $2a$10$...

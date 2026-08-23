@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aicostguard/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
 // fakeStore stubs SpendLookup with a fixed spend per user.

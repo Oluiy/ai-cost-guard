@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>API reference — AI Guard</title>
+<meta name="description" content="Every endpoint AI Guard exposes: chat completions, embeddings, health, and the dashboard JSON API. Request shapes, response headers, and the exact error codes you can get back." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./api-reference.html">API</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./deployment.html">Deployment</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Start</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./how-it-works.html">How it works</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Reference</div>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./api-reference.html" class="active">API reference</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Operate</div>
+      <a href="./deployment.html">Deployment</a>
+      <a href="./troubleshooting.html">Troubleshooting</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>API reference</h1>
+    <p class="dek">AI Guard speaks the OpenAI API. If your code already calls OpenAI, the base URL and the key are the only things that change. This page documents what you send, what comes back, and the errors you can receive.</p>
+
+    <div class="callout">
+      <strong>Base URL.</strong> Everything below is relative to wherever AI Guard is running: <code class="inline">http://localhost:8787</code> locally, or your own domain in production. The OpenAI-compatible endpoints live under <code class="inline">/v1</code>, so point your SDK at <code class="inline">http://localhost:8787/v1</code>.
+    </div>
+
+    <h2 id="auth">Authentication</h2>
+    <p>Send the virtual key AI Guard issued you (from <code class="inline">ai-guard init</code>), not your real provider key:</p>
+    <pre>Authorization: Bearer sk-guard-a1b2c3...</pre>
+    <p>
+      AI Guard resolves that key to a <code class="inline">user_id</code> server-side, applies that user's budget, and attaches your
+      <em>real</em> provider credentials only on the upstream leg. Your application code and logs never contain them.
+    </p>
+    <p>
+      If <code class="inline">keys:</code> is empty in your config, AI Guard runs in single-tenant mode: no header is required and every
+      caller shares one <code class="inline">"default"</code> identity. Convenient locally, unsafe once more than one caller can reach the port.
+    </p>
+
+    <h2 id="chat-completions">POST /v1/chat/completions</h2>
+    <p>
+      OpenAI-compatible, including <code class="inline">stream: true</code>, multimodal (image) content, and tool/function calling.
+      The body is forwarded to the resolved provider largely as-is, translated where the provider needs a different shape
+      (see <a href="./providers.html">Providers</a>).
+    </p>
+
+    <h3>Request</h3>
+    <table>
+      <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">model</code></td><td>Yes</td><td>Determines which provider serves the request. See <a href="./how-it-works.html#routing">model routing</a></td></tr>
+        <tr><td><code class="inline">messages</code></td><td>Yes</td><td>Standard OpenAI message array. Used to size the budget estimate</td></tr>
+        <tr><td><code class="inline">max_tokens</code></td><td>No</td><td>Drives the worst-case budget reservation. Unset means a 4096-token ceiling is assumed</td></tr>
+        <tr><td><code class="inline">stream</code></td><td>No</td><td><code class="inline">true</code> returns SSE. Fully supported, including cache and fallback</td></tr>
+        <tr><td><code class="inline">tools</code>, <code class="inline">tool_choice</code></td><td>No</td><td>Translated per provider</td></tr>
+        <tr><td>Everything else</td><td>&mdash;</td><td>Passed through to the provider untouched</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      </div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Say hello"}],
+    "max_tokens": 100
+  }'</pre></div>
+      <div class="panel" data-lang="python"><pre>from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8787/v1",
+    api_key="sk-guard-a1b2c3...",
+)
+
+resp = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Say hello"}],
+    max_tokens=100,
+)
+print(resp.choices[0].message.content)</pre></div>
+      <div class="panel" data-lang="typescript"><pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:8787/v1",
+  apiKey: "sk-guard-a1b2c3...",
+});
+
+const resp = await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Say hello" }],
+  max_tokens: 100,
+});
+console.log(resp.choices[0].message.content);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
+
+var client = new ChatClient(
+    model: "gpt-4o",
+    credential: new ApiKeyCredential("sk-guard-a1b2c3..."),
+    options: new OpenAIClientOptions { Endpoint = new Uri("http://localhost:8787/v1") });
+
+ChatCompletion completion = client.CompleteChat("Say hello");
+Console.WriteLine(completion.Content[0].Text);</pre></div>
+      <div class="panel" data-lang="java"><pre>import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.models.chat.completions.ChatCompletionCreateParams;
+
+OpenAIClient client = OpenAIOkHttpClient.builder()
+    .baseUrl("http://localhost:8787/v1")
+    .apiKey("sk-guard-a1b2c3...")
+    .build();
+
+var params = ChatCompletionCreateParams.builder()
+    .model("gpt-4o")
+    .addUserMessage("Say hello")
+    .maxTokens(100)
+    .build();
+
+System.out.println(client.chat().completions().create(params));</pre></div>
+    </div>
+
+    <h3 id="response-headers">Response headers</h3>
+    <p>AI Guard adds these headers on top of a normal OpenAI response body. They're the quickest way to confirm the gateway is doing what you expect.</p>
+    <table>
+      <thead><tr><th>Header</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">X-Cache</code></td><td><code class="inline">HIT</code> / <code class="inline">MISS</code></td><td>A <code class="inline">HIT</code> cost you nothing and never touched the provider</td></tr>
+        <tr><td><code class="inline">X-AI-Guard-Model-Used</code></td><td>model name</td><td>What actually served it. Differs from your requested model when fallback kicked in</td></tr>
+        <tr><td><code class="inline">X-AI-Guard-Warning</code></td><td>truncation notice</td><td>Only present when <code class="inline">finish_reason: "length"</code>. The strongest signal of a runaway or truncated generation</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Streaming caveat.</strong> Streamed responses set <code class="inline">X-Cache</code> and <code class="inline">X-AI-Guard-Model-Used</code>, but never <code class="inline">X-AI-Guard-Warning</code>. HTTP headers are sent before the first byte of the body, and AI Guard doesn't know the finish reason until the stream ends. A truncated <em>streamed</em> answer is flagged in the log and the dashboard, not to the client.
+    </div>
+
+    <h3 id="streaming">Streaming</h3>
+    <p>Set <code class="inline">stream: true</code> and you get standard OpenAI SSE chunks terminated by <code class="inline">data: [DONE]</code>. Three things are worth knowing:</p>
+    <ul>
+      <li><strong>Fallback still protects you.</strong> AI Guard opens the upstream stream and checks it succeeded <em>before</em> writing anything to you. If it fails, it tries the next fallback model. You get a clean <code class="inline">502</code>, never a half-open stream.</li>
+      <li><strong>A cache hit still returns a stream.</strong> Cached responses are synthesized back into valid SSE, so clients that always stream still get the cache savings.</li>
+      <li><strong>Cost is settled when the stream ends.</strong> The budget reservation is taken up front and reconciled against real usage once the last chunk lands.</li>
+    </ul>
+
+    <h3 id="errors">Errors</h3>
+    <p>All errors are OpenAI-shaped, so existing SDK error handling works unmodified:</p>
+    <pre>{
+  "error": {
+    "message": "daily budget of $5.00 exceeded or would be exceeded by this request",
+    "type": "budget_exceeded"
+  }
+}</pre>
+    <table>
+      <thead><tr><th>Status</th><th><code class="inline">type</code></th><th>Cause</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">400</code></td><td><code class="inline">invalid_request_error</code></td><td>Malformed JSON, or <code class="inline">model</code> is missing</td></tr>
+        <tr><td><code class="inline">401</code></td><td><code class="inline">invalid_api_key</code></td><td>Missing or unrecognized bearer token. Multi-tenant mode only</td></tr>
+        <tr><td><code class="inline">429</code></td><td><code class="inline">budget_exceeded</code></td><td>This request's worst-case cost would exceed the user's remaining daily budget. Nothing was sent upstream</td></tr>
+        <tr><td><code class="inline">502</code></td><td><code class="inline">upstream_error</code></td><td>The primary model and every configured fallback failed</td></tr>
+      </tbody>
+    </table>
+    <p>For streaming requests, all of these are returned with their normal status codes <em>before</em> the stream is committed.</p>
+
+    <h2 id="embeddings">POST /v1/embeddings</h2>
+    <p>OpenAI-compatible. Routed, cached, and budget-checked exactly like chat completions, with two deliberate differences:</p>
+    <ul>
+      <li><strong>No fallback.</strong> One attempt against the requested model's provider. Chat fallback models aren't valid embedding models, and a model swap partway through an indexing run would write mismatched dimensions into your vector store.</li>
+      <li><strong>Anthropic returns <code class="inline">502</code> with a clear message.</strong> It has no embeddings API, so AI Guard reports that rather than returning an empty result.</li>
+    </ul>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+      </div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/embeddings \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "text-embedding-3-small", "input": "hello world"}'</pre></div>
+      <div class="panel" data-lang="python"><pre>resp = client.embeddings.create(
+    model="text-embedding-3-small",
+    input="hello world",
+)
+print(len(resp.data[0].embedding))</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const resp = await client.embeddings.create({
+  model: "text-embedding-3-small",
+  input: "hello world",
+});
+console.log(resp.data[0].embedding.length);</pre></div>
+    </div>
+
+    <h2 id="healthz">GET /healthz</h2>
+    <p>Unauthenticated liveness check. Point your load balancer, Kubernetes probe, or uptime monitor here.</p>
+    <pre>$ curl http://localhost:8787/healthz
+{"status":"ok"}</pre>
+
+    <h2 id="dashboard-api">Dashboard API</h2>
+    <p>
+      The dashboard is a client of a normal JSON API, so anything it shows, you can pull into your own tooling.
+      These endpoints require a dashboard session cookie when a dashboard login is configured, and are open when it isn't.
+      They're separate from the virtual-key auth above &mdash; see <a href="./configuration.html#dashboard-auth">dashboard login</a>.
+    </p>
+    <table>
+      <thead><tr><th>Endpoint</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">GET /dashboard</code></td><td>The HTML dashboard, or the login page if you aren't signed in</td></tr>
+        <tr><td><code class="inline">GET /dashboard/api/data</code></td><td>One JSON snapshot: spend, cache hit rate, per-user totals, top expensive requests, time series</td></tr>
+        <tr><td><code class="inline">GET /dashboard/api/requests</code></td><td>Paginated, filterable request log</td></tr>
+        <tr><td><code class="inline">GET /dashboard/api/report</code></td><td>Summary for an explicit date range. Add <code class="inline">?format=csv</code> for a download</td></tr>
+        <tr><td><code class="inline">GET /dashboard/api/whoami</code></td><td>Who's signed in, and whether auth is enabled at all</td></tr>
+        <tr><td><code class="inline">GET /dashboard/events</code></td><td>Server-Sent Events. The same snapshot pushed every 3 seconds</td></tr>
+        <tr><td><code class="inline">POST /dashboard/login</code></td><td>Sets the session cookie. Rate-limited to 5 attempts/minute per IP</td></tr>
+        <tr><td><code class="inline">POST /dashboard/logout</code></td><td>Clears the session cookie</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Query parameters</h3>
+    <table>
+      <thead><tr><th>Parameter</th><th>Applies to</th><th>Values</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">range</code></td><td><code class="inline">data</code>, <code class="inline">requests</code>, <code class="inline">events</code></td><td><code class="inline">today</code> (default), <code class="inline">7d</code>, <code class="inline">30d</code></td></tr>
+        <tr><td><code class="inline">user</code></td><td>all</td><td>Scope to one <code class="inline">user_id</code></td></tr>
+        <tr><td><code class="inline">model</code></td><td><code class="inline">requests</code>, <code class="inline">report</code></td><td>Scope to one model name</td></tr>
+        <tr><td><code class="inline">status</code></td><td><code class="inline">requests</code>, <code class="inline">report</code></td><td><code class="inline">success</code> or <code class="inline">error</code></td></tr>
+        <tr><td><code class="inline">sort</code></td><td><code class="inline">requests</code></td><td>Sort column for the log</td></tr>
+        <tr><td><code class="inline">limit</code>, <code class="inline">offset</code></td><td><code class="inline">requests</code></td><td>Page size (default 25, max 100) and offset</td></tr>
+        <tr><td><code class="inline">from</code>, <code class="inline">to</code></td><td><code class="inline">requests</code>, <code class="inline">report</code></td><td><code class="inline">YYYY-MM-DD</code>, inclusive both ends. Required for <code class="inline">report</code></td></tr>
+        <tr><td><code class="inline">format</code></td><td><code class="inline">report</code></td><td><code class="inline">csv</code> for a downloadable export</td></tr>
+      </tbody>
+    </table>
+
+    <pre># Last month's spend for one user, as CSV
+curl -b cookies.txt \
+  "http://localhost:8787/dashboard/api/report?from=2026-07-01&to=2026-07-31&user=user_123&format=csv" \
+  -o july.csv</pre>
+
+    <div class="page-nav">
+      <a href="./providers.html"><span class="label">Previous</span>Providers</a>
+      <a href="./commands.html" class="next"><span class="label">Next</span>CLI reference</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#auth">Authentication</a>
+    <a href="#chat-completions">Chat completions</a>
+    <a href="#response-headers">Response headers</a>
+    <a href="#streaming">Streaming</a>
+    <a href="#errors">Errors</a>
+    <a href="#embeddings">Embeddings</a>
+    <a href="#healthz">Health check</a>
+    <a href="#dashboard-api">Dashboard API</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

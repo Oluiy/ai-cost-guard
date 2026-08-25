@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Troubleshooting — AI Guard</title>
+<meta name="description" content="Every error AI Guard can produce, what actually causes it, and how to fix it. Plus an honest list of what AI Guard does not do yet." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./api-reference.html">API</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./deployment.html">Deployment</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Start</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./how-it-works.html">How it works</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Reference</div>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./api-reference.html">API reference</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Operate</div>
+      <a href="./deployment.html">Deployment</a>
+      <a href="./troubleshooting.html" class="active">Troubleshooting</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>Troubleshooting</h1>
+    <p class="dek">Errors you're likely to hit, what causes them, and how to fix them, followed by the current list of known limitations.</p>
+
+    <div class="callout">
+      <strong>Start with the startup output.</strong> <code class="inline">ai-guard run</code> prints warnings for config problems that don't stop it booting but change how it behaves, such as a key mapped to a user that doesn't exist. Most reports of budgets not working trace back to one of those warnings.
+    </div>
+
+    <h2 id="startup">Startup problems</h2>
+
+    <h3><code class="inline">config must define at least one provider</code></h3>
+    <p>Your <code class="inline">config.yaml</code> has nothing under <code class="inline">providers:</code>. Run <code class="inline">ai-guard init</code>, or add a provider block by hand. AI Guard refuses to start with no providers rather than booting into a state where every request fails.</p>
+
+    <h3><code class="inline">address already in use</code></h3>
+    <p>Something already holds that port, often another <code class="inline">ai-guard run</code> you forgot about. Find it with <code class="inline">lsof -i :8787</code>, or change <code class="inline">port:</code> in your config.</p>
+
+    <h3><code class="inline">connecting to redis: ...</code></h3>
+    <p>
+      You set a Redis backend but AI Guard can't reach it. Check Redis is up and that the URL and credentials are right.
+      This is a hard failure by design, since falling back to in-memory would silently return you to per-process budget
+      tracking, which is the situation Redis was configured to avoid.
+    </p>
+
+    <h3>It won't exit on Ctrl+C</h3>
+    <p>
+      It exits within about 10 seconds. Shutdown stops accepting new connections and waits for in-flight requests to
+      finish. If a request is hung against a slow upstream, the grace period has to expire before the process exits.
+    </p>
+
+    <h2 id="requests">Request problems</h2>
+
+    <h3><code class="inline">401</code> on every request</h3>
+    <p>
+      <code class="inline">keys:</code> is non-empty, so you're in multi-tenant mode and a valid
+      <code class="inline">Authorization: Bearer &lt;key&gt;</code> is required. Check the key matches an entry in
+      <code class="inline">keys:</code> exactly &mdash; a trailing newline from a copy-paste is the usual culprit.
+    </p>
+
+    <h3><code class="inline">429</code> immediately, even on a fresh budget</h3>
+    <p>
+      The worst-case estimate for this one request exceeds the user's entire <code class="inline">daily_limit_usd</code>.
+      Remember the estimate uses <code class="inline">max_tokens</code>, or a 4096-token ceiling when you don't set one, so a
+      request with no <code class="inline">max_tokens</code> against an expensive model can exceed a small budget on its own.
+    </p>
+    <p>Fix by raising the budget, setting a realistic <code class="inline">max_tokens</code>, or both. See <a href="./how-it-works.html#budget">how estimation works</a>.</p>
+
+    <h3>A budget seems to have no effect at all</h3>
+    <p>
+      Almost always a <code class="inline">keys:</code> entry whose <code class="inline">user_id</code> has no matching
+      <code class="inline">users:</code> entry &mdash; a typo, or the user block was removed later. "No budget entry for this user"
+      is treated as "no limit," so this <strong>fails open</strong>.
+    </p>
+    <p>
+      <code class="inline">ai-guard run</code> warns about this at startup. <code class="inline">ai-guard init</code> can't
+      produce it, since it always writes both together, but a hand-edited config can.
+    </p>
+
+    <h3>A model 404s or hits the wrong provider</h3>
+    <p>
+      Routing is prefix-based on the model name. If your model doesn't match a known prefix, it defaults to
+      <code class="inline">openai</code>. Force it explicitly with a provider prefix:
+    </p>
+    <pre>"model": "groq/my-custom-model"</pre>
+    <p>See the full <a href="./how-it-works.html#routing">routing table</a>.</p>
+
+    <h3>Responses look truncated</h3>
+    <p>
+      Check for the <code class="inline">X-AI-Guard-Warning</code> header. Its presence means
+      <code class="inline">finish_reason: "length"</code>, so <code class="inline">max_tokens</code> cut the response off.
+      This normally goes unnoticed because a truncated response is still returned as a success.
+    </p>
+    <p>On <em>streamed</em> responses that header can't be sent (headers go out before the body). Check the dashboard or logs instead.</p>
+
+    <h2 id="dashboard-issues">Dashboard problems</h2>
+
+    <h3>I can't log in, or I forgot the password</h3>
+    <pre>ai-guard reset-dashboard-password</pre>
+    <p>
+      No email, no server restart, and you don't need the old password. It also doubles as first-time setup if you skipped the
+      login during <code class="inline">init</code>. It rotates the session secret, so existing sessions are signed out too.
+    </p>
+
+    <h3>Login fails in production but worked locally</h3>
+    <p>
+      The most common cause: <strong>the deployed instance is reading a different <code class="inline">config.yaml</code> than the
+      one you set the password in.</strong> The dashboard account lives in that file, so if the container has a different
+      config mounted (or a fresh one generated at build time), your credentials aren't there.
+    </p>
+    <p>Confirm the running instance is using the file you think it is with <code class="inline">--config</code>, and that it contains a <code class="inline">dashboard:</code> block with both <code class="inline">session_secret</code> and a user entry.</p>
+
+    <h3>The dashboard is empty after every deploy</h3>
+    <p>Ephemeral filesystem. Your <code class="inline">aiguard.db</code> is being wiped. See <a href="./deployment.html#ephemeral">ephemeral filesystems</a>.</p>
+
+    <h3>The dashboard shows only some of my traffic</h3>
+    <p>
+      You're running more than one instance. Cost logging is per-instance because <code class="inline">aiguard.db</code> is a
+      local file, so each dashboard shows only what that instance handled. This is true even with
+      <code class="inline">budget.backend: redis</code>. See <a href="./deployment.html#scale">scaling</a>.
+    </p>
+
+    <h3>The live feed stops updating behind a proxy</h3>
+    <p>The dashboard updates over Server-Sent Events, and nginx buffers those by default. Set <code class="inline">proxy_buffering off;</code> &mdash; see the <a href="./deployment.html#subdomain">nginx example</a>.</p>
+
+    <h3><code class="inline">database is locked</code></h3>
+    <p>Multiple processes are pointed at the same <code class="inline">aiguard.db</code>. Give each instance its own <code class="inline">data_dir</code>, or use genuinely concurrent-safe shared storage.</p>
+
+    <h2 id="limitations">Known limitations</h2>
+    <p>Current gaps, so you can check them against your requirements before adopting it.</p>
+
+    <h3>A dropped stream ends without a formal error</h3>
+    <p>
+      Fallback protects you only <em>before</em> the first byte reaches the client. Once a provider's stream is committed, there's
+      no way to retroactively signal failure if it dies partway through. Whatever was streamed is still logged and costed for what
+      it actually delivered.
+    </p>
+
+    <h3>Embeddings don't use the fallback list</h3>
+    <p>
+      One attempt against the requested model's provider. Chat fallback models aren't valid embedding models, and swapping
+      models partway through an indexing run would write mismatched dimensions into your vector store, so an error is
+      returned instead.
+    </p>
+
+    <h3>Budget state is per-process unless you use Redis</h3>
+    <p>And <strong>cost logging is per-process regardless</strong>. See <a href="./deployment.html#scale">scaling</a>.</p>
+
+    <h3>Cost estimation is a heuristic</h3>
+    <p>
+      Not exact token counting. It can reserve more than a request actually costs. Multimodal content is under-counted &mdash;
+      only text parts are sized, so images don't contribute to the estimate.
+    </p>
+
+    <h3>The pricing table drifts</h3>
+    <p>It's a manually maintained snapshot of public pricing. Verify it before trusting it for anything billing-critical. Embedding models are priced input-only.</p>
+
+    <h3>The dashboard has one account, not roles</h3>
+    <p>No read-only or viewer accounts yet. Anyone with that one password sees and does everything the dashboard exposes.</p>
+
+    <h3>Anthropic tool-calling edge cases</h3>
+    <ul>
+      <li><strong>Tool-call arguments stream batched, not incrementally.</strong> Anthropic's delta events are accumulated and relayed as one complete <code class="inline">tool_calls</code> delta when the block closes.</li>
+      <li><strong><code class="inline">tool_choice: "none"</code> has no exact equivalent</strong> and is translated as a best-effort <code class="inline">"auto"</code>, so it doesn't actually prevent tool use.</li>
+    </ul>
+
+    <h3>No Assistants or Responses API</h3>
+    <p><code class="inline">/v1/chat/completions</code> and <code class="inline">/v1/embeddings</code> only.</p>
+
+    <h2 id="help">Still stuck</h2>
+    <p>
+      Open an issue on <a href="https://github.com/Oluiy/ai-cost-guard/issues" target="_blank" rel="noopener">GitHub</a>.
+      Include your <code class="inline">ai-guard run</code> startup output (it lists providers, cache, and budget config, and
+      redacts credentials), the status code and <code class="inline">type</code> from the error body, and your config with keys
+      removed.
+    </p>
+
+    <div class="page-nav">
+      <a href="./deployment.html"><span class="label">Previous</span>Deployment</a>
+      <a href="../index.html" class="next"><span class="label">Next</span>Home</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#startup">Startup problems</a>
+    <a href="#requests">Request problems</a>
+    <a href="#dashboard-issues">Dashboard problems</a>
+    <a href="#limitations">Known limitations</a>
+    <a href="#help">Still stuck</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

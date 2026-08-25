@@ -4,8 +4,8 @@ This document is for anyone evaluating ai-guard for use inside an
 organization, not a solo/local deployment. It says plainly what's solid
 today, what's missing, and what you'd need to add or wrap around it before
 it belongs in a production enterprise environment. For how the system
-works day to day, see [DOCS.md](./DOCS.md); for the quickstart, see
-[README.md](./README.md).
+works day to day, see the [documentation](./docs/index.html); for the
+quickstart, see [README.md](./README.md).
 
 ## Bottom line
 
@@ -32,16 +32,15 @@ wrap it yourself.
   real HTTP against two separate running processes.
 - **Authentication via gateway-issued virtual keys**, not a client-supplied
   identity, so a budget can't be evaded by a caller simply omitting or
-  changing a header. See [DOCS.md's Authentication
-  section](./DOCS.md#authentication-virtual-keys) for why this distinction
-  matters.
+  changing a header. See [Authentication](./docs/guide/api-reference.html#auth)
+  for why this distinction matters.
 - **Response caching, including for streaming clients**: a cache hit is
   synthesized into a valid stream rather than silently falling back to a
   non-streaming response shape.
 - **Provider fallback that never hands a client a broken partial response**,
   confirmed for streaming: fallback works *before* anything is
-  written to the client (see [DOCS.md's Streaming
-  section](./DOCS.md#streaming)).
+  written to the client (see
+  [Streaming](./docs/guide/api-reference.html#streaming)).
 - **Full request/cost audit trail** in SQLite: every request's user, model,
   tokens, cost, latency, cache hit, and finish_reason.
 

@@ -6,5 +6,8 @@ config.yaml
 .env
 .DS_Store
 nk_test/
+
+# Private working notes: known gaps, blockers, todo. Not for publication.
+DOCS.md
 dashboard-ui/node_modules/
 dashboard-ui/dist/

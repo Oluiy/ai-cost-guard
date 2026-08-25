@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deployment — AI Guard</title>
+<meta name="description" content="Ship AI Guard: Docker, DigitalOcean, Heroku/Railway/Render, running it on its own subdomain behind a reverse proxy, and what to change before you scale past one instance." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./api-reference.html">API</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./deployment.html">Deployment</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Start</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./how-it-works.html">How it works</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Reference</div>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./api-reference.html">API reference</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Operate</div>
+      <a href="./deployment.html" class="active">Deployment</a>
+      <a href="./troubleshooting.html">Troubleshooting</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>Deployment</h1>
+    <p class="dek">AI Guard is one static binary with no required external services, so deploying it is mostly a question of where the config file and the database live. This page covers each target and the two failure modes that are easy to miss.</p>
+
+    <div class="callout">
+      <strong>Two failure modes worth knowing up front,</strong> because neither one produces an error: an <a href="#ephemeral">ephemeral filesystem</a> wiping the request log on every deploy, and <a href="#scale">running more than one instance</a> with the default budget backend. Fixes for both are below.
+    </div>
+
+    <h2 id="config">Generate your config locally first</h2>
+    <p>
+      <code class="inline">ai-guard init</code> is interactive, so run it on your machine, not in a container build.
+      It writes a <code class="inline">config.yaml</code> that you then ship.
+    </p>
+    <pre>ai-guard init</pre>
+    <p>
+      Keep real provider keys out of the file itself by using <code class="inline">${ENV_VAR}</code>, which is expanded when
+      the config loads. That's what lets the same file be safe to commit and still work in production:
+    </p>
+    <pre>port: ${PORT}
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}</pre>
+    <div class="callout">
+      Only the braced <code class="inline">${VAR}</code> form is expanded. A bare <code class="inline">$VAR</code> is left alone on purpose, so bcrypt hashes like <code class="inline">$2a$10$...</code> in your dashboard config don't get mangled.
+    </div>
+
+    <h2 id="docker">Docker</h2>
+    <p>The included Dockerfile builds a static <code class="inline">CGO_ENABLED=0</code> binary onto Alpine, running as a non-root user with <code class="inline">/data</code> as the working directory.</p>
+    <pre>docker build -t ai-guard .
+
+docker run -p 8787:8787 \
+  -v $(pwd)/config.yaml:/data/config.yaml \
+  -v ai-guard-data:/data \
+  -e OPENAI_API_KEY=sk-... \
+  ai-guard</pre>
+    <p>
+      The second volume matters: <code class="inline">aiguard.db</code> is written to <code class="inline">/data</code>, and
+      without a named volume it is removed with the container, along with your spend history and everything the dashboard shows.
+    </p>
+
+    <h2 id="digitalocean">DigitalOcean</h2>
+    <h3>Droplet (recommended)</h3>
+    <p>A plain VM suits AI Guard well: a persistent disk and a single instance, which is what the default configuration assumes.</p>
+    <pre># on the droplet
+git clone https://github.com/Oluiy/ai-cost-guard.git
+cd ai-cost-guard
+go install ./cmd/ai-guard
+
+# copy your config.yaml up, then run it under systemd
+sudo systemctl enable --now ai-guard</pre>
+    <p>A minimal unit file:</p>
+    <pre>[Unit]
+Description=AI Guard
+After=network.target
+
+[Service]
+ExecStart=/root/go/bin/ai-guard run --config /etc/ai-guard/config.yaml
+Environment=OPENAI_API_KEY=sk-...
+Restart=always
+WorkingDirectory=/var/lib/ai-guard
+
+[Install]
+WantedBy=multi-user.target</pre>
+
+    <h3>App Platform</h3>
+    <p>Works, but it's a container platform with an ephemeral filesystem &mdash; read <a href="#ephemeral">the section below</a> before choosing it. Attach a managed Redis and set both backends to <code class="inline">redis</code>.</p>
+
+    <h2 id="paas">Heroku, Railway, and Render</h2>
+    <p>All three work with the existing Dockerfile. Two platform-specific things to get right:</p>
+
+    <h3>1. Bind to the platform's port</h3>
+    <p>These platforms assign a port through <code class="inline">$PORT</code> and route to it. Hardcode 8787 and your app is unreachable.</p>
+    <pre>port: ${PORT}</pre>
+
+    <h3>2. Set your secrets as environment variables</h3>
+    <p>Use the platform's own secret store (Heroku Config Vars, Railway Variables, Render Environment) for each <code class="inline">${...}</code> your config references. Never commit real keys.</p>
+
+    <h3 id="ephemeral">3. Ephemeral filesystems</h3>
+    <p>
+      Heroku, Railway, Render, and DigitalOcean App Platform all give containers a <strong>disposable filesystem</strong>,
+      wiped on every deploy, restart, and dyno cycle. AI Guard writes <code class="inline">aiguard.db</code> to disk, so on
+      those platforms:
+    </p>
+    <ul>
+      <li>Your <strong>request log and dashboard history</strong> reset on every deploy.</li>
+      <li>With the default <code class="inline">budget.backend: local</code>, in-flight reservations are lost on restart too.</li>
+    </ul>
+    <p>Two ways to handle it, depending on what you need:</p>
+    <table>
+      <thead><tr><th>If you need</th><th>Do this</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Budgets enforced reliably</td>
+          <td>Add Redis and set <code class="inline">budget.backend: redis</code>. Budget state then lives outside the container and survives everything</td>
+        </tr>
+        <tr>
+          <td>Spend history that persists</td>
+          <td>Attach a persistent disk and point <code class="inline">data_dir</code> at it. Render Disks and Railway Volumes both support this; Heroku does not, so use another platform if spend history matters to you</td>
+        </tr>
+      </tbody>
+    </table>
+    <pre>budget:
+  backend: redis
+  redis_url: ${REDIS_URL}
+
+cache:
+  enabled: true
+  backend: redis          # optional, but you already have Redis
+
+data_dir: /var/data        # a mounted persistent disk, if the platform has one</pre>
+
+    <h2 id="subdomain">Running it on its own domain</h2>
+    <p>
+      If you already run services on subdomains (<code class="inline">identity.example.com</code>,
+      <code class="inline">sales.example.com</code>), give AI Guard one too:
+      <code class="inline">ai.example.com</code>. It's an independent service in the request path for all of them, and a
+      subdomain keeps its routing, TLS, and access rules separate from any single app.
+    </p>
+    <p>A complete Caddyfile, including automatic HTTPS:</p>
+    <pre>ai.example.com {
+    reverse_proxy localhost:8787
+}</pre>
+    <p>Or nginx, where the SSE dashboard feed needs buffering explicitly disabled:</p>
+    <pre>server {
+    server_name ai.example.com;
+
+    location / {
+        proxy_pass http://localhost:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+
+        # Required: the dashboard's live feed is SSE.
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+    }
+}</pre>
+    <p>Your applications then point at <code class="inline">https://ai.example.com/v1</code>, and the dashboard is at <code class="inline">https://ai.example.com/dashboard</code>.</p>
+    <div class="callout">
+      <strong>The dashboard is always on the same host and port as the proxy.</strong> It isn't a separate service and there's nothing extra to deploy. Wherever AI Guard is reachable, append <code class="inline">/dashboard</code>. Locally that's <code class="inline">http://localhost:8787/dashboard</code>; behind the proxy above it's <code class="inline">https://ai.example.com/dashboard</code>. Using Redis does not change this.
+    </div>
+
+    <h2 id="tls">TLS</h2>
+    <p>
+      AI Guard serves plain HTTP and does not terminate TLS itself, since reverse proxies and load balancers already handle
+      certificate management well. <strong>Put it behind Caddy, nginx, a cloud load balancer, or your platform's built-in
+      TLS.</strong> Virtual keys travel in an <code class="inline">Authorization</code> header, so exposing the port over
+      unencrypted HTTP on a public network leaks them.
+    </p>
+
+    <h2 id="scale">One instance vs. many</h2>
+    <p>
+      With the default <code class="inline">budget.backend: local</code>, reservations live in one process's memory.
+      A single AI Guard instance enforces budgets correctly, including under concurrent load.
+    </p>
+    <p>
+      Multiple instances behind a load balancer, still on <code class="inline">local</code>, each have their own view of spend.
+      A request routed to instance B knows nothing about what instance A has reserved, so a user's real spend can reach roughly
+      (instance count) &times; their limit. No error is raised when this happens; it shows up on the invoice.
+    </p>
+    <pre>budget:
+  backend: redis
+  redis_url: redis://your-redis:6379/0</pre>
+    <p>Every instance then reserves and settles against the same Redis key, atomically, so the budget holds no matter where a request lands.</p>
+
+    <h3>The dashboard caveat when scaling</h3>
+    <p>
+      <strong>Cost logging stays per-instance even with <code class="inline">budget.backend: redis</code>.</strong>
+      <code class="inline">aiguard.db</code> is a local SQLite file, so each instance's dashboard only shows the requests it
+      handled itself. Budget enforcement no longer depends on that data once Redis is the source of truth, but the dashboard does.
+    </p>
+    <p>Your options: point every instance's <code class="inline">data_dir</code> at the same shared, concurrent-safe filesystem, or accept per-instance dashboards and aggregate externally via <code class="inline">/dashboard/api/data</code>.</p>
+    <div class="callout">
+      Don't point multiple instances at the same <code class="inline">aiguard.db</code> on a filesystem that isn't safe for concurrent SQLite access. You'll get <code class="inline">database is locked</code> errors. See <a href="./troubleshooting.html">troubleshooting</a>.
+    </div>
+
+    <h2 id="checklist">Production checklist</h2>
+    <table>
+      <thead><tr><th>&nbsp;</th><th>Check</th></tr></thead>
+      <tbody>
+        <tr><td>&#9744;</td><td>Real provider keys come from environment variables, not the committed config</td></tr>
+        <tr><td>&#9744;</td><td>TLS terminates at a reverse proxy or platform load balancer</td></tr>
+        <tr><td>&#9744;</td><td>A dashboard login is configured (<code class="inline">ai-guard reset-dashboard-password</code>)</td></tr>
+        <tr><td>&#9744;</td><td>Every caller has its own virtual key with its own budget, not a shared one</td></tr>
+        <tr><td>&#9744;</td><td><code class="inline">budget.backend: redis</code> if more than one instance runs</td></tr>
+        <tr><td>&#9744;</td><td><code class="inline">data_dir</code> points at persistent storage, or you've accepted losing history</td></tr>
+        <tr><td>&#9744;</td><td><code class="inline">/healthz</code> is wired to your uptime monitor</td></tr>
+        <tr><td>&#9744;</td><td>Startup warnings from <code class="inline">ai-guard run</code> are clean</td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-nav">
+      <a href="./commands.html"><span class="label">Previous</span>CLI reference</a>
+      <a href="./troubleshooting.html" class="next"><span class="label">Next</span>Troubleshooting</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#config">Generate your config</a>
+    <a href="#docker">Docker</a>
+    <a href="#digitalocean">DigitalOcean</a>
+    <a href="#paas">Heroku / Railway / Render</a>
+    <a href="#ephemeral">Ephemeral filesystems</a>
+    <a href="#subdomain">Its own domain</a>
+    <a href="#tls">TLS</a>
+    <a href="#scale">One instance vs. many</a>
+    <a href="#checklist">Production checklist</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

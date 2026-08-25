@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How it works — AI Guard</title>
+<meta name="description" content="The request lifecycle, how budget reservation closes the concurrency race, how the cache is keyed, how models route to providers, and how fallback works." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-site-root="../">
+<div class="grid-bg"></div>
+
+<header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    AI Guard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./api-reference.html">API</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./deployment.html">Deployment</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+
+<div class="guide-layout">
+  <aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Start</div>
+      <a href="./getting-started.html">Getting started</a>
+      <a href="./how-it-works.html" class="active">How it works</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Reference</div>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./api-reference.html">API reference</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Operate</div>
+      <a href="./deployment.html">Deployment</a>
+      <a href="./troubleshooting.html">Troubleshooting</a>
+    </div>
+  </aside>
+
+  <article class="guide-content">
+    <h1>How it works</h1>
+    <p class="dek">AI Guard sits in the request path between your application and your provider. This page covers what it does with each request and why the steps are ordered the way they are.</p>
+
+    <h2 id="architecture">The whole picture</h2>
+    <pre>Your app (OpenAI SDK)
+      │  POST /v1/chat/completions
+      │  Authorization: Bearer sk-guard-...
+      ▼
+┌──────────────────────────────────────────────────────────┐
+│ ai-guard                                                 │
+│                                                          │
+│  1. authenticate   → resolve virtual key to a user_id    │
+│  2. cache lookup   → serve from cache if hit ($0)        │
+│  3. budget reserve → estimate worst case, reserve it     │
+│  4. call upstream  → try model, then configured fallbacks│
+│  5. finish_reason  → warn on truncated responses         │
+│  6. log + release  → persist cost, release the hold      │
+│                                                          │
+└──────────────┬───────────────────────┬───────────────────┘
+               │                       │
+       provider APIs           SQLite (aiguard.db)
+   (OpenAI / Anthropic /               │
+    Gemini / Groq / Together)   /dashboard (live UI)</pre>
+    <p>
+      One Go binary. Your application only ever talks to AI Guard, and never sees your real provider keys &mdash;
+      those live in AI Guard's config and are attached only on the upstream leg.
+    </p>
+
+    <h2 id="lifecycle">The request lifecycle</h2>
+    <p>Every call to <code class="inline">/v1/chat/completions</code> goes through these steps in order.</p>
+
+    <h3>1. Authenticate</h3>
+    <p>The bearer token resolves to a <code class="inline">user_id</code>. A missing or unrecognized token is a <code class="inline">401</code>. In single-tenant mode (empty <code class="inline">keys:</code>) everything authenticates as <code class="inline">"default"</code>.</p>
+    <p>
+      Budgets are tied to the key rather than to anything the caller reports about itself. A client-supplied
+      <code class="inline">X-User-Id</code> header or the OpenAI <code class="inline">user</code> field can't be trusted for
+      spend enforcement, because a single code path that forgets to set it lets that traffic escape its budget entirely.
+    </p>
+
+    <h3>2. Validate</h3>
+    <p><code class="inline">model</code> must be present. Malformed JSON or a missing model is a <code class="inline">400</code>.</p>
+
+    <h3>3. Cache lookup, before the budget check</h3>
+    <p>
+      The request is hashed and checked against the cache. A hit is served immediately, logged at <code class="inline">$0</code>,
+      and <strong>skips the budget check entirely</strong>. A cache hit costs nothing, so there is nothing to gate. Checking
+      the budget first would refuse a user at their limit an answer that was free to serve.
+    </p>
+
+    <h3>4. Budget reservation</h3>
+    <p>
+      On a miss, AI Guard estimates the worst case this request could cost and <em>reserves</em> that amount. If already-spent
+      plus other in-flight reservations plus this estimate would exceed the daily limit, you get a <code class="inline">429</code>
+      and nothing is sent upstream. Details in <a href="#budget">budget enforcement</a> below.
+    </p>
+
+    <h3>5. Upstream call, with fallback</h3>
+    <p>The primary model is tried first. On an error, <code class="inline">5xx</code>, or <code class="inline">429</code> from the provider, each model in <code class="inline">fallback:</code> is tried in order.</p>
+
+    <h3>6. finish_reason guard</h3>
+    <p>
+      If the response came back with <code class="inline">finish_reason: "length"</code>, the completion was cut off. AI Guard
+      sets <code class="inline">X-AI-Guard-Warning</code> and logs it. This is a common signal of a truncation or runaway-loop
+      bug in the calling application, and it usually goes unnoticed because the response is still a 200.
+    </p>
+
+    <h3>7. Log and release</h3>
+    <p>
+      Real cost, from real token usage, is written to SQLite. The cache is populated. The reservation from step 4 is released,
+      so the next request sees actual spend rather than an estimate.
+    </p>
+
+    <h2 id="budget">Budget enforcement</h2>
+    <p>
+      Budgets are enforced by reserving cost before the upstream call rather than by checking already-logged spend.
+    </p>
+    <p>
+      Logged spend only reflects requests that have finished, so a "check spend so far" gate has a race window. Fire twenty
+      concurrent requests at a user with $1 left and all twenty read "under budget" before any of them finish and get logged,
+      so all twenty go through. Reserving up front closes that window, because an in-flight request's estimated cost is
+      visible to concurrent requests immediately.
+    </p>
+
+    <h3>How the estimate is computed</h3>
+    <table>
+      <thead><tr><th>Component</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Prompt size</td><td>Sum of message text length &divide; 4, the standard rough chars-per-token heuristic</td></tr>
+        <tr><td>Completion size</td><td>The request's <code class="inline">max_tokens</code>, or a 4096-token ceiling if unset</td></tr>
+        <tr><td>Cost</td><td>Both run through the same price table used for real billing</td></tr>
+      </tbody>
+    </table>
+    <p>
+      The estimate is a ceiling rather than a prediction, so it usually reserves more than the request ends up costing. The
+      question it answers is whether this request could exceed the budget in the worst case, which is what has to be decided
+      before the call goes out. The reservation is released as soon as the request finishes, and the real cost is what gets logged.
+    </p>
+    <div class="callout">
+      <strong>Known gap:</strong> only text is sized. Image and audio parts of a multimodal message aren't counted, so multimodal requests are under-estimated. See <a href="./troubleshooting.html#limitations">limitations</a>.
+    </div>
+
+    <h3 id="budget-backends">local vs. redis</h3>
+    <table>
+      <thead><tr><th>Backend</th><th>Where the reservation lives</th><th>Correct for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code class="inline">local</code> (default)</td>
+          <td>An in-memory, mutex-guarded map in the Go process</td>
+          <td>Exactly one AI Guard instance, including under heavy concurrency</td>
+        </tr>
+        <tr>
+          <td><code class="inline">redis</code></td>
+          <td>One Redis key per user per day, mutated atomically by a Lua script</td>
+          <td>Any number of instances behind a load balancer</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Redis <code class="inline">EVAL</code> runs single-threaded, so the Lua script acts as a mutex shared by every instance rather
+      than by one process's memory. Two instances pointed at the same Redis can never jointly admit more than the configured limit.
+      This is covered by <code class="inline">TestRedisEnforcer_TwoInstancesShareOneBudget</code>, which runs two independent
+      enforcers concurrently and checks that the admitted total never exceeds what the shared limit allows.
+    </p>
+    <p><strong>If you run more than one instance, set <code class="inline">budget.backend: redis</code>.</strong> Otherwise each instance enforces its own copy of the budget and real spend can reach roughly (instance count) &times; the limit. See <a href="./deployment.html#scale">deployment</a>.</p>
+
+    <h2 id="caching">Caching</h2>
+    <p>
+      The cache key is a SHA-256 hash of the model name plus the full request payload, minus <code class="inline">user</code> and
+      <code class="inline">stream</code> (neither changes the answer). Identical requests inside the TTL are served at zero cost and
+      zero upstream latency.
+    </p>
+    <table>
+      <thead><tr><th>Backend</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">memory</code> (default)</td><td>In-process, per-instance. A janitor evicts expired entries once a minute. Lost on restart</td></tr>
+        <tr><td><code class="inline">redis</code></td><td>Shared across instances, survives restarts</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>This is exact-match caching, not semantic caching.</strong> A hit means "this precise request was made before, within the TTL." It does not mean "something similar was asked." Rephrase a prompt by one character and it's a miss.
+    </div>
+
+    <h2 id="routing">Model routing</h2>
+    <p>The provider is chosen from the <code class="inline">model</code> name:</p>
+    <table>
+      <thead><tr><th>Model name</th><th>Routes to</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">gpt-*</code>, <code class="inline">o1*</code>, <code class="inline">o3*</code>, <code class="inline">text-*</code></td><td><code class="inline">openai</code></td></tr>
+        <tr><td><code class="inline">claude*</code></td><td><code class="inline">anthropic</code></td></tr>
+        <tr><td><code class="inline">gemini*</code></td><td><code class="inline">gemini</code></td></tr>
+        <tr><td><code class="inline">llama*</code>, <code class="inline">mixtral*</code>, <code class="inline">gemma*</code>, <code class="inline">deepseek*</code></td><td><code class="inline">groq</code></td></tr>
+        <tr><td>anything else</td><td><code class="inline">openai</code> (default)</td></tr>
+        <tr><td><code class="inline">&lt;provider&gt;/&lt;model&gt;</code></td><td>That provider by name, if it's one of the five. Otherwise <code class="inline">together</code></td></tr>
+      </tbody>
+    </table>
+    <p>
+      Routing is prefix-based and not yet configurable per-model. If a model lands on the wrong provider, prefix it explicitly:
+      <code class="inline">groq/my-custom-model</code>. If the resolved provider isn't configured, that attempt is skipped and
+      fallback continues.
+    </p>
+
+    <h2 id="fallback">Fallback routing</h2>
+    <p>
+      <code class="inline">fallback:</code> is a flat list of model names tried in order after the requested model, and only when a
+      request errors or the upstream returns <code class="inline">5xx</code>/<code class="inline">429</code>. Each fallback is routed
+      through the same rules above, so falling back to <code class="inline">claude-3-haiku</code> after a
+      <code class="inline">gpt-4o</code> failure hits your Anthropic provider.
+    </p>
+    <p>
+      <code class="inline">X-AI-Guard-Model-Used</code> tells you which model actually served the response. If every attempt fails,
+      you get one <code class="inline">502</code>, not a cascade of confusing errors.
+    </p>
+
+    <h2 id="pricing">The pricing table</h2>
+    <p>
+      Cost is computed from a hardcoded USD-per-1K-token table covering OpenAI, Anthropic, Gemini, Groq, and Together models.
+      Lookup falls back to a prefix match, so <code class="inline">claude-3-5-sonnet-20241022</code> matches a
+      <code class="inline">claude-3-5-sonnet</code> entry, and finally to a conservative default for anything unrecognized &mdash;
+      an unknown model degrades to "probably overestimated" rather than silently free.
+    </p>
+    <div class="callout">
+      <strong>This table is a manually maintained snapshot and it will drift.</strong> Verify against current provider pricing before relying on it for anything billing-critical.
+    </div>
+
+    <div class="page-nav">
+      <a href="./getting-started.html"><span class="label">Previous</span>Getting started</a>
+      <a href="./configuration.html" class="next"><span class="label">Next</span>Configuration</a>
+    </div>
+  </article>
+
+  <aside class="guide-toc">
+    <div class="label">On this page</div>
+    <a href="#architecture">The whole picture</a>
+    <a href="#lifecycle">Request lifecycle</a>
+    <a href="#budget">Budget enforcement</a>
+    <a href="#caching">Caching</a>
+    <a href="#routing">Model routing</a>
+    <a href="#fallback">Fallback routing</a>
+    <a href="#pricing">Pricing table</a>
+  </aside>
+</div>
+
+<footer class="site-footer">
+  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+</footer>
+
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search-input" type="text" placeholder="Search the docs&hellip;" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<script src="../assets/js/search-index.js"></script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

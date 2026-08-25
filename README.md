@@ -5,16 +5,16 @@ before they happen: the kind of incident where a stuck loop or an
 unbounded `max_tokens` turns into an $8K bill in 11 days.
 
 Single Go binary. No required external dependencies (Redis is optional).
-Drop it in front of OpenAI, Anthropic, or Groq by changing one `baseURL`.
+Drop it in front of OpenAI, Anthropic, Gemini, Groq, or Together by
+changing one `baseURL`.
 
-📖 **[Full documentation](./DOCS.md)**: configuration reference, API
-reference, how budget enforcement and caching actually work, deployment
-tradeoffs, and known limitations.
+📖 **[Full documentation](./docs/index.html)**: getting started, how it
+works, the complete API reference with examples in five languages, provider
+setup, deployment, and troubleshooting. Open `docs/index.html` in a browser.
 
-🏢 **[Enterprise readiness](./ENTERPRISE.md)**: an honest look at what's
-solid today (budget enforcement across instances, verified live) versus
-what's missing (TLS, secrets management, HA observability) before this
-belongs in a production enterprise environment.
+🏢 **[Enterprise deployments](./ENTERPRISE.md)**: budget enforcement across
+instances, hardening, and what to put in front of AI Cost Guard when it runs
+in a production environment.
 
 💚 **[Sponsor this project](./GITHUB-SPONSORS-AI-COST-GUARD.md)**: if AI Cost
 Guard is saving you real money on your provider bill, sponsoring keeps it
@@ -77,9 +77,9 @@ import OpenAI from "openai";
 const client = new OpenAI({ baseURL: "http://localhost:8787/v1", apiKey: "sk-guard-..." });
 ```
 
-Anthropic and Groq models (`claude-*`, `llama-*`, `mixtral-*`, ...) are
-routed automatically based on the `model` field. No client changes needed
-beyond the `baseURL`/`apiKey`.
+Anthropic, Gemini, and Groq models (`claude-*`, `gemini-*`, `llama-*`,
+`mixtral-*`, ...) are routed automatically based on the `model` field. No
+client changes needed beyond the `baseURL`/`apiKey`.
 
 Open `http://localhost:8787/dashboard` for live spend, cache hit rate, and
 top expensive requests. `ai-guard init` also sets up a login for it (one
@@ -135,40 +135,6 @@ ai-guard run --config /path/to/config.yaml
 docker build -t ai-guard .
 docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml ai-guard
 ```
-
-## Known limitations (v0.1)
-
-- **No Assistants/Responses API**: just `/v1/chat/completions` and
-  `/v1/embeddings`.
-- **Embeddings requests don't use `fallback:`**: a single attempt against
-  the requested model's provider, deliberately (chat's fallback models
-  aren't valid embeddings models).
-- **A dropped upstream connection mid-stream ends the client's stream with
-  no formal error event**: fallback only covers failures *before* the
-  first byte is relayed to the client; once a provider's stream is
-  committed, there's no way to hand it to a fallback if it dies partway
-  through.
-- **Anthropic tool-call argument streaming is batched, not incremental**,
-  and `tool_choice: "none"` has no exact Anthropic equivalent (translated
-  as a best-effort `"auto"`).
-- **Budget enforcement is per-process, not per-cluster.** Reservations that
-  close the concurrent-request race (see above) are held in memory, and
-  SQLite is a single file. If you run more than one ai-guard instance
-  (e.g. one per pod behind a load balancer), each has its own view of
-  spend and its own in-flight reservations, so a single user's budget can
-  be exceeded by roughly (number of instances)×. Single-instance
-  deployments (a single container/VM in front of your app) enforce budgets
-  correctly; horizontally-scaled deployments currently don't.
-- Worst-case cost estimation (for the pre-flight budget reservation) sizes
-  the prompt from message text length (~4 chars/token) and uses the
-  request's `max_tokens` (or a 4096-token default if unset), it's a
-  ceiling, not the model's actual token count, so it can reserve somewhat
-  more than a request ends up costing. The reservation is released and
-  reconciled against actual logged cost immediately after the request.
-- The pricing table in `internal/cost/cost.go` is a manually maintained
-  snapshot of public provider pricing; verify against current provider
-  pricing pages for anything cost-sensitive, and update the table if it
-  drifts.
 
 ## Development
 

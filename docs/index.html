@@ -19,9 +19,9 @@
   <nav class="top-links">
     <a href="./index.html">Home</a>
     <a href="./guide/getting-started.html">Guide</a>
-    <!--<a href="./guide/providers.html">Providers</a>-->
+    <a href="./guide/api-reference.html">API</a>
     <a href="./guide/configuration.html">Configuration</a>
-    <a href="./guide/commands.html">CLI</a>
+    <a href="./guide/deployment.html">Deployment</a>
   </nav>
   <div class="spacer"></div>
   <div class="header-actions">
@@ -33,6 +33,10 @@
     <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
     </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
     <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
     </a>
@@ -75,10 +79,10 @@
     <span class="eyebrow"><span class="dot"></span> Open source &middot; self-hosted &middot; Apache 2.0 licensed</span>
     <h1>Cap the bill <span class="accent">before the request goes out.</span></h1>
     <p class="lead">
-      A stuck retry loop turned an unbounded <code class="inline">max_tokens</code> into an $8,000
-      bill in 11 days, and nobody noticed until the invoice did. AI Guard sits in front of
-      OpenAI, Anthropic, Gemini, Groq, or Together and blocks a request before it's sent if it
-      would blow a budget, not after you've already paid for it.
+      A stuck retry loop with an unbounded <code class="inline">max_tokens</code> ran up an $8,000
+      bill over 11 days before anyone noticed. AI Guard is a self-hosted proxy that sits in front
+      of OpenAI, Anthropic, Gemini, Groq, and Together, and refuses a request that would push a
+      user over their budget.
     </p>
     <div class="cta-row">
       <a class="btn btn-primary" href="./guide/getting-started.html">Get started &rarr;</a>
@@ -108,10 +112,79 @@
     </div>
   </section>
 
+  <section class="section tight" id="quickstart">
+    <div class="section-head">
+      <h2>Quickstart</h2>
+      <p>Three commands to run it, then one changed line in your application.</p>
+    </div>
+    <div class="quickstart-steps">
+      <div class="qs-step">
+        <div class="qs-num">1</div>
+        <div class="qs-body">
+          <h3>Install</h3>
+          <pre>git clone https://github.com/Oluiy/ai-cost-guard.git
+cd ai-cost-guard
+go install ./cmd/ai-guard</pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">2</div>
+        <div class="qs-body">
+          <h3>Set it up</h3>
+          <p>Interactive. Pick your providers, paste your real API keys, and add a budgeted user. You get back a virtual key.</p>
+          <pre>ai-guard init</pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">3</div>
+        <div class="qs-body">
+          <h3>Run it</h3>
+          <pre>ai-guard run
+# gateway   http://localhost:8787
+# dashboard http://localhost:8787/dashboard</pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">4</div>
+        <div class="qs-body">
+          <h3>Point your app at it</h3>
+          <p>Change the base URL and use the virtual key from step 2, not your real provider key. Nothing else in your code changes.</p>
+          <div class="code-tabs">
+            <div class="tab-row">
+              <button class="tab" data-lang="python">Python</button>
+              <button class="tab" data-lang="typescript">TypeScript</button>
+              <button class="tab" data-lang="curl">curl</button>
+            </div>
+            <div class="panel" data-lang="python"><pre>from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8787/v1",   # was api.openai.com
+    api_key="sk-guard-...",                 # from `ai-guard init`
+)</pre></div>
+            <div class="panel" data-lang="typescript"><pre>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:8787/v1",   // was api.openai.com
+  apiKey: "sk-guard-...",                // from `ai-guard init`
+});</pre></div>
+            <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}'</pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cta-row" style="margin-top: 34px;">
+      <a class="btn btn-primary" href="./guide/getting-started.html">Full walkthrough &rarr;</a>
+      <a class="btn btn-ghost" href="./guide/deployment.html">Deploy it</a>
+    </div>
+  </section>
+
   <section class="section tight" id="dashboard-preview">
     <div class="section-head">
-      <h2>See it before you run it</h2>
-      <p>The live dashboard: spend, cache hit rate, request history, and custom reports, updating in real time.</p>
+      <h2>The dashboard</h2>
+      <p>Spend, cache hit rate, request history, and custom date-range reports, served at <code class="inline">/dashboard</code> and updating live.</p>
     </div>
     <div class="carousel" id="dashboard-carousel" tabindex="0">
       <div class="carousel-viewport">
@@ -176,51 +249,51 @@
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3.6v5.4c0 5-3.4 8.9-8 10-4.6-1.1-8-5-8-10V6.6L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8v5M12 16.2v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
-        <h3>Blocks before it spends</h3>
-        <p>Every request's worst case is estimated and reserved against your budget before it leaves the building. A burst of concurrent requests can't slip through a check that only looked at spend already settled.</p>
+        <h3>Reserves cost before calling out</h3>
+        <p>Each request's worst-case cost is estimated and held against the user's budget before it reaches the provider. Twenty concurrent requests can't all pass a check that only reads settled spend.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 12v6c0 1.1 3.6 2 8 2s8-.9 8-2v-6" stroke="currentColor" stroke-width="1.8"/></svg>
         </div>
-        <h3>Caches the repeat prompts</h3>
-        <p>Identical requests inside the TTL are served for $0, whether or not the client asked to stream. A repeated question never reaches the provider twice.</p>
+        <h3>Serves repeat prompts from cache</h3>
+        <p>Identical requests inside the TTL cost $0 and never reach the provider. Streaming clients get a real stream back, so caching still applies to them.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.5 6 .6-4.5 4 1.3 5.9L12 15l-5.2 3 1.3-5.9-4.5-4 6-.6L12 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
-        <h3>Falls back, doesn't fall over</h3>
-        <p>If a provider errors or rate-limits, the next model in your fallback list is tried before anything reaches the client, streaming included. One outage doesn't take your app down with it.</p>
+        <h3>Retries on a fallback model</h3>
+        <p>When a provider errors or rate-limits, the next model in your fallback list is tried before anything reaches the client. This works for streaming requests too.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 4v16" stroke="currentColor" stroke-width="1.8"/></svg>
         </div>
-        <h3>A budget per key, not per vibe</h3>
-        <p>Callers authenticate with a gateway-issued key, not a header they can just leave off. A budget tied to something the caller doesn't control can't be evaded by accident.</p>
+        <h3>Budgets tied to the key</h3>
+        <p>Callers authenticate with a key AI Guard issued, so the budget applies to something they don't control. A header the client sets itself can be omitted on one code path and skip the limit entirely.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6.5c0-1.4 3.6-2.5 8-2.5s8 1.1 8 2.5-3.6 2.5-8 2.5-8-1.1-8-2.5Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 6.5V17c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V6.5" stroke="currentColor" stroke-width="1.8"/><path d="M4 11.75c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5" stroke="currentColor" stroke-width="1.8"/></svg>
         </div>
-        <h3>An answer, not a guess</h3>
-        <p>Every request lands in a local log with its real cost, tokens, latency, and finish reason. "We spent $40 today, mostly on retries" becomes a query, not a hunch.</p>
+        <h3>Logs every request's real cost</h3>
+        <p>Cost, tokens, latency, cache status, and finish reason land in a local SQLite log. You can query where the month's spend actually went, per user and per model.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 17V7l8-4 8 4v10l-8 4-8-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 7l8 4 8-4" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         </div>
-        <h3>One binary, your infrastructure</h3>
-        <p>No managed service, no third party in the request path. Your real provider keys live in your config, on your machine, never in your app's code.</p>
+        <h3>One binary you run yourself</h3>
+        <p>No managed service and no third party in the request path. Your provider keys stay in your own config, and your application code never sees them.</p>
       </div>
     </div>
   </section>
 
   <section class="section">
     <div class="section-head">
-      <h2>A budget alert tells you after. This stops it during.</h2>
-      <p>Spend monitoring is useful. It's also, by definition, too late.</p>
+      <h2>Compared to a spend alert</h2>
+      <p>Monitoring tells you what a runaway loop cost. A gateway in the request path can refuse it while it's happening.</p>
     </div>
     <table class="compare">
       <thead>
@@ -260,7 +333,8 @@
 
   <section class="section tight">
     <div class="section-head">
-      <h2>One baseURL change, not a rewrite</h2>
+      <h2>Switching your app over</h2>
+      <p>Change the base URL and the key. Your existing OpenAI SDK calls keep working as they are.</p>
     </div>
     <div class="code-tabs">
       <div class="tab-row">
@@ -302,6 +376,39 @@ await client.chat.completions.create({
     </div>
     <div class="cta-row" style="margin-top: 32px;">
       <a class="btn btn-primary" href="./guide/getting-started.html">Read the guide &rarr;</a>
+    </div>
+  </section>
+
+  <section class="section" id="docs-map">
+    <div class="section-head">
+      <h2>Documentation</h2>
+      <p>Reference for setup, the API surface, deployment, and the parts that aren't finished yet.</p>
+    </div>
+    <div class="feature-grid">
+      <a class="feature-card doc-card" href="./guide/getting-started.html">
+        <h3>Getting started &rarr;</h3>
+        <p>Install, configure, and send your first request through the gateway. Start here.</p>
+      </a>
+      <a class="feature-card doc-card" href="./guide/how-it-works.html">
+        <h3>How it works &rarr;</h3>
+        <p>The request lifecycle, how budget reservation handles concurrent requests, and how caching, routing, and fallback behave.</p>
+      </a>
+      <a class="feature-card doc-card" href="./guide/api-reference.html">
+        <h3>API reference &rarr;</h3>
+        <p>Every endpoint, request shape, response header, and error code, with examples in five languages.</p>
+      </a>
+      <a class="feature-card doc-card" href="./guide/providers.html">
+        <h3>Providers &rarr;</h3>
+        <p>OpenAI, Anthropic, and Gemini: what to configure, what gets translated, and what each one supports.</p>
+      </a>
+      <a class="feature-card doc-card" href="./guide/deployment.html">
+        <h3>Deployment &rarr;</h3>
+        <p>Docker, DigitalOcean, and PaaS hosts, running on your own subdomain, and what to change before scaling past one instance.</p>
+      </a>
+      <a class="feature-card doc-card" href="./guide/troubleshooting.html">
+        <h3>Troubleshooting &rarr;</h3>
+        <p>Common errors and their causes, plus the current list of known limitations.</p>
+      </a>
     </div>
   </section>
 </main>

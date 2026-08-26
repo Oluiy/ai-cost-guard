@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -271,4 +272,73 @@ func anyContains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// config.yaml holds provider API keys, the session-signing secret, and
+// password hashes, so it must never be group- or world-readable.
+func TestSave_CreatesFileOwnerOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+
+	if err := Save(path, &Config{Port: 8787}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("new config is %o, want owner-only", perm)
+	}
+}
+
+// The subtle case: os.WriteFile applies its mode only when it creates the
+// file. Rewriting a config.yaml that already existed as 0644 (hand-made,
+// restored from backup, COPYd into an image) used to leave it readable by
+// every local account, including after `ai-guard reset-dashboard-password`
+// wrote a fresh secret into it.
+func TestSave_TightensPermissionsOnPreExistingLooseFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+
+	if err := os.WriteFile(path, []byte("port: 1\n"), 0o644); err != nil {
+		t.Fatalf("seeding file: %v", err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil { // defeat umask
+		t.Fatalf("chmod: %v", err)
+	}
+
+	if err := Save(path, &Config{Port: 8787}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("config is still %o after Save; group/other can read provider keys", perm)
+	}
+}
+
+// Rewriting an already-correct file must not loosen it, and must not
+// churn the mode for no reason. (There's no writable mode stricter than
+// 0600 to test against: 0400 isn't writable, so Save legitimately fails
+// on it.)
+func TestSave_LeavesAlreadyRestrictedFileUnchanged(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+
+	if err := os.WriteFile(path, []byte("port: 1\n"), 0o600); err != nil {
+		t.Fatalf("seeding file: %v", err)
+	}
+	if err := os.Chmod(path, 0o600); err != nil { // defeat umask
+		t.Fatalf("chmod: %v", err)
+	}
+	if err := Save(path, &Config{Port: 8787}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	info, _ := os.Stat(path)
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("permissions changed from 0600 to %o", perm)
+	}
 }

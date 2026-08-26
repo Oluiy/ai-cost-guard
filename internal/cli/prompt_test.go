@@ -101,3 +101,24 @@ func TestValidateNewPassword_RejectsMismatch(t *testing.T) {
 		t.Fatal("expected error when the confirmation doesn't match")
 	}
 }
+
+// The cache-TTL prompt's bounds. 21600 (6 hours) is the case that
+// motivated asking at all: a scheduled job whose interval far exceeds the
+// 5-minute default and would otherwise never hit the cache.
+func TestParseIntInRange_CacheTTLBounds(t *testing.T) {
+	const minTTL, maxTTL = 1, 60 * 60 * 24 * 30
+
+	valid := []string{"1", "300", "21600", "2592000", " 900 "}
+	for _, in := range valid {
+		if _, err := parseIntInRange(in, minTTL, maxTTL); err != nil {
+			t.Errorf("parseIntInRange(%q) rejected a valid TTL: %v", in, err)
+		}
+	}
+
+	invalid := []string{"0", "-1", "2592001", "", "abc", "5m", "300s"}
+	for _, in := range invalid {
+		if _, err := parseIntInRange(in, minTTL, maxTTL); err == nil {
+			t.Errorf("parseIntInRange(%q) accepted an invalid TTL", in)
+		}
+	}
+}

@@ -57,12 +57,9 @@ type timeseriesRow struct {
 	Requests int64   `json:"requests"`
 }
 
-// rangeWindow resolves a `range` query value into how far back to look and
-// how coarsely to bucket the spend-over-time chart. Hourly buckets over a
-// multi-day range would mean hundreds of bars in a chart meant to be read
-// at a glance, so anything longer than a day buckets by day instead.
-// Unrecognized values fall back to "today" rather than erroring — a
-// dashboard query param is not worth failing a page load over.
+// rangeWindow resolves a `range` query value into a lookback window and
+// chart bucket size. Anything longer than a day buckets by day instead of
+// hour. Unrecognized values fall back to "today".
 func rangeWindow(rng string) (since time.Time, granularity logging.Granularity, normalized string) {
 	now := time.Now().UTC()
 	switch rng {
@@ -78,14 +75,10 @@ func rangeWindow(rng string) (since time.Time, granularity logging.Granularity, 
 
 const dateOnlyLayout = "2006-01-02"
 
-// customDateRange parses ?from=&to= (YYYY-MM-DD, as produced by an
-// <input type="date">) into an inclusive [since, until] window: since is
-// midnight at the start of `from`, until is the last instant of `to` —
-// picking "to: Aug 15" without this would silently exclude every request
-// that happened on the 15th itself, since a bare date parses to that
-// day's midnight. ok is false if either date is missing/malformed, or if
-// from is after to, so callers can fall back to the regular range preset
-// instead of erroring on a stray/partial query string.
+// customDateRange parses ?from=&to= (YYYY-MM-DD) into an inclusive
+// [since, until] window: until is the last instant of `to`, not its
+// midnight, so the end date isn't silently excluded. ok is false on a
+// missing/malformed date or from > to.
 func customDateRange(fromStr, toStr string) (since, until time.Time, ok bool) {
 	from, err1 := time.ParseInLocation(dateOnlyLayout, fromStr, time.UTC)
 	to, err2 := time.ParseInLocation(dateOnlyLayout, toStr, time.UTC)
@@ -111,9 +104,8 @@ func (h *Handler) buildSnapshot(ctx context.Context, rng, userFilter string) (sn
 	if err != nil {
 		return snapshot{}, err
 	}
-	// Always drawn from a fixed, generous window, unfiltered by the
-	// current selection, so switching the range or user filter never
-	// makes an option disappear from its own dropdown.
+	// Drawn from a fixed window, unfiltered, so switching range/user
+	// never makes an option vanish from its own dropdown.
 	allUsers, err := h.Store.DistinctUsers(ctx, now.Add(-30*24*time.Hour))
 	if err != nil {
 		return snapshot{}, err
@@ -173,11 +165,9 @@ func (h *Handler) Data(c *fiber.Ctx) error {
 	return c.JSON(snap)
 }
 
-// Events streams the same snapshot as Server-Sent Events every few seconds
-// so the dashboard updates live without a manual refresh. The range/user
-// filter is captured once, from the query string the client connected
-// with — a client that changes the filter reconnects with a new request
-// rather than pushing a filter change down an open stream.
+// Events streams the same snapshot as Server-Sent Events every few
+// seconds. The range/user filter is fixed at connect time; changing it
+// means reconnecting.
 func (h *Handler) Events(c *fiber.Ctx) error {
 	rng := c.Query("range")
 	userFilter := c.Query("user")

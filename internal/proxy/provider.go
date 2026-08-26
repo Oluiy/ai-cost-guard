@@ -21,31 +21,23 @@ type Provider interface {
 	// OpenAI-shaped response body plus normalized usage/finish_reason.
 	ChatCompletion(ctx context.Context, model string, rawBody []byte) (respBody []byte, usage Usage, finishReason string, statusCode int, err error)
 
-	// OpenStream starts a streaming request upstream and returns once the
-	// response status is known — before anything has been written to any
-	// client. That's what lets a caller still fall back to another
-	// provider/model on early failure, exactly like ChatCompletion: the
-	// returned StreamSession is only committed to a client once the
-	// caller chooses to call Relay on it.
+	// OpenStream starts a streaming request and returns once the status
+	// is known, before anything is written to a client — so a caller can
+	// still fall back to another provider on early failure.
 	OpenStream(ctx context.Context, model string, rawBody []byte) (StreamSession, int, error)
 
-	// Embeddings sends rawBody (an OpenAI /v1/embeddings request) upstream
-	// and returns an OpenAI-shaped response body plus usage. Providers
-	// without an embeddings API (e.g. Anthropic) return a descriptive
-	// error rather than silently no-op'ing.
+	// Embeddings sends rawBody upstream and returns an OpenAI-shaped
+	// response plus usage. Providers with no embeddings API return an
+	// error rather than a silent no-op.
 	Embeddings(ctx context.Context, model string, rawBody []byte) (respBody []byte, usage Usage, statusCode int, err error)
 }
 
 // StreamSession is an established, successful streaming connection to a
 // provider, ready to be relayed to a client.
 type StreamSession interface {
-	// Relay drains the upstream stream into w — translating from the
-	// provider's native SSE format if needed (see AnthropicProvider) —
-	// and returns the accumulated text, tool calls, usage, and
-	// finish_reason once it ends. None of this is known up front the way
-	// a non-streaming ChatCompletion response's body is, but the caller
-	// (the cache layer) still needs the complete answer to reconstruct a
-	// normal, non-streaming response shape once the stream ends.
+	// Relay drains the upstream stream into w, translating from the
+	// provider's native SSE format if needed, and returns the
+	// accumulated text, tool calls, usage, and finish_reason once it ends.
 	Relay(w *bufio.Writer) (text string, toolCalls []map[string]any, usage Usage, finishReason string, err error)
 	// Close releases the underlying connection. Safe to call whether or
 	// not Relay was ever called.

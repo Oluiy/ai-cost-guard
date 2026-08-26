@@ -6,15 +6,17 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/pterm/pterm"
 
 	"github.com/Oluiy/ai-cost-guard/internal/auth"
 	"github.com/Oluiy/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
-// generateKey returns a random gateway-issued virtual API key, 
-// that combines the apikey and ai-cost-guard capabilities.
+// generateKey returns a random gateway-issued virtual API key.
 func generateKey() (string, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
@@ -29,6 +31,94 @@ var providerDefaults = map[string]string{
 	"gemini":    "https://generativelanguage.googleapis.com/v1beta",
 	"groq":      "https://api.groq.com/openai/v1",
 	"together":  "https://api.together.xyz/v1",
+}
+
+// supportedProviders is the list offered by the setup wizard and
+// `add-provider`, in the order shown.
+var supportedProviders = []string{"openai", "anthropic", "gemini", "groq", "together"}
+
+// promptForProviders asks which providers to add and collects an API key
+// for each, writing them into cfg. already-configured providers are
+// offered but re-entering one overwrites its key, which is how you rotate
+// a key without hand-editing the file.
+func promptForProviders(cfg *config.Config, options []string) error {
+	if len(options) == 0 {
+		return fmt.Errorf("every supported provider is already configured")
+	}
+
+	selected, err := pterm.DefaultInteractiveMultiselect.
+		WithOptions(options).
+		WithDefaultText("Which providers do you want to route through ai-guard?").
+		Show()
+	if err != nil {
+		return err
+	}
+	if len(selected) == 0 {
+		return fmt.Errorf("select at least one provider")
+	}
+
+	if cfg.Providers == nil {
+		cfg.Providers = map[string]config.Provider{}
+	}
+	for _, name := range selected {
+		key, err := pterm.DefaultInteractiveTextInput.
+			WithMask("*").
+			Show(fmt.Sprintf("API key for %s", name))
+		if err != nil {
+			return err
+		}
+		cfg.Providers[name] = config.Provider{APIKey: key, BaseURL: providerDefaults[name]}
+	}
+	return nil
+}
+
+// RunAddProvider adds one or more providers to an existing config,
+// leaving everything else (keys, budgets, dashboard login) untouched.
+func RunAddProvider(configPath string) error {
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return fmt.Errorf("run 'ai-guard init' first, or check your config: %w", err)
+	}
+
+	var available []string
+	var existing []string
+	for _, name := range supportedProviders {
+		if _, ok := cfg.Providers[name]; ok {
+			existing = append(existing, name)
+			continue
+		}
+		available = append(available, name)
+	}
+
+	if len(existing) > 0 {
+		pterm.Info.Printfln("Already configured: %s", strings.Join(existing, ", "))
+	}
+	if len(available) == 0 {
+		pterm.Info.Println("Every supported provider is already configured. " +
+			"To rotate a key, edit `providers:` in your config directly.")
+		return nil
+	}
+
+	if err := promptForProviders(cfg, available); err != nil {
+		return err
+	}
+
+	if err := config.Save(configPath, cfg); err != nil {
+		return err
+	}
+
+	names := make([]string, 0, len(cfg.Providers))
+	for name := range cfg.Providers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	pterm.Success.Printfln("Wrote %s", configPath)
+	pterm.Info.Printfln("Providers now configured: %s", strings.Join(names, ", "))
+	pterm.Info.Printfln("Models you can now use as fallback: %s",
+		strings.Join(cost.ChatModelsFor(names), ", "))
+	pterm.Info.Println("Restart `ai-guard run` for the new provider to take effect.")
+	return nil
 }
 
 // RunInit walks the user through an interactive setup and writes configPath.
@@ -51,19 +141,6 @@ func RunInit(configPath string) error {
 		}
 	}
 
-	selected, err := pterm.DefaultInteractiveMultiselect.
-		WithOptions([]string{"openai", "anthropic", "gemini", "groq", "together"}).
-		WithDefaultText("Which providers do you want to route through ai-guard?").
-		Show()
-	
-	if err != nil {
-		return err
-	}
-	
-	if len(selected) == 0 {
-		return fmt.Errorf("select at least one provider")
-	}
-
 	cfg := &config.Config{
 		Port:      config.DefaultPort,
 		DataDir:   ".",
@@ -72,14 +149,8 @@ func RunInit(configPath string) error {
 		Keys:      map[string]string{},
 	}
 
-	for _, name := range selected {
-		key, err := pterm.DefaultInteractiveTextInput.
-			WithMask("*").
-			Show(fmt.Sprintf("API key for %s", name))
-		if err != nil {
-			return err
-		}
-		cfg.Providers[name] = config.Provider{APIKey: key, BaseURL: providerDefaults[name]}
+	if err := promptForProviders(cfg, supportedProviders); err != nil {
+		return err
 	}
 
 	port, err := promptValidatedInt("Port to run ai-guard on", config.DefaultPort, 1, 65535)
@@ -99,6 +170,18 @@ func RunInit(configPath string) error {
 	cfg.Cache.TTL = 300
 
 	if enableCache {
+		// Explained via Info rather than in the question itself — every
+		// other prompt here fits one line, and a scheduled job needs a
+		// TTL that covers its actual interval.
+		pterm.Info.Println("Cached responses expire after a set time. The default 300s (5 min) suits " +
+			"interactive apps; a scheduled job that repeats the same prompt hours apart needs a TTL " +
+			"at least as long as its interval (6 hours = 21600) or it will never hit the cache.")
+		ttl, err := promptValidatedInt("Cache TTL in seconds", 300, 1, 60*60*24*30)
+		if err != nil {
+			return err
+		}
+		cfg.Cache.TTL = ttl
+
 		useRedis, err := pterm.DefaultInteractiveConfirm.
 			WithDefaultValue(false).
 			Show("Use Redis for the cache (recommended for multi-instance deployments)?")
@@ -180,7 +263,7 @@ func RunInit(configPath string) error {
 			"Fine for local/solo use; not for anything with multiple callers.")
 	}
 
-	if len(selected) > 1 {
+	if len(cfg.Providers) > 1 {
 		pterm.Info.Println("You can configure automatic fallback models in config.yaml under `fallback:` " +
 			"(e.g. try gpt-4o-mini or claude-3-haiku if your primary model fails or rate-limits).")
 	}
@@ -224,13 +307,9 @@ func RunInit(configPath string) error {
 	return nil
 }
 
-// setUpDashboardLogin optionally creates the one dashboard admin account,
-// mirroring how Uptime Kuma/Grafana/Coolify all gate their dashboards:
-// without it, /dashboard has no login and is visible to anyone who can
-// reach the port (config.Warnings surfaces that loudly at every `ai-guard
-// run` if skipped). It's a confirm, not forced, consistent with everything
-// else in this wizard — cache, Redis, and budgeted users are all optional
-// too. Returns whether an account was actually created.
+// setUpDashboardLogin optionally creates the one dashboard admin account.
+// Skipping it leaves /dashboard reachable with no login, warned about at
+// every `ai-guard run`. Returns whether an account was created.
 func setUpDashboardLogin(cfg *config.Config) (bool, error) {
 	pterm.Info.Println("Last step: protect the dashboard with a login, so spend and usage data " +
 		"isn't visible to anyone who can reach the port — the same thing tools like Grafana and Coolify do.")

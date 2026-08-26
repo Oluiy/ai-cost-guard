@@ -67,6 +67,17 @@
   box-sizing: border-box;
 }
 
+/* The `hidden` attribute is only a UA default of `display: none`, so any
+   author rule that sets display — `.filters { display: flex }`, and most
+   layout classes here do — silently outranks it. An element then keeps
+   rendering while `el.hidden = true` reports success, with nothing in the
+   console to hint at it. This has caught us twice; !important is the
+   standard reset for it, and makes `hidden` mean hidden everywhere
+   instead of needing a per-selector guard each time. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -848,4 +859,251 @@ td.primary {
   font-size: 13px;
   padding: 16px 0;
   text-align: center;
+}
+
+/* ---------- Settings view ---------- */
+/* Reuses the existing surface/border/series tokens so this pane doesn't
+   read as a different application bolted onto the side of the dashboard. */
+
+.settings-note {
+  max-width: 760px;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--series-1);
+  border-radius: 8px;
+  background: var(--series-1-wash);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.settings-note code {
+  font-size: 13px;
+}
+
+.panel-card {
+  max-width: 760px;
+  margin: 0 0 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+}
+
+.panel-card h2 {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.field {
+  display: block;
+  margin: 14px 0 0;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.field-hint {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.panel-card input[type="text"],
+.panel-card input[type="number"] {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14.5px;
+  min-width: 140px;
+}
+
+.panel-card input:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.settings-table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14.5px;
+  color: var(--text-primary);
+}
+
+.settings-table td:last-child {
+  text-align: right;
+}
+
+.fallback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14.5px;
+}
+
+.add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 760px;
+  margin-top: 4px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 9px 16px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--series-1);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--page);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  filter: brightness(0.97);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.btn-link.danger {
+  color: var(--status-critical);
+}
+
+.set-status {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.set-status.error {
+  color: var(--status-critical);
+}
+
+/* ---------- Confirmation dialog ---------- */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(11, 11, 11, 0.55);
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 520px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: 0 24px 60px -20px rgba(11, 11, 11, 0.5);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.confirm-sub {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.confirm-diff {
+  margin: 0 0 18px;
+  padding: 12px 14px 12px 30px;
+  border-radius: 8px;
+  background: var(--page);
+  border: 1px solid var(--border);
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.confirm-diff li {
+  margin: 0;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }

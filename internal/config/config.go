@@ -15,27 +15,22 @@ type Config struct {
 	DataDir   string              `yaml:"data_dir"`
 	Providers map[string]Provider `yaml:"providers"`
 	Cache     CacheConfig         `yaml:"cache"`
-	// BudgetBackend selects how daily-budget enforcement is tracked.
-	// "local" (default) is correct for a single ai-guard instance only.
-	// "redis" shares enforcement state across multiple instances behind
-	// a load balancer — required for horizontally-scaled deployments,
-	// since "local" tracking is per-process and a user's real budget can
-	// otherwise be exceeded by roughly (instance count)×.
+	// BudgetBackend selects where budget state is tracked: "local"
+	// (default, single instance only) or "redis" (shared across instances).
 	BudgetBackend BudgetBackendConfig `yaml:"budget"`
 	Users         map[string]Budget   `yaml:"users"`
-	// Keys maps a gateway-issued virtual API key (what callers put in
-	// their Authorization header) to the user_id their budget is tracked
-	// under. Real provider credentials in Providers are never exposed to
-	// callers. If empty, ai-guard runs in single-tenant mode: every
-	// request is attributed to the "default" user with no authentication
-	// (fine for local/solo use, not for anything multi-caller).
+	// Keys maps a virtual API key to the user_id its budget is tracked
+	// under. Empty means single-tenant mode: every request is "default"
+	// with no auth.
 	Keys     map[string]string `yaml:"keys"`
 	Fallback []string          `yaml:"fallback"`
 	Default  RouteConfig       `yaml:"default"`
-	// Dashboard gates the human-facing /dashboard UI behind a login,
-	// entirely separate from Keys above (which authenticates API callers,
-	// not people looking at the spend dashboard in a browser).
+	// Dashboard gates /dashboard behind a login, separate from Keys.
 	Dashboard DashboardConfig `yaml:"dashboard"`
+	// TrustedProxies lists reverse proxies allowed to set
+	// X-Forwarded-For/-Proto. Empty (default) uses the real peer address;
+	// set it when running behind nginx/Caddy/a load balancer.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 // Provider holds credentials/config for an upstream LLM provider.
@@ -44,7 +39,7 @@ type Provider struct {
 	BaseURL string `yaml:"base_url"`
 }
 
-// CacheConfig controls semantic response caching.
+// CacheConfig controls response caching.
 type CacheConfig struct {
 	Enabled  bool   `yaml:"enabled"`
 	TTL      int    `yaml:"ttl_seconds"`
@@ -57,11 +52,14 @@ type Budget struct {
 	DailyLimitUSD float64 `yaml:"daily_limit_usd"`
 }
 
-// BudgetBackendConfig selects and configures where budget-enforcement
-// state (in-flight reservations and, for redis, settled spend) lives.
+// BudgetBackendConfig selects where budget-enforcement state lives.
 type BudgetBackendConfig struct {
 	Backend  string `yaml:"backend"` // "local" or "redis"
 	RedisURL string `yaml:"redis_url"`
+	// FailClosed rejects a key whose user_id has no `users:` entry
+	// instead of treating it as unlimited. Off by default. An explicit
+	// daily_limit_usd: 0 still means unlimited either way.
+	FailClosed bool `yaml:"fail_closed"`
 }
 
 // RouteConfig sets default routing behavior.
@@ -70,20 +68,22 @@ type RouteConfig struct {
 }
 
 // DashboardConfig protects the /dashboard UI with a login. Users is a
-// list, not a single username/password pair, so a later move to more
-// than one account (e.g. a read-only account for someone who should see
-// spend but not change anything) is additive — no config migration needed
-// when that gets built. `ai-guard init` only ever creates one entry today.
+// list so more than one account can be added later without a config
+// migration; `ai-guard init` only creates one today.
 type DashboardConfig struct {
-	// SessionSecret signs session cookies (see internal/auth). Generated
-	// once by `ai-guard init` and persisted here so sessions survive
-	// `ai-guard run` restarts instead of logging everyone out each time.
+	// SessionSecret signs session cookies. Generated once by `ai-guard
+	// init` so sessions survive restarts.
 	SessionSecret string          `yaml:"session_secret"`
 	Users         []DashboardUser `yaml:"users"`
+	// SessionTTLHours is how long a login stays valid. Defaults to 168
+	// (7 days). Sessions can't be revoked individually; rotating
+	// SessionSecret via `ai-guard reset-dashboard-password` invalidates
+	// all of them at once.
+	SessionTTLHours int `yaml:"session_ttl_hours"`
 }
 
-// DashboardUser is one dashboard login. Password is never stored — only
-// its bcrypt hash (see internal/auth.HashPassword).
+// DashboardUser is one dashboard login. Only the bcrypt hash is stored,
+// never the password itself.
 type DashboardUser struct {
 	Username     string `yaml:"username"`
 	PasswordHash string `yaml:"password_hash"`
@@ -93,10 +93,9 @@ const DefaultPort = 8787
 
 var bracedEnvVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
-// expandBracedEnvVars replaces ${VAR} with os.Getenv("VAR") (empty string
-// if unset). Unlike os.ExpandEnv, it leaves bare $VAR untouched, so values
-// that legitimately contain a literal '$' followed by non-identifier-safe
-// text (bcrypt hashes: $2a$10$...) pass through unchanged.
+// expandBracedEnvVars replaces ${VAR} with os.Getenv("VAR"). Unlike
+// os.ExpandEnv, bare $VAR is left untouched so bcrypt hashes
+// ($2a$10$...) survive unmangled.
 func expandBracedEnvVars(s string) string {
 	return bracedEnvVarPattern.ReplaceAllStringFunc(s, func(m string) string {
 		name := bracedEnvVarPattern.FindStringSubmatch(m)[1]
@@ -111,13 +110,6 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("reading config %s: %w", path, err)
 	}
 
-	// Expand ${ENV_VAR} references (e.g. api_key: ${OPENAI_API_KEY}) so
-	// secrets don't need to live in the config file itself. Deliberately
-	// only the braced form, via our own regexp, not os.ExpandEnv's bare
-	// $VAR too: bcrypt hashes (dashboard.users[].password_hash) are bare
-	// strings like $2a$10$..., which os.ExpandEnv would silently mangle
-	// by treating "2a", "10", etc. as (undefined, so empty) variable
-	// names, corrupting every stored password hash on load.
 	data = []byte(expandBracedEnvVars(string(data)))
 
 	cfg := &Config{
@@ -134,10 +126,8 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// Validate checks that the config is safe to start with, returning an
-// error for problems that make that impossible or clearly wrong. It does
-// not catch everything — see Warnings for non-fatal footguns that are
-// still worth surfacing.
+// Validate rejects configs that are unsafe or broken to start with. See
+// Warnings for problems that don't block startup.
 func (c *Config) Validate() error {
 	if c.Port == 0 {
 		c.Port = DefaultPort
@@ -171,8 +161,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf(`budget.backend must be "local" or "redis", got %q`, c.BudgetBackend.Backend)
 	}
 	if c.BudgetBackend.Backend == "redis" && c.BudgetBackend.RedisURL == "" {
-		// Convenience: if the cache is already pointed at a Redis, reuse
-		// its URL rather than making the operator repeat it.
+		// Reuse the cache's Redis URL if one is set, rather than requiring it twice.
 		if c.Cache.Backend == "redis" && c.Cache.RedisURL != "" {
 			c.BudgetBackend.RedisURL = c.Cache.RedisURL
 		} else {
@@ -180,12 +169,13 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// A dashboard login with no session_secret would still "work" —
-	// sessions get signed with an empty HMAC key instead of failing to
-	// start — which is exactly the kind of silently-weak state that's
-	// worse than an error. `ai-guard init`/`reset-dashboard-password`
-	// always generate one together with the account, so this only fires
-	// if config.yaml was hand-edited to add a dashboard user directly.
+	if err := ValidateFallback(c.Fallback, c.Providers); err != nil {
+		return err
+	}
+
+	// A dashboard user with no session_secret would sign cookies with an
+	// empty key. init/reset-dashboard-password always write both
+	// together, so this only fires on a hand-edited config.
 	if len(c.Dashboard.Users) > 0 && c.Dashboard.SessionSecret == "" {
 		return fmt.Errorf("dashboard.users is set but dashboard.session_secret is empty — " +
 			"run `ai-guard reset-dashboard-password` instead of hand-editing dashboard.users, " +
@@ -194,11 +184,8 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// Warnings returns non-fatal configuration problems worth surfacing at
-// startup: things that won't stop ai-guard from running, but silently
-// undermine what it's supposed to do — e.g. a budget that's effectively
-// unlimited because of a typo in a user_id, which is invisible unless
-// someone goes looking for it.
+// Warnings returns non-fatal problems worth surfacing at startup, such as
+// a budget that's silently unlimited due to a typo.
 func (c *Config) Warnings() []string {
 	var warnings []string
 
@@ -230,8 +217,8 @@ func (c *Config) Warnings() []string {
 	return warnings
 }
 
-// maskKey shortens a virtual API key for display in warnings, so it's
-// identifiable without echoing the whole secret to logs/terminal scrollback.
+// maskKey shortens a virtual API key for display in warnings, so it stays
+// identifiable without leaking the full secret to logs.
 func maskKey(key string) string {
 	if len(key) <= 12 {
 		return key
@@ -239,7 +226,8 @@ func maskKey(key string) string {
 	return key[:12] + "..."
 }
 
-// Save writes the config to path as YAML.
+// Save writes the config to path as YAML, restricting file permissions to
+// owner-only regardless of how the file existed before.
 func Save(path string, cfg *Config) error {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -247,6 +235,27 @@ func Save(path string, cfg *Config) error {
 	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("writing config %s: %w", path, err)
+	}
+	// os.WriteFile only applies its mode on creation; an existing file
+	// keeps its prior permissions. Tighten explicitly so a config that
+	// arrived as 0644 doesn't stay world-readable.
+	if err := restrictPermissions(path); err != nil {
+		return err
+	}
+	return nil
+}
+
+// restrictPermissions clears group/other access on path. No-op if
+// already stricter.
+func restrictPermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("checking permissions on %s: %w", path, err)
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		if err := os.Chmod(path, perm&^0o077); err != nil {
+			return fmt.Errorf("restricting permissions on %s: %w", path, err)
+		}
 	}
 	return nil
 }

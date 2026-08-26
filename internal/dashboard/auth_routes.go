@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"crypto/subtle"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/Oluiy/ai-cost-guard/internal/auth"
@@ -21,11 +23,23 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// Look up the username, then always run one password comparison, so
+	// an unknown username isn't distinguishable from a wrong password by
+	// response time.
+	var (
+		hash     string
+		username string
+		found    bool
+	)
 	for _, u := range h.Cfg.Users {
-		if u.Username == req.Username && auth.VerifyPassword(u.PasswordHash, req.Password) {
-			auth.SetSessionCookie(c, h.Cfg.SessionSecret, u.Username)
-			return c.JSON(fiber.Map{"ok": true})
+		if subtle.ConstantTimeCompare([]byte(u.Username), []byte(req.Username)) == 1 {
+			hash, username, found = u.PasswordHash, u.Username, true
 		}
+	}
+
+	if auth.VerifyPasswordConstantTime(hash, found, req.Password) {
+		auth.SetSessionCookie(c, h.Cfg.SessionSecret, username, auth.SessionTTL(h.Cfg.SessionTTLHours))
+		return c.JSON(fiber.Map{"ok": true})
 	}
 
 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -39,9 +53,8 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"ok": true})
 }
 
-// Whoami tells the dashboard's own UI who's logged in, so it can show an
-// account/logout affordance — or, if no dashboard login is configured at
-// all, know to hide that affordance rather than showing an empty one.
+// Whoami tells the dashboard UI who's logged in, or that no login is
+// configured at all.
 func (h *Handler) Whoami(c *fiber.Ctx) error {
 	if !h.requiresLogin() {
 		return c.JSON(fiber.Map{"auth_enabled": false})

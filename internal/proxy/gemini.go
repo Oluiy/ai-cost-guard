@@ -14,10 +14,8 @@ import (
 )
 
 // GeminiProvider translates OpenAI-shaped chat/completions and embeddings
-// requests into Google's Generative Language API and translates responses
-// back, including multimodal (image) content, tool/function calling, and
-// streaming. Reuses the openAI* request shapes already defined in
-// anthropic.go — same source format, different target.
+// requests to and from Google's Generative Language API, including
+// multimodal content, tool calling, and streaming.
 type GeminiProvider struct {
 	BaseURL string // e.g. "https://generativelanguage.googleapis.com/v1beta"
 	APIKey  string
@@ -83,11 +81,10 @@ type geminiFunctionDeclaration struct {
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
-// buildGeminiRequest translates an OpenAI-shaped chat/completions request
-// into Gemini's generateContent shape: system messages become the
-// top-level systemInstruction, "assistant" becomes role "model",
-// image_url content parts become inlineData blocks (base64 only — see
-// parseGeminiInlineImage), and tool_calls/tool results become
+// buildGeminiRequest converts an OpenAI-shaped chat/completions request
+// into Gemini's generateContent shape: system messages become
+// systemInstruction, "assistant" becomes role "model", image_url parts
+// become inlineData blocks, and tool_calls/results become
 // functionCall/functionResponse parts.
 func buildGeminiRequest(rawBody []byte, model string) (geminiRequest, error) {
 	var oaiReq openAIChatRequest
@@ -103,11 +100,9 @@ func buildGeminiRequest(rawBody []byte, model string) (geminiRequest, error) {
 		}
 	}
 
-	// Gemini correlates a function result to the call that requested it
-	// by NAME, not by an opaque call ID the way OpenAI's protocol does —
-	// a "tool" role message only carries tool_call_id, so the name has to
-	// be looked up from whichever earlier assistant message issued that
-	// call. Scanned up front so message order doesn't matter below.
+	// Gemini correlates a function result to its call by name, not by
+	// call ID like OpenAI does, so tool_call_id has to be resolved to a
+	// name from the assistant message that issued it.
 	toolCallNames := map[string]string{}
 	for _, m := range oaiReq.Messages {
 		for _, tc := range m.ToolCalls {
@@ -161,12 +156,8 @@ func buildGeminiRequest(rawBody []byte, model string) (geminiRequest, error) {
 				if inline := parseGeminiInlineImage(part.ImageURL.URL); inline != nil {
 					parts = append(parts, geminiPart{InlineData: inline})
 				}
-				// A non-data: remote URL is silently dropped: Gemini only
-				// accepts inline base64 or a pre-uploaded File API
-				// reference, and ai-guard deliberately doesn't fetch
-				// arbitrary caller-supplied URLs server-side on your
-				// behalf — that would turn a multimodal request into an
-				// SSRF primitive.
+				// Remote URLs are dropped, not fetched: ai-guard doesn't
+				// make server-side requests to caller-supplied URLs.
 			}
 		}
 		for _, tc := range m.ToolCalls {
@@ -197,16 +188,13 @@ func buildGeminiRequest(rawBody []byte, model string) (geminiRequest, error) {
 	if len(funcDecls) > 0 {
 		gReq.Tools = []geminiTool{{FunctionDeclarations: funcDecls}}
 	}
-	// tool_choice has no direct Gemini equivalent exposed the same way;
-	// left untranslated rather than guessing (see Anthropic's
-	// translateToolChoice for the pattern this would follow if added).
+	// tool_choice has no direct Gemini equivalent; left untranslated.
 
 	return gReq, nil
 }
 
 // parseGeminiInlineImage returns an inline image block for a base64 data
-// URI ("data:<mime>;base64,<data>"), or nil for anything else (a remote
-// http(s) URL — see buildGeminiRequest for why that's not supported).
+// URI ("data:<mime>;base64,<data>"), or nil for a remote URL.
 func parseGeminiInlineImage(url string) *geminiInlineData {
 	mediaType, data, ok := strings.Cut(strings.TrimPrefix(url, "data:"), ";base64,")
 	if !ok || !strings.Contains(url, "data:") {
@@ -250,10 +238,8 @@ func mapGeminiFinishReason(reason string) string {
 }
 
 // splitGeminiParts separates a Gemini response's first candidate into
-// accumulated text and OpenAI-shaped tool_calls. Gemini has no per-call
-// ID concept (function calls are correlated by name only), so an ID is
-// synthesized here purely so the OpenAI-shaped output has one — see
-// buildGeminiRequest's toolCallNames for how a later request maps it back.
+// text and OpenAI-shaped tool_calls. Gemini has no call-ID concept, so
+// an ID is synthesized to fill the OpenAI shape.
 func splitGeminiParts(candidates []geminiCandidate) (text string, toolCalls []map[string]any) {
 	if len(candidates) == 0 {
 		return "", nil
@@ -281,20 +267,14 @@ func splitGeminiParts(candidates []geminiCandidate) (text string, toolCalls []ma
 }
 
 // post is the shared request/response plumbing for Gemini's non-streaming
-// endpoints (chat, single/batch embeddings): auth header, size-capped
-// body read, and the same "upstream returned 4xx/5xx" error shape every
-// other provider in this package uses.
+// endpoints: auth header, size-capped body read, common error shape.
 func (p *GeminiProvider) post(ctx context.Context, url string, body []byte) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// The header form, not "?key=" in the URL: Google's API accepts
-	// either, but a query-string key is the kind of thing that ends up in
-	// access logs and browser history — the same class of leak the
-	// header form (and this codebase's other providers) avoids by
-	// construction.
+	// Header form, not "?key=": a query-string key ends up in access logs.
 	req.Header.Set("x-goog-api-key", p.APIKey)
 
 	resp, err := p.Client.Do(req)
@@ -436,10 +416,8 @@ func (p *GeminiProvider) Embeddings(ctx context.Context, model string, rawBody [
 		data[i] = map[string]any{"object": "embedding", "index": i, "embedding": e}
 	}
 
-	// Gemini's embedding endpoints don't return token usage the way
-	// generateContent does, so this is estimated from the request text —
-	// the same honest-estimate approach as the streaming usage fallback
-	// above, rather than silently logging/billing these as free.
+	// Gemini's embedding endpoints don't return token usage, so it's
+	// estimated from the request text rather than billed as free.
 	promptTokens := cost.EstimateEmbeddingTokens(payload)
 	usage := Usage{PromptTokens: promptTokens}
 
@@ -537,11 +515,9 @@ func (s *geminiStreamSession) Close() error {
 	return s.resp.Body.Close()
 }
 
-// Relay reads Gemini's SSE stream — each "data:" line is a complete
-// GenerateContentResponse chunk (unlike Anthropic's typed multi-event
-// framing, this is structurally closer to OpenAI's one-JSON-object-per-
-// line streaming) — translating each into an OpenAI-shaped chunk as it
-// arrives.
+// Relay reads Gemini's SSE stream, where each "data:" line is a complete
+// GenerateContentResponse chunk, and translates each into an
+// OpenAI-shaped chunk as it arrives.
 func (s *geminiStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, Usage, string, error) {
 	defer s.resp.Body.Close()
 

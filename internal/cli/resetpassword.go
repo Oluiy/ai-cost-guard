@@ -9,13 +9,9 @@ import (
 	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
-// RunResetDashboardPassword sets (or resets) the one dashboard admin
-// account in configPath. It's the recovery path every comparable
-// self-hosted tool provides for a forgotten password (there's no email
-// system here to send a reset link to) — deliberately doesn't require
-// knowing the current password or the server to be running, and doubles
-// as first-time setup if the dashboard login was skipped during
-// `ai-guard init`.
+// RunResetDashboardPassword sets or resets the dashboard admin account in
+// configPath. Doesn't require the current password or a running server;
+// also works as first-time setup if init skipped the dashboard login.
 func RunResetDashboardPassword(configPath string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -44,11 +40,8 @@ func RunResetDashboardPassword(configPath string) error {
 		return err
 	}
 
-	// Rotated on every reset, not just the first time: this command exists
-	// for disaster recovery, and a password change should invalidate any
-	// existing session, not leave one quietly valid on some other device
-	// (the same default GitHub/Google use — changing your password signs
-	// out everywhere else, not just where you changed it).
+	// Rotated on every reset so a password change also signs out any
+	// existing session.
 	sessionSecret, err := auth.GenerateSecret()
 	if err != nil {
 		return err

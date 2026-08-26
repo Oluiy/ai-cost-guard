@@ -295,6 +295,13 @@
   }
 
   function switchView(view) {
+    // Leaving the settings pane with edits pending would drop them with
+    // no indication anything was lost.
+    if (state.view === "settings" && view !== "settings" && hasUnsavedSettings()) {
+      if (!window.confirm("You have unsaved settings changes. Leave without saving?")) {
+        return;
+      }
+    }
     state.view = view;
     saveFilters();
 
@@ -303,12 +310,24 @@
     });
     document.getElementById("view-overview").hidden = view !== "overview";
     document.getElementById("view-requests").hidden = view !== "requests";
+    document.getElementById("view-settings").hidden = view !== "settings";
     document.getElementById("model-picker").hidden = view !== "requests";
     document.getElementById("status-picker").hidden = view !== "requests";
     document.getElementById("sort-picker").hidden = view !== "requests";
-    document.getElementById("view-title").textContent = view === "requests" ? "All requests" : "Cost dashboard";
+    var titles = { requests: "All requests", settings: "Settings", overview: "Cost dashboard" };
+    document.getElementById("view-title").textContent = titles[view] || "Cost dashboard";
 
-    if (view === "requests") {
+    // The range/user pickers filter spend data; they mean nothing on a
+    // configuration form, so hide the whole bar there. Note the class is
+    // .filters — querying a name that doesn't exist returns null and the
+    // guard below would swallow it, leaving the controls visible with no
+    // error anywhere.
+    var filters = document.querySelector(".filters");
+    if (filters) filters.hidden = view === "settings";
+
+    if (view === "settings") {
+      loadSettings();
+    } else if (view === "requests") {
       loadRequests(true);
     } else {
       fetchSnapshot().then(function (s) {
@@ -816,4 +835,329 @@
         /* no dashboard login configured, or not reachable — leave the account block hidden */
       });
   }
+
+  // ---------- Settings: the knobs that are safe to change from a browser ----------
+  // Deliberately a small surface. Provider keys, base URLs, virtual keys,
+  // and the session secret are never sent to this page and can't be set
+  // from it — the server enforces that, this UI just doesn't offer it.
+
+  // Local working copy. The form edits this; nothing reaches the server
+  // until Save, so Discard is just "throw it away and refetch".
+  var settingsDraft = null;
+  // The last state the server confirmed. Kept alongside the draft so the
+  // confirmation dialog can show a real before/after instead of a vague
+  // "are you sure", and so "Discard" has something to fall back to.
+  var settingsSaved = null;
+
+  function loadSettings() {
+    setSettingsStatus("");
+    fetch("/dashboard/api/settings", { credentials: "same-origin" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        settingsDraft = data;
+        settingsSaved = JSON.parse(JSON.stringify(data));
+        renderSettings();
+      })
+      .catch(function (err) {
+        setSettingsStatus("Couldn't load settings: " + err.message, true);
+      });
+  }
+
+  function renderSettings() {
+    if (!settingsDraft) return;
+    document.getElementById("set-cache-enabled").checked = !!settingsDraft.cache_enabled;
+    document.getElementById("set-cache-ttl").value = settingsDraft.cache_ttl_seconds;
+
+    var tbody = document.getElementById("set-users-body");
+    tbody.innerHTML = "";
+    Object.keys(settingsDraft.users || {}).sort().forEach(function (id) {
+      var tr = document.createElement("tr");
+
+      var nameTd = document.createElement("td");
+      nameTd.textContent = id;
+      tr.appendChild(nameTd);
+
+      var limitTd = document.createElement("td");
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.step = "0.01";
+      input.value = settingsDraft.users[id];
+      input.addEventListener("input", function () {
+        settingsDraft.users[id] = parseFloat(input.value || "0");
+      });
+      limitTd.appendChild(input);
+      tr.appendChild(limitTd);
+
+      var actionTd = document.createElement("td");
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn-link danger";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", function () {
+        delete settingsDraft.users[id];
+        renderSettings();
+      });
+      actionTd.appendChild(remove);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+
+    var list = document.getElementById("set-fallback-list");
+    list.innerHTML = "";
+    (settingsDraft.fallback || []).forEach(function (model, i) {
+      var row = document.createElement("div");
+      row.className = "fallback-row";
+
+      var name = document.createElement("span");
+      name.textContent = (i + 1) + ". " + model;
+      row.appendChild(name);
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn-link danger";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", function () {
+        settingsDraft.fallback.splice(i, 1);
+        renderSettings();
+      });
+      row.appendChild(remove);
+
+      list.appendChild(row);
+    });
+  }
+
+  function setSettingsStatus(msg, isError) {
+    var el = document.getElementById("set-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle("error", !!isError);
+  }
+
+  function initSettings() {
+    var addUser = document.getElementById("set-add-user");
+    if (!addUser) return; // settings pane not present
+
+    addUser.addEventListener("click", function () {
+      var id = document.getElementById("set-new-user").value.trim();
+      var limit = parseFloat(document.getElementById("set-new-limit").value || "0");
+      if (!id) {
+        setSettingsStatus("Enter a user id first.", true);
+        return;
+      }
+      settingsDraft.users = settingsDraft.users || {};
+      if (id in settingsDraft.users) {
+        // Silently overwriting would look like the add worked while
+        // quietly changing an existing user's limit.
+        setSettingsStatus("\"" + id + "\" already has a budget — edit it in the table above.", true);
+        return;
+      }
+      settingsDraft.users[id] = isNaN(limit) ? 0 : limit;
+      document.getElementById("set-new-user").value = "";
+      document.getElementById("set-new-limit").value = "";
+      setSettingsStatus("");
+      renderSettings();
+    });
+
+    document.getElementById("set-add-fallback").addEventListener("click", function () {
+      var model = document.getElementById("set-new-fallback").value.trim();
+      if (!model) {
+        setSettingsStatus("Enter a model name first.", true);
+        return;
+      }
+      settingsDraft.fallback = settingsDraft.fallback || [];
+      if (settingsDraft.fallback.indexOf(model) !== -1) {
+        // A repeated entry just retries the same model twice; harmless
+        // but never intended.
+        setSettingsStatus("\"" + model + "\" is already in the fallback list.", true);
+        return;
+      }
+      settingsDraft.fallback.push(model);
+      document.getElementById("set-new-fallback").value = "";
+      setSettingsStatus("");
+      renderSettings();
+    });
+
+    document.getElementById("set-reset").addEventListener("click", loadSettings);
+
+    document.getElementById("set-save").addEventListener("click", function () {
+      if (!settingsDraft) return;
+      settingsDraft.cache_enabled = document.getElementById("set-cache-enabled").checked;
+
+      // An empty or non-numeric field parses to NaN, which JSON.stringify
+      // writes as null — the server would reject it, but with a message
+      // about a missing field rather than the actual mistake. Catch it here.
+      var ttl = parseInt(document.getElementById("set-cache-ttl").value, 10);
+      if (isNaN(ttl)) {
+        setSettingsStatus("Cache TTL must be a number of seconds.", true);
+        return;
+      }
+      settingsDraft.cache_ttl_seconds = ttl;
+
+      confirmChanges(saveSettings);
+    });
+  }
+
+  // Lists what's actually changing rather than asking to confirm nothing
+  // in particular — "are you sure" with no subject trains people to click
+  // through it.
+  function confirmChanges(onConfirm) {
+    var diff = describeChanges();
+    if (diff.length === 0) {
+      setSettingsStatus("No changes to save.");
+      return;
+    }
+
+    var list = document.getElementById("confirm-diff");
+    list.innerHTML = "";
+    diff.forEach(function (line) {
+      var li = document.createElement("li");
+      li.textContent = line;
+      list.appendChild(li);
+    });
+
+    var backdrop = document.getElementById("confirm-backdrop");
+    var yes = document.getElementById("confirm-yes");
+    var no = document.getElementById("confirm-no");
+
+    function close() {
+      backdrop.hidden = true;
+      yes.removeEventListener("click", accept);
+      no.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    }
+    function accept() {
+      close();
+      onConfirm();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") close();
+    }
+
+    yes.addEventListener("click", accept);
+    no.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    backdrop.hidden = false;
+    yes.focus();
+  }
+
+  // Compares the draft against what the server last gave us, so the
+  // dialog can name each change instead of showing a generic warning.
+  function describeChanges() {
+    if (!settingsSaved || !settingsDraft) return [];
+    var out = [];
+
+    if (settingsDraft.cache_enabled !== settingsSaved.cache_enabled) {
+      out.push("Response caching: " + (settingsSaved.cache_enabled ? "on" : "off") +
+        " \u2192 " + (settingsDraft.cache_enabled ? "on" : "off"));
+    }
+    if (settingsDraft.cache_ttl_seconds !== settingsSaved.cache_ttl_seconds) {
+      out.push("Cache TTL: " + settingsSaved.cache_ttl_seconds + "s \u2192 " +
+        settingsDraft.cache_ttl_seconds + "s");
+    }
+
+    var oldUsers = settingsSaved.users || {};
+    var newUsers = settingsDraft.users || {};
+    Object.keys(newUsers).forEach(function (id) {
+      if (!(id in oldUsers)) {
+        out.push("Add budget: " + id + " = $" + newUsers[id] + "/day");
+      } else if (Number(oldUsers[id]) !== Number(newUsers[id])) {
+        out.push("Budget for " + id + ": $" + oldUsers[id] + " \u2192 $" + newUsers[id] + "/day");
+      }
+    });
+    Object.keys(oldUsers).forEach(function (id) {
+      if (!(id in newUsers)) {
+        out.push("REMOVE budget for " + id + " (this key would spend uncapped)");
+      }
+    });
+
+    var oldFb = (settingsSaved.fallback || []).join(", ");
+    var newFb = (settingsDraft.fallback || []).join(", ");
+    if (oldFb !== newFb) {
+      out.push("Fallback models: [" + oldFb + "] \u2192 [" + newFb + "]");
+    }
+    return out;
+  }
+
+  function saveSettings() {
+    setSettingsStatus("Saving...");
+    fetch("/dashboard/api/settings", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settingsDraft),
+    })
+      .then(function (r) {
+        // A session that expired while the form was open comes back as
+        // 401 with no useful body; "HTTP 401" tells the reader nothing
+        // about what to do next.
+        if (r.status === 401) {
+          throw new Error("Your session expired. Reload the page and log in again.");
+        }
+        return r.json().then(function (body) {
+          if (!r.ok) {
+            // The server validates before applying anything, so a
+            // rejection means nothing changed — surface its reason
+            // rather than a generic failure.
+            throw new Error((body.error && body.error.message) || "HTTP " + r.status);
+          }
+          return body;
+        });
+      })
+      .then(function (applied) {
+        var issued = applied.issued_keys;
+        // Re-baseline both copies from what the server actually applied,
+        // so the next confirmation diffs against reality rather than
+        // against what we hoped we sent.
+        settingsDraft = applied;
+        settingsSaved = JSON.parse(JSON.stringify(applied));
+        renderSettings();
+
+        if (issued && Object.keys(issued).length) {
+          // Virtual keys are shown once here and never sent back by the
+          // server again, same as ai-guard init on the terminal.
+          var lines = Object.keys(issued).map(function (id) {
+            return id + ": " + issued[id];
+          });
+          setSettingsStatus(
+            "Saved. New virtual key(s) — copy now, won't be shown again: " + lines.join("  |  "),
+            false
+          );
+        } else {
+          setSettingsStatus("Saved. Changes are live now.");
+        }
+      })
+      .catch(function (err) {
+        setSettingsStatus(err.message, true);
+      });
+  }
+
+  // Reported by switchView and the tab-close handler. Compares against
+  // the last server-confirmed state rather than tracking a dirty flag on
+  // every keystroke, so reverting an edit by hand correctly counts as
+  // "no changes".
+  function hasUnsavedSettings() {
+    if (!settingsDraft || !settingsSaved) return false;
+    // Read the two live inputs first: they're bound to the DOM, not to
+    // the draft, so an untouched draft can still differ from the form.
+    var enabledEl = document.getElementById("set-cache-enabled");
+    var ttlEl = document.getElementById("set-cache-ttl");
+    if (enabledEl && enabledEl.checked !== settingsSaved.cache_enabled) return true;
+    if (ttlEl && parseInt(ttlEl.value, 10) !== settingsSaved.cache_ttl_seconds) return true;
+    return describeChanges().length > 0;
+  }
+
+  // Covers closing the tab or hitting reload, which switchView never sees.
+  window.addEventListener("beforeunload", function (e) {
+    if (state.view === "settings" && hasUnsavedSettings()) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+
+  initSettings();
 })();

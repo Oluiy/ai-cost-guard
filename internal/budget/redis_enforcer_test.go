@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-
-	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
 // testRedisURL is used by every test in this file. Redis isn't a Go
@@ -42,7 +40,7 @@ func requireRedis(t *testing.T) *redis.Client {
 
 func TestRedisEnforcer_UnderLimitAllowed(t *testing.T) {
 	requireRedis(t)
-	e, err := NewRedisEnforcer(testRedisURL, map[string]config.Budget{"alice": {DailyLimitUSD: 5}})
+	e, err := NewRedisEnforcer(testRedisURL, budgetMap{"alice": {DailyLimitUSD: 5}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -59,7 +57,7 @@ func TestRedisEnforcer_UnderLimitAllowed(t *testing.T) {
 
 func TestRedisEnforcer_OverEstimateBlocked(t *testing.T) {
 	requireRedis(t)
-	e, err := NewRedisEnforcer(testRedisURL, map[string]config.Budget{"alice": {DailyLimitUSD: 5}})
+	e, err := NewRedisEnforcer(testRedisURL, budgetMap{"alice": {DailyLimitUSD: 5}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -75,7 +73,7 @@ func TestRedisEnforcer_OverEstimateBlocked(t *testing.T) {
 
 func TestRedisEnforcer_NoConfiguredBudgetAlwaysAllowed(t *testing.T) {
 	requireRedis(t)
-	e, err := NewRedisEnforcer(testRedisURL, map[string]config.Budget{})
+	e, err := NewRedisEnforcer(testRedisURL, budgetMap{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +93,7 @@ func TestRedisEnforcer_NoConfiguredBudgetAlwaysAllowed(t *testing.T) {
 // should become available again, not stay locked up as if $4 were spent.
 func TestRedisEnforcer_ReleaseReconcilesToActualCost(t *testing.T) {
 	requireRedis(t)
-	e, err := NewRedisEnforcer(testRedisURL, map[string]config.Budget{"alice": {DailyLimitUSD: 5}})
+	e, err := NewRedisEnforcer(testRedisURL, budgetMap{"alice": {DailyLimitUSD: 5}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -128,7 +126,7 @@ func TestRedisEnforcer_ReleaseReconcilesToActualCost(t *testing.T) {
 // exactly the gap this backend exists to close.
 func TestRedisEnforcer_TwoInstancesShareOneBudget(t *testing.T) {
 	requireRedis(t)
-	users := map[string]config.Budget{"alice": {DailyLimitUSD: 10}}
+	users := budgetMap{"alice": {DailyLimitUSD: 10}}
 	instanceA, err := NewRedisEnforcer(testRedisURL, users)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -24,6 +24,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         Requests
       </button>
+      <button type="button" class="nav-item" data-view="settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.5"/></svg>
+        Settings
+      </button>
     </nav>
 
     <div class="sidebar-spacer"></div>
@@ -195,11 +199,90 @@
           </div>
         </section>
       </section>
+
+      <section id="view-settings" class="view" hidden>
+        <div class="settings-note">
+          Changes apply immediately, with no restart, and are written back to your
+          <code>config.yaml</code>. Provider API keys, base URLs, virtual keys, and the
+          dashboard's session secret are deliberately not editable here &mdash; those are
+          credential-class and stay in the terminal.
+        </div>
+
+        <div class="panel-card">
+          <h2>Caching</h2>
+          <label class="field-row">
+            <input type="checkbox" id="set-cache-enabled" />
+            <span>Enable response caching</span>
+          </label>
+          <label class="field">
+            <span class="field-label">Cache TTL (seconds)</span>
+            <input type="number" id="set-cache-ttl" min="1" max="2592000" />
+            <span class="field-hint">
+              How long an identical request stays cached. The default 300 (5 minutes) does
+              nothing for a job that repeats the same prompt hours apart &mdash; raise it to
+              cover your interval (6 hours = 21600).
+            </span>
+          </label>
+        </div>
+
+        <div class="panel-card">
+          <h2>Daily budgets</h2>
+          <p class="field-hint">Limits in USD per user, per day. 0 means unlimited.</p>
+          <table class="settings-table">
+            <thead><tr><th>User</th><th>Daily limit (USD)</th><th></th></tr></thead>
+            <tbody id="set-users-body"></tbody>
+          </table>
+          <div class="add-row">
+            <input type="text" id="set-new-user" placeholder="user_id" />
+            <input type="number" id="set-new-limit" placeholder="5.00" min="0" step="0.01" />
+            <button type="button" class="btn-secondary" id="set-add-user">Add user</button>
+          </div>
+          <p class="field-hint">
+            Adding a user here sets a budget, but does not issue a virtual key &mdash; keys are
+            created by <code>ai-guard init</code>.
+          </p>
+        </div>
+
+        <div class="panel-card">
+          <h2>Fallback models</h2>
+          <p class="field-hint">Tried in order when the requested model errors or rate-limits.</p>
+          <div id="set-fallback-list"></div>
+          <div class="add-row">
+            <input type="text" id="set-new-fallback" placeholder="gpt-4o-mini" />
+            <button type="button" class="btn-secondary" id="set-add-fallback">Add model</button>
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button type="button" class="btn-primary" id="set-save">Save changes</button>
+          <button type="button" class="btn-secondary" id="set-reset">Discard</button>
+          <span id="set-status" class="set-status"></span>
+        </div>
+      </section>
     </main>
   </div>
 </div>
 
 <div id="tooltip"></div>
+
+<!-- Confirmation before any settings write. These changes take effect on
+     the live request path immediately and rewrite config.yaml, so the
+     step is deliberate rather than decorative: the dialog lists exactly
+     what is about to change. -->
+<div class="confirm-backdrop" id="confirm-backdrop" hidden>
+  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">Are you sure you want to make the change?</h2>
+    <p class="confirm-sub">
+      These take effect immediately on live traffic and are written to your
+      <code>config.yaml</code>.
+    </p>
+    <ul class="confirm-diff" id="confirm-diff"></ul>
+    <div class="confirm-actions">
+      <button type="button" class="btn-secondary" id="confirm-no">Cancel</button>
+      <button type="button" class="btn-primary" id="confirm-yes">Yes, I do</button>
+    </div>
+  </div>
+</div>
 
 <script src="/dashboard/js/dashboard.js"></script>
 </body>

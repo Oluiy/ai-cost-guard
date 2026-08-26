@@ -7,8 +7,7 @@ import (
 )
 
 // writeSSEChunk writes one SSE "data: <payload>" event and flushes
-// immediately, so the client sees it as soon as it's produced rather than
-// waiting for Fiber/fasthttp's own buffering.
+// immediately rather than waiting for fasthttp's own buffering.
 func writeSSEChunk(w *bufio.Writer, payload []byte) error {
 	if _, err := w.Write([]byte("data: ")); err != nil {
 		return err
@@ -44,9 +43,8 @@ func openAIChunk(id, model string, created int64, delta map[string]any, finishRe
 	return b
 }
 
-// openAIUsageChunk builds the trailing chunk some OpenAI-compatible
-// providers send when stream_options.include_usage is set: an empty
-// choices array carrying the final token usage.
+// openAIUsageChunk builds the trailing usage-only chunk some providers
+// send when stream_options.include_usage is set.
 func openAIUsageChunk(id, model string, created int64, usage Usage) []byte {
 	chunk := map[string]any{
 		"id": id, "object": "chat.completion.chunk", "created": created, "model": model,
@@ -61,12 +59,9 @@ func openAIUsageChunk(id, model string, created int64, usage Usage) []byte {
 	return b
 }
 
-// nonStreamOpenAIResponse builds the same shape ChatCompletion (non-
-// streaming) returns, reconstructed from a completed stream's accumulated
-// text/tool calls/usage/finish_reason. Used to populate the cache after a
-// streaming response finishes, so a later non-streaming (or streaming)
-// request for the same prompt can still hit it — including tool calls, so
-// a cache hit doesn't silently drop them.
+// nonStreamOpenAIResponse rebuilds a ChatCompletion-shaped response from
+// a completed stream's accumulated text/tool calls/usage, used to
+// populate the cache after streaming finishes.
 func nonStreamOpenAIResponse(id, model, text, finishReason string, usage Usage, toolCalls []map[string]any) []byte {
 	message := map[string]any{"role": "assistant", "content": text}
 	if len(toolCalls) > 0 {
@@ -90,8 +85,8 @@ func nonStreamOpenAIResponse(id, model, text, finishReason string, usage Usage, 
 	return b
 }
 
-// cachedChatResponse is the subset of a cached non-streaming response
-// this package needs to re-derive in order to synthesize a stream from it.
+// cachedChatResponse is the subset of a cached response needed to
+// synthesize a stream from it.
 type cachedChatResponse struct {
 	Model   string `json:"model"`
 	Choices []struct {
@@ -103,14 +98,10 @@ type cachedChatResponse struct {
 	} `json:"choices"`
 }
 
-// streamFromCached synthesizes an OpenAI-compatible SSE stream from a
-// cached (non-streaming) response body and writes it to w. A streaming
-// client still expects a stream even on a cache hit; since the full
-// answer is already known, it's delivered as a single content chunk
-// (and, if the cached answer involved tool calls, a single tool_calls
-// delta) rather than reproducing the original token-by-token timing,
-// which callers neither need nor can distinguish from real streaming —
-// the SSE framing is what clients actually parse.
+// streamFromCached synthesizes an SSE stream from a cached response for
+// clients that request streaming even on a cache hit. Delivered as one
+// content chunk (and one tool_calls delta if applicable) rather than
+// reproducing the original timing.
 func streamFromCached(w *bufio.Writer, cached []byte) error {
 	var parsed cachedChatResponse
 	if err := json.Unmarshal(cached, &parsed); err != nil {

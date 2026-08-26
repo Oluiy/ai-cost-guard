@@ -7,24 +7,27 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-
-	"github.com/Oluiy/ai-cost-guard/internal/config"
 )
 
-
 // RedisEnforcer enforces per-user daily budgets using Redis as a shared,
-// atomic ledger, so budget enforcement is correct across multiple ai-guard
-// instances behind a load balancer — not just within one process, unlike MemoryEnforcer.
-// RedisEnforcer is the Redis-backed implementation of the Enforcer interface,
-// providing a distributed, atomic budget enforcement solution.
+// atomic ledger, correct across multiple ai-guard instances behind a
+// load balancer, unlike MemoryEnforcer.
 type RedisEnforcer struct {
-	client *redis.Client
-	users  map[string]config.Budget
-	prefix string
+	client     *redis.Client
+	users      BudgetLookup
+	prefix     string
+	failClosed bool
 }
 
-// NewRedisEnforcer connects to a Redis instance at the given URL, and returns an Enforcer backed by it.
-func NewRedisEnforcer(url string, users map[string]config.Budget) (*RedisEnforcer, error) {
+// SetFailClosed makes Reserve reject users with no configured budget
+// instead of treating them as unlimited. See
+// config.BudgetBackendConfig.FailClosed.
+func (e *RedisEnforcer) SetFailClosed(failClosed bool) {
+	e.failClosed = failClosed
+}
+
+// NewRedisEnforcer connects to Redis at url and returns an Enforcer backed by it.
+func NewRedisEnforcer(url string, users BudgetLookup) (*RedisEnforcer, error) {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
 		return nil, fmt.Errorf("parsing redis url: %w", err)
@@ -36,10 +39,10 @@ func NewRedisEnforcer(url string, users map[string]config.Budget) (*RedisEnforce
 	return &RedisEnforcer{client: client, users: users, prefix: "aiguard:budget:"}, nil
 }
 
-// budgetKeyTTL bounds how long a day's budget key lives: a full UTC day + slack (24 + 2am slack)
+// budgetKeyTTL bounds how long a day's budget key lives.
 const budgetKeyTTL = 26 * time.Hour
 
-// validation check, to prevent deadlocks(mutex lock), and commit the reservation if it passes, redis reserveScript
+// reserveScript atomically checks and commits a reservation in one round trip.
 var reserveScript = redis.NewScript(`
 local current = tonumber(redis.call('GET', KEYS[1]) or '0')
 local estimate = tonumber(ARGV[1])
@@ -71,8 +74,12 @@ func (e *RedisEnforcer) key(userID string) string {
 const reconcileTimeout = 5 * time.Second
 
 func (e *RedisEnforcer) Reserve(ctx context.Context, userID string, estimatedCost float64) (Result, Release, error) {
-	budget, hasLimit := e.users[userID]
-	if !hasLimit || budget.DailyLimitUSD <= 0 {
+	// Same semantics as MemoryEnforcer.
+	budget, skip, denied := checkConfigured(e.users, userID, e.failClosed)
+	if denied != nil {
+		return *denied, noopRelease, nil
+	}
+	if skip {
 		return Result{Allowed: true}, noopRelease, nil
 	}
 
@@ -117,8 +124,7 @@ func (e *RedisEnforcer) Reserve(ctx context.Context, userID string, estimatedCos
 		}
 		rctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 		defer cancel()
-		// Best-effort: if this fails, Reservation still succeeds, so we don't error the request.
-		// We don't return the error, because we already have the reservation result to return to the caller.
+		// Best-effort: the reservation already succeeded regardless.
 		_ = reconcileScript.Run(rctx, e.client, []string{key}, delta).Err()
 	}
 

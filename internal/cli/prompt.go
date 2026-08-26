@@ -10,9 +10,6 @@ import (
 
 // promptValidatedInt asks question (pre-filled with defaultValue) and
 // re-prompts until the answer parses as a whole number in [min, max].
-// fmt.Sscanf-style parsing was tried first and silently left zero-value
-// results on malformed input (e.g. "abc" or "$5" for a budget) — this
-// validates explicitly and never returns a value it didn't itself parse.
 func promptValidatedInt(question string, defaultValue, min, max int) (int, error) {
 	for {
 		raw, err := pterm.DefaultInteractiveTextInput.
@@ -43,10 +40,7 @@ func parseIntInRange(raw string, min, max int) (int, error) {
 }
 
 // promptNonNegativeUSD asks question and re-prompts until the answer
-// parses as a non-negative dollar amount. 0 is valid and, by convention
-// elsewhere in ai-guard, means "unlimited" — callers should say so in the
-// question text so that's a deliberate choice, not a parse failure in
-// disguise.
+// parses as a non-negative dollar amount. 0 is valid and means unlimited.
 func promptNonNegativeUSD(question string, defaultValue float64) (float64, error) {
 	for {
 		raw, err := pterm.DefaultInteractiveTextInput.
@@ -77,17 +71,12 @@ func parseNonNegativeUSD(raw string) (float64, error) {
 	return v, nil
 }
 
-// minDashboardPasswordLength is deliberately low-friction, not a strength
-// policy — the actual protection here is that it's a local password
-// bcrypt-hashed on your own machine, not an account attackers can enumerate
-// remotely. It exists to catch fat-fingering ("a" as a password), not to
-// enforce a security posture that doesn't fit a single self-hosted admin.
+// minDashboardPasswordLength catches fat-fingering, not a strength
+// policy — this is a local, self-hosted admin account, not a remote one.
 const minDashboardPasswordLength = 8
 
 // promptNewPassword asks for a password twice (masked) and re-prompts
-// until both entries match and meet the minimum length, rather than
-// silently accepting a mistyped or too-short password — the same failure
-// mode promptValidatedInt/promptNonNegativeUSD exist to avoid.
+// until both entries match and meet the minimum length.
 func promptNewPassword(question string) (string, error) {
 	for {
 		pw, err := pterm.DefaultInteractiveTextInput.WithMask("*").Show(question)

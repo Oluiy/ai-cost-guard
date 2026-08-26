@@ -136,12 +136,11 @@ type anthropicTool struct {
 
 const defaultAnthropicMaxTokens = 1024
 
-// buildAnthropicRequest translates an OpenAI-shaped chat/completions
-// request into Anthropic's Messages API shape: system messages become the
-// top-level `system` field, image_url content parts become image blocks
-// (base64 data URIs or remote URLs), tool_calls/tool results become
-// tool_use/tool_result blocks, and OpenAI tool definitions become
-// Anthropic's input_schema form.
+// buildAnthropicRequest converts an OpenAI-shaped chat/completions
+// request into Anthropic's Messages API shape: system messages become
+// the top-level `system` field, image_url parts become image blocks,
+// tool_calls/results become tool_use/tool_result blocks, and tool
+// definitions become Anthropic's input_schema form.
 func buildAnthropicRequest(rawBody []byte, model string, stream bool) (anthropicRequest, error) {
 	var oaiReq openAIChatRequest
 	if err := json.Unmarshal(rawBody, &oaiReq); err != nil {
@@ -236,11 +235,8 @@ func parseImageSource(url string) *anthropicImageSource {
 	return &anthropicImageSource{Type: "url", URL: url}
 }
 
-// translateToolChoice maps OpenAI's tool_choice values ("auto", "none",
-// "required", or {"type":"function","function":{"name":...}}) to
-// Anthropic's ({"type":"auto"|"any"|"tool", "name":...}). "none" has no
-// exact Anthropic equivalent short of omitting tools entirely, so it's
-// left as a best-effort "auto" rather than silently dropped.
+// translateToolChoice maps OpenAI's tool_choice values to Anthropic's.
+// "none" has no exact equivalent and is translated as best-effort "auto".
 func translateToolChoice(raw json.RawMessage) any {
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
@@ -284,10 +280,8 @@ type anthropicResponseBlock struct {
 	Input json.RawMessage `json:"input,omitempty"`
 }
 
-// Embeddings always errors: Anthropic has no embeddings API to translate
-// to. Failing loudly here is deliberate — silently returning an empty
-// success would look like a $0, zero-dimension embedding to a caller
-// instead of the unsupported-operation it actually is.
+// Embeddings always errors: Anthropic has no embeddings API. Fails
+// loudly rather than returning an empty success.
 func (p *AnthropicProvider) Embeddings(ctx context.Context, model string, rawBody []byte) ([]byte, Usage, int, error) {
 	return nil, Usage{}, 0, fmt.Errorf("anthropic has no embeddings API; route embeddings requests to an openai/groq/together model instead")
 }
@@ -433,10 +427,8 @@ type anthropicStreamEvent struct {
 	} `json:"usage"`
 }
 
-// streamToolCallState accumulates one tool_use content block's streamed
-// partial_json argument deltas so a single complete OpenAI tool_calls
-// chunk can be emitted once the block closes, rather than trying to
-// mirror OpenAI's own incremental-arguments framing exactly.
+// streamToolCallState accumulates one tool_use block's partial_json
+// deltas, emitted as a single complete tool_calls chunk when it closes.
 type streamToolCallState struct {
 	id, name string
 	args     strings.Builder

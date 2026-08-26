@@ -46,17 +46,14 @@ func EstimateMaxTokens(payload map[string]any) int {
 }
 
 // EstimateWorstCaseCost returns the maximum this request could plausibly
-// cost, for a pre-flight budget reservation before the upstream call is
-// made (actual cost is only known after the response comes back).
+// cost, for a pre-flight budget reservation before the upstream call.
 func EstimateWorstCaseCost(model string, payload map[string]any) float64 {
 	return Calculate(model, EstimatePromptTokens(payload), EstimateMaxTokens(payload))
 }
 
 // EstimateEmbeddingTokens sizes an embeddings request's "input" field,
-// which — unlike chat's "messages" — may be a single string or an array
-// of strings (batch embedding). Token-ID array inputs (a less common
-// input form) aren't specially handled and fall back to 0, same as any
-// other unrecognized shape.
+// which may be a single string or an array of strings. Unrecognized
+// shapes (e.g. token-ID array input) fall back to 0.
 func EstimateEmbeddingTokens(payload map[string]any) int {
 	total := 0
 	switch input := payload["input"].(type) {
@@ -75,10 +72,8 @@ func EstimateEmbeddingTokens(payload map[string]any) int {
 	return total
 }
 
-// EstimateEmbeddingCost returns the worst-case cost of an embeddings
-// request. Unlike chat completions, there's no completion side to
-// estimate — the exact prompt size *is* the worst case, not a ceiling, so
-// this reservation is exact rather than conservative.
+// EstimateEmbeddingCost returns the cost of an embeddings request. Exact,
+// not a ceiling: there's no completion side to estimate.
 func EstimateEmbeddingCost(model string, payload map[string]any) float64 {
 	return Calculate(model, EstimateEmbeddingTokens(payload), 0)
 }

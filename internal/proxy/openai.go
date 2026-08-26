@@ -158,18 +158,16 @@ type streamChunkView struct {
 }
 
 // toolCallAccumulator rebuilds one complete tool call from OpenAI's
-// incrementally-streamed deltas: the id/name typically arrive once on the
-// first delta for a given index, and `arguments` arrives split across many
-// subsequent deltas that must be concatenated in order, not replaced.
+// streamed deltas: id/name arrive once, arguments arrive split across
+// many deltas that must be concatenated, not replaced.
 type toolCallAccumulator struct {
 	id, name string
 	args     strings.Builder
 }
 
 // prepareStreamBody rewrites rawBody's model, forces stream:true, and
-// requests a trailing usage chunk (widely, though not universally,
-// supported by OpenAI-compatible providers) so cost tracking doesn't have
-// to fall back to estimating tokens from the streamed text.
+// requests a trailing usage chunk so cost tracking can use real token
+// counts instead of estimating from streamed text.
 func prepareStreamBody(rawBody []byte, model string) ([]byte, error) {
 	var m map[string]any
 	if err := json.Unmarshal(rawBody, &m); err != nil {
@@ -253,8 +251,7 @@ func (s *openAIStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 			continue
 		}
 		if err := writeSSELine(w, line); err != nil {
-			// The client is gone; nothing left to relay to, but return
-			// what we've accumulated so far so it's still logged/costed.
+			// Client disconnected; return what's accumulated so far so it's still logged.
 			return text.String(), finalizeToolCalls(toolCallOrder, toolCalls), usage, finishReason, err
 		}
 
@@ -297,9 +294,7 @@ func (s *openAIStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 	}
 
 	if !haveExactUsage {
-		// This provider didn't honor stream_options.include_usage (or
-		// doesn't support it); estimate from what we actually sent/saw
-		// rather than logging/billing the request as free.
+		// No usage chunk from the provider; estimate rather than bill as free.
 		var payload map[string]any
 		if err := json.Unmarshal(s.requestBody, &payload); err == nil {
 			usage.PromptTokens = cost.EstimatePromptTokens(payload)
@@ -311,9 +306,7 @@ func (s *openAIStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 }
 
 // finalizeToolCalls converts accumulated per-index tool call state into
-// the same OpenAI tool_calls shape ChatCompletion (non-streaming) and the
-// Anthropic translator use, so cache reconstruction is uniform regardless
-// of which provider or mode produced the answer.
+// the same tool_calls shape used across providers and streaming modes.
 func finalizeToolCalls(order []int, calls map[int]*toolCallAccumulator) []map[string]any {
 	if len(order) == 0 {
 		return nil

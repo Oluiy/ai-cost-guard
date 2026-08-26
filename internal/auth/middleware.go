@@ -9,26 +9,40 @@ import (
 // CookieName is the session cookie the dashboard reads/writes.
 const CookieName = "ai_guard_session"
 
-// SetSessionCookie logs username in on the response.
-// Set a secure, HTTP-only session cookie with the user's username, where the cookie is done by the user's browser.
-func SetSessionCookie(c *fiber.Ctx, secret, username string) {
+// secureCookies reports whether the session cookie should carry Secure.
+// c.Protocol() reflects X-Forwarded-Proto behind a trusted proxy, so a
+// TLS-terminating proxy still yields "https" even though ai-guard itself
+// speaks plain HTTP. Without EnableTrustedProxyCheck, any caller can
+// claim https for itself — harmless here, since that only makes its own
+// cookie more restrictive.
+func secureCookies(c *fiber.Ctx) bool {
+	return c.Protocol() == "https"
+}
+
+// SetSessionCookie logs username in on the response. ttl controls how
+// long the session lasts; use SessionTTL to resolve it from config.
+func SetSessionCookie(c *fiber.Ctx, secret, username string, ttl time.Duration) {
 	c.Cookie(&fiber.Cookie{
 		Name:     CookieName,
-		Value:    NewSessionToken(secret, username),
-		Expires:  time.Now().Add(SessionTTL),
+		Value:    NewSessionToken(secret, username, ttl),
+		Expires:  time.Now().Add(ttl),
 		HTTPOnly: true,
+		Secure:   secureCookies(c),
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Path:     "/dashboard",
 	})
 }
 
-// ClearSessionCookie logs the caller out.
+// ClearSessionCookie logs the caller out. The attributes have to match
+// the ones used when setting it, or the browser treats this as a
+// different cookie and the original survives the logout.
 func ClearSessionCookie(c *fiber.Ctx) {
 	c.Cookie(&fiber.Cookie{
 		Name:     CookieName,
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour),
 		HTTPOnly: true,
+		Secure:   secureCookies(c),
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Path:     "/dashboard",
 	})

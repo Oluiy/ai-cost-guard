@@ -21,10 +21,10 @@ var staticFS embed.FS
 type Handler struct {
 	Store *logging.Store
 	Cfg   config.DashboardConfig
+	// Live enables the settings endpoints when set; nil answers 501.
+	Live *config.Settings
 
-	// validUsernames is precomputed once from Cfg.Users at construction —
-	// config is loaded once at startup and doesn't change while ai-guard
-	// runs, so there's no reason to rebuild this set on every request.
+	// validUsernames is precomputed once at construction.
 	validUsernames map[string]bool
 }
 
@@ -36,11 +36,14 @@ func New(store *logging.Store, cfg config.DashboardConfig) *Handler {
 	return &Handler{Store: store, Cfg: cfg, validUsernames: valid}
 }
 
-// requiresLogin reports whether a dashboard login has actually been set
-// up. If `ai-guard init` skipped it (config.Warnings already flags this
-// loudly at every startup), the dashboard behaves exactly as it did
-// before this feature existed — reachable with no login — rather than
-// locking someone out of their own data with no way in.
+// WithSettings enables the live-settings endpoints on h.
+func (h *Handler) WithSettings(live *config.Settings) *Handler {
+	h.Live = live
+	return h
+}
+
+// requiresLogin reports whether a dashboard login has been set up. If
+// not, the dashboard is reachable with no login.
 func (h *Handler) requiresLogin() bool {
 	return len(h.Cfg.Users) > 0
 }
@@ -52,6 +55,8 @@ func (h *Handler) Register(app *fiber.App) {
 	app.Get("/dashboard/api/requests", h.requireAuth, h.Requests)
 	app.Get("/dashboard/api/report", h.requireAuth, h.Report)
 	app.Get("/dashboard/api/whoami", h.requireAuth, h.Whoami)
+	app.Get("/dashboard/api/settings", h.requireAuth, h.Settings)
+	app.Put("/dashboard/api/settings", h.requireAuth, h.UpdateSettings)
 	app.Get("/dashboard/events", h.requireAuth, h.Events)
 
 	// Rate-limited so a login page reachable by anyone isn't also a free
@@ -69,10 +74,8 @@ func (h *Handler) Register(app *fiber.App) {
 	}
 }
 
-// requireAuth gates the JSON/SSE data routes. These aren't meant to be
-// opened directly in a browser, so an unauthenticated request just gets a
-// 401 rather than a redirect. Stashes the authenticated username in
-// c.Locals so handlers that need it (Whoami) don't re-verify the cookie.
+// requireAuth gates the JSON/SSE data routes with a 401, not a redirect.
+// Stashes the authenticated username in c.Locals for handlers like Whoami.
 func (h *Handler) requireAuth(c *fiber.Ctx) error {
 	if !h.requiresLogin() {
 		return c.Next()
@@ -87,11 +90,9 @@ func (h *Handler) requireAuth(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// staticHandler serves one subdirectory of the embedded static assets
-// under /dashboard/<dir>/, so the dashboard's CSS/JS can live in their own
-// files instead of being inlined into index.html. Always public — no
-// secrets in stylesheets/scripts, and the login page itself needs to load
-// its own CSS before anyone's authenticated.
+// staticHandler serves one subdirectory of embedded assets under
+// /dashboard/<dir>/. Always public: no secrets in CSS/JS, and the login
+// page needs to load its own styles before authenticating.
 func staticHandler(assets fs.FS, dir string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		name := dir + "/" + c.Params("*")

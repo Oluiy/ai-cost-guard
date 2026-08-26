@@ -41,12 +41,10 @@ const (
 	requestsMaxLimit     = 100
 )
 
-// Requests serves a paginated, filterable page of the full request log —
-// unlike the "top expensive" list on the overview snapshot (fixed at 10,
-// sorted by cost), this is meant for actually browsing everything: newest
-// first, filtered by ?range=, ?user=, ?model=, and ?status=success|error,
-// paged by ?limit=/?offset=. ?from=&to= (YYYY-MM-DD) override ?range=
-// with an explicit closed date range, for the custom-period report.
+// Requests serves a paginated, filterable page of the full request log,
+// newest first. Filters: ?range=, ?user=, ?model=,
+// ?status=success|error, ?limit=/?offset=. ?from=&to= (YYYY-MM-DD)
+// override ?range= with an explicit date range.
 func (h *Handler) Requests(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), snapshotQueryTimeout)
 	defer cancel()
@@ -101,14 +99,10 @@ func (h *Handler) Requests(c *fiber.Ctx) error {
 	})
 }
 
-// csvSafe defuses formula/CSV injection (CWE-1236): `model` in particular
-// is fully attacker-controlled — any /v1/chat/completions caller can set
-// it to an arbitrary string, which is logged verbatim and ends up here
-// unmodified. A cell starting with =, +, -, or @ opens as a formula in
-// Excel/Sheets/LibreOffice by default, which can exfiltrate data or run
-// commands (e.g. "=cmd|' /C calc'!A0") the moment someone opens the
-// exported report — prefixing those with a single quote forces it to be
-// read as plain text instead, the standard mitigation for this class.
+// csvSafe defuses formula/CSV injection (CWE-1236): a cell starting with
+// =, +, -, or @ opens as a formula in Excel/Sheets. `model` is
+// attacker-controlled, so it's logged and exported verbatim otherwise.
+// Prefixing with a quote forces plain-text interpretation.
 func csvSafe(s string) string {
 	if s != "" && strings.ContainsAny(s[:1], "=+-@") {
 		return "'" + s
@@ -116,11 +110,8 @@ func csvSafe(s string) string {
 	return s
 }
 
-// reportMaxRows caps how many rows a CSV export includes. This is a
-// self-hosted, single-writer SQLite deployment, not a data warehouse — a
-// report spanning enough requests to hit this is a sign to narrow the
-// filters (by user or model), not something worth building true streamed
-// pagination for.
+// reportMaxRows caps how many rows a CSV export includes. Hitting it is a
+// sign to narrow the filters, not a reason to build streamed pagination.
 const reportMaxRows = 10000
 
 type reportSummary struct {
@@ -132,13 +123,9 @@ type reportSummary struct {
 	CacheHitRate float64 `json:"cache_hit_rate"`
 }
 
-// Report generates a summary — and, with ?format=csv, a downloadable
-// export of the underlying requests — for an explicit ?from=&to= date
-// range (YYYY-MM-DD, inclusive both ends), optionally scoped by the same
-// ?user=/?model=/?status= filters as the Requests log. Unlike everything
-// else in this package, which always windows relative to "now", a report
-// is deliberately for a period the caller picks themselves — last month's
-// invoice reconciliation doesn't care what today's date is.
+// Report generates a summary, and with ?format=csv a downloadable export,
+// for an explicit ?from=&to= date range (YYYY-MM-DD, inclusive), scoped
+// by the same filters as Requests.
 func (h *Handler) Report(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), snapshotQueryTimeout)
 	defer cancel()

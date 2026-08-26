@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -377,5 +378,28 @@ func TestDistinctModels(t *testing.T) {
 	}
 	if len(models) != 2 || models[0] != "claude-3-haiku" || models[1] != "gpt-4o" {
 		t.Fatalf("got %v, want [claude-3-haiku gpt-4o]", models)
+	}
+}
+
+// The request log records who asked for what, on which model, and what it
+// cost. SQLite creates the file world-readable by default; this pins the
+// narrowing so a future refactor doesn't quietly drop it.
+func TestOpen_DatabaseFileIsNotWorldReadable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "aiguard.db")
+
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("opening store: %v", err)
+	}
+	defer store.Close()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("database is %o, want owner-only (0600): group/other can read the request log", perm)
 	}
 }

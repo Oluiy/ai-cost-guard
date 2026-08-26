@@ -5,8 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/pterm/pterm"
 	_ "modernc.org/sqlite"
 )
 
@@ -59,7 +61,19 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	restrictDBPermissions(path)
 	return s, nil
+}
+
+// restrictDBPermissions narrows the database file to owner-only. SQLite
+// creates it world-readable by default. Best-effort: chmod can fail on
+// filesystems without Unix permissions, which isn't worth refusing to
+// start over.
+func restrictDBPermissions(path string) {
+	if err := os.Chmod(path, 0o600); err != nil && !os.IsNotExist(err) {
+		pterm.Warning.Printfln("could not restrict permissions on %s (%v); "+
+			"other local users may be able to read your request log", path, err)
+	}
 }
 
 func (s *Store) migrate() error {
@@ -300,12 +314,8 @@ func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, us
 	return out, rows.Err()
 }
 
-// requestFilterWhere builds the WHERE clause + args shared by ListRequests
-// and PeriodSummary, so the two can't silently drift apart on what a given
-// filter combination actually means. until is optional (zero value = no
-// upper bound, i.e. through now) — ListRequests's other callers (the live
-// dashboard) never set it; the report/export feature does, for an
-// explicit closed date range.
+// requestFilterWhere builds the shared WHERE clause for ListRequests and
+// PeriodSummary. until is optional; zero value means no upper bound.
 func requestFilterWhere(since, until time.Time, userID, model, status string) (string, []any) {
 	where := ` WHERE timestamp >= ?`
 	args := []any{toDBTime(since)}
@@ -330,16 +340,10 @@ func requestFilterWhere(since, until time.Time, userID, model, status string) (s
 	return where, args
 }
 
-// ListRequests returns a page of individual request records, along with
-// the total count matching the same filters (for a "showing X of Y"
-// caption). Unlike TopExpensive — sorted by cost, capped at a small fixed
-// N for "worst offenders today" — this is the full, paginated request
-// log. userID/model filters are optional (empty = no filter). status is
-// one of "" (no filter), "success" (status_code < 400), or "error"
-// (status_code >= 400); any other value is treated as "". until is
-// optional (zero value = no upper bound). sortBy is "time" (newest first,
-// the default for any unrecognized value) or "cost" (most expensive
-// first, ties broken by newest first).
+// ListRequests returns a page of request records plus the total count
+// matching the same filters. userID/model are optional. status is ""
+// (no filter), "success" (status_code < 400), or "error" (>= 400).
+// sortBy is "time" (default) or "cost".
 func (s *Store) ListRequests(ctx context.Context, since, until time.Time, userID, model, status, sortBy string, limit, offset int) ([]Record, int64, error) {
 	where, args := requestFilterWhere(since, until, userID, model, status)
 
@@ -384,10 +388,8 @@ func (s *Store) ListRequests(ctx context.Context, since, until time.Time, userID
 	return out, total, rows.Err()
 }
 
-// PeriodSummary is the aggregate spend/usage total for one arbitrary
-// date range + filter set — used by the report/export feature, where the
-// caller wants a single total for a custom period ("Aug 1–15, model X"),
-// not a per-user breakdown like SummarySince returns.
+// PeriodSummary is an aggregate total for one date range + filter set,
+// used by the report/export feature.
 type PeriodSummary struct {
 	TotalCostUSD float64
 	Requests     int64

@@ -21,11 +21,11 @@ func main() {
 		Short:   "Self-hostable AI gateway that prevents runaway LLM bills.",
 		Version: version,
 		Long: "ai-guard is a self-hostable, OpenAI-compatible proxy that sits between your app and " +
-			"OpenAI/Anthropic/Groq/Together, adding response caching, per-user daily budgets, " +
+			"OpenAI/Anthropic/Gemini/Groq/Together, adding response caching, per-user daily budgets, " +
 			"automatic fallback, and cost logging. Point your OpenAI SDK's baseURL at ai-guard " +
 			"instead of the provider directly; nothing else about your client code changes.\n\n" +
 			"Run `ai-guard init` first to generate a config.yaml, then `ai-guard run` to start it.\n\n" +
-			"Full documentation: https://github.com/Oluiy/ai-cost-guard/blob/main/DOCS.md",
+			"Full documentation: https://github.com/Oluiy/ai-cost-guard",
 		// Runtime failures (bad config, port in use, provider unreachable)
 		// aren't usage mistakes — don't dump command help/usage for them.
 		// Errors are printed once, below, with consistent styling.
@@ -78,7 +78,21 @@ func main() {
 		},
 	}
 
-	root.AddCommand(initCmd, runCmd, resetPasswordCmd)
+	addProviderCmd := &cobra.Command{
+		Use:   "add-provider",
+		Short: "Add one or more providers to an existing config",
+		Long: "Interactively adds providers (openai, anthropic, gemini, groq, together) to an " +
+			"existing config.yaml, prompting for each API key. Everything else — virtual keys, " +
+			"budgets, the dashboard login — is left untouched.\n\n" +
+			"Adding a provider also widens which models are valid in `fallback:`, since a fallback " +
+			"model is only accepted if the provider that serves it is configured.",
+		Example: "  ai-guard add-provider\n  ai-guard add-provider --config prod.yaml",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cli.RunAddProvider(configPath)
+		},
+	}
+
+	root.AddCommand(initCmd, runCmd, resetPasswordCmd, addProviderCmd)
 
 	if err := root.Execute(); err != nil {
 		pterm.Error.Println(err)

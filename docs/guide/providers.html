@@ -104,7 +104,8 @@
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+client = OpenAI(base_url="https://your-ai-guard-host/v1",
+    api_key="sk-guard-...")
 resp = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "hello"}],
@@ -128,25 +129,58 @@ console.log(resp.choices[0].message.content);</pre>
       <div class="panel" data-lang="csharp">
 <pre>using System.Net.Http.Json;
 
-var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
-client.DefaultRequestHeaders.Authorization =
-    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+// Initialize the HTTP client with the AI guard host URL and API key.
+var client = new HttpClient
+{
+    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+};
 
+// Set the Authorization header with the AI guard API key.
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue
+    ("Bearer", "sk-guard-...");
+
+// Define the request payload.
 var payload = new {
     model = "gpt-4o",
-    messages = new[] { new { role = "user", content = "hello" } }
+    messages = new[] 
+    { 
+        new { role = "user", content = "hello" },
+        new { role = "system", content = "You are an assistant." } 
+    }
 };
-var response = await client.PostAsJsonAsync("chat/completions", payload);
+
+// Send the POST request to the AI guard host.
+var response = await client.PostAsJsonAsync
+    ("chat/completions", payload);
+
+// Read the response body as a string.
 var body = await response.Content.ReadAsStringAsync();
 Console.WriteLine(body);</pre>
       </div>
       <div class="panel" data-lang="java">
-<pre>HttpClient client = HttpClient.newHttpClient();
+<pre>
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 
+// Create the HTTP client.
+HttpClient client = HttpClient.newHttpClient();
+
+// Create the request body string.
 String json = """
-    {"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}
+    {
+        "model": "gpt-4o",
+        "messages": [
+            { "role": "user", "content": "hello" },
+            { "role": "system", "content": "You are an assistant." }
+        ]
+    }
     """;
 
+// Create the request body publisher.
 HttpRequest request = HttpRequest.newBuilder()
     .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
     .header("Authorization", "Bearer sk-guard-...")
@@ -154,7 +188,11 @@ HttpRequest request = HttpRequest.newBuilder()
     .POST(HttpRequest.BodyPublishers.ofString(json))
     .build();
 
-HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+// Send the request and get the response.
+HttpResponse&lt;String&gt; response = client.send
+    (request, HttpResponse.BodyHandlers.ofString());
+
+// Read the response body as a string.
 System.out.println(response.body());</pre>
       </div>
     </div>
@@ -191,7 +229,9 @@ System.out.println(response.body());</pre>
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+client = OpenAI(base_url="https://your-ai-guard-host/v1", 
+    api_key="sk-guard-...")
+    
 resp = client.chat.completions.create(
     model="claude-3-5-sonnet",
     messages=[{"role": "user", "content": "hello"}],
@@ -215,15 +255,24 @@ console.log(resp.choices[0].message.content);</pre>
       <div class="panel" data-lang="csharp">
 <pre>using System.Net.Http.Json;
 
-var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
+var client = new HttpClient
+{
+    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+};
+
+// Set the authorization header.
 client.DefaultRequestHeaders.Authorization =
-    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
+        "sk-guard-...");
 
 var payload = new {
     model = "claude-3-5-sonnet",
     messages = new[] { new { role = "user", content = "hello" } }
 };
-var response = await client.PostAsJsonAsync("chat/completions", payload);
+
+var response = await client.PostAsJsonAsync("chat/completions",
+    payload);
+    
 var body = await response.Content.ReadAsStringAsync();
 Console.WriteLine(body);</pre>
       </div>
@@ -231,7 +280,13 @@ Console.WriteLine(body);</pre>
 <pre>HttpClient client = HttpClient.newHttpClient();
 
 String json = """
-    {"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"hello"}]}
+    {
+        "model":"claude-3-5-sonnet",
+        "messages":[
+            {"role":"user","content":"hello"},
+            {"role":"system","content":"You are an assistant."},
+        ]
+    }
     """;
 
 HttpRequest request = HttpRequest.newBuilder()
@@ -241,7 +296,9 @@ HttpRequest request = HttpRequest.newBuilder()
     .POST(HttpRequest.BodyPublishers.ofString(json))
     .build();
 
-HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+HttpResponse&lt;String&gt; response = client.send(request,
+    HttpResponse.BodyHandlers.ofString());
+    
 System.out.println(response.body());</pre>
       </div>
     </div>
@@ -268,7 +325,9 @@ System.out.println(response.body());</pre>
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1", api_key="sk-guard-...")
+client = OpenAI(base_url="https://your-ai-guard-host/v1",
+    api_key="sk-guard-...")
+    
 resp = client.chat.completions.create(
     model="gemini-2.5-flash",
     messages=[{"role": "user", "content": "hello"}],
@@ -292,15 +351,21 @@ console.log(resp.choices[0].message.content);</pre>
       <div class="panel" data-lang="csharp">
 <pre>using System.Net.Http.Json;
 
-var client = new HttpClient { BaseAddress = new Uri("https://your-ai-guard-host/v1/") };
+var client = new HttpClient {
+    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+};
 client.DefaultRequestHeaders.Authorization =
-    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
+        "sk-guard-...");
 
 var payload = new {
     model = "gemini-2.5-flash",
     messages = new[] { new { role = "user", content = "hello" } }
 };
-var response = await client.PostAsJsonAsync("chat/completions", payload);
+
+var response = await client.PostAsJsonAsync("chat/completions",
+    payload);
+
 var body = await response.Content.ReadAsStringAsync();
 Console.WriteLine(body);</pre>
       </div>
@@ -308,7 +373,15 @@ Console.WriteLine(body);</pre>
 <pre>HttpClient client = HttpClient.newHttpClient();
 
 String json = """
-    {"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hello"}]}
+    {
+        "model": "gemini-2.5-flash",
+        "messages": [
+            {
+                "role": "user",
+                "content": "hello"
+            }
+        ]
+    }
     """;
 
 HttpRequest request = HttpRequest.newBuilder()
@@ -318,10 +391,13 @@ HttpRequest request = HttpRequest.newBuilder()
     .POST(HttpRequest.BodyPublishers.ofString(json))
     .build();
 
-HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+HttpResponse&lt;String&gt; response = client.send(request, 
+    HttpResponse.BodyHandlers.ofString());
+
 System.out.println(response.body());</pre>
       </div>
     </div>
+    <br>
     <div class="callout warn">
       One real limitation, not a bug: if you send an image as a remote URL (<code class="inline">image_url.url</code> pointing
       at <code class="inline">https://...</code>), Gemini rejects it. Gemini only accepts inline base64 image data or a file

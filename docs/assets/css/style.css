@@ -54,6 +54,15 @@
   box-sizing: border-box;
 }
 
+/* `hidden` is only a UA default of display:none, so any author rule that
+   sets display outranks it and the element keeps rendering while
+   el.hidden = true reports success. That's what left the screenshot
+   lightbox covering the whole page. Reset it once here rather than
+   guarding each selector. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   color-scheme: dark;
   scroll-behavior: smooth;
@@ -857,7 +866,7 @@ table.compare tr.highlight td {
 
 .guide-content {
   min-width: 0;
-  padding: 40px 48px 100px;
+  padding: 40px 32px 100px;
   max-width: var(--content-max);
   margin: 0 auto;
 }
@@ -1311,9 +1320,7 @@ html[data-theme="light"] .engine-badge {
 }
 
 /* ---------- Screenshot lightbox ---------- */
-.lightbox[hidden] {
-  display: none;
-}
+/* Kept hidden by the global [hidden] reset near the top of this file. */
 .lightbox {
   position: fixed;
   inset: 0;

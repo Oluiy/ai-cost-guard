@@ -70,11 +70,46 @@
     <p class="dek">Install it, generate a config, point your app at it. Ten minutes, most of which is waiting for your first API key to save.</p>
 
     <h2 id="install">Install</h2>
-    <p>Requires Go 1.22+. There's no published release yet, so build from source:</p>
-    <pre>git clone https://github.com/Oluiy/ai-cost-guard.git
+    <p>Pick whichever fits your setup. All four produce the same single binary.</p>
+    <div class="code-tabs" data-tab-group="install">
+      <div class="tab-row">
+        <button class="tab" data-lang="script">Install script</button>
+        <button class="tab" data-lang="npm">npm</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="docker">Docker</button>
+      </div>
+      <div class="panel" data-lang="script"><pre>curl -fsSL https://raw.githubusercontent.com/Oluiy/ai-cost-guard/main/install.sh | sh</pre></div>
+      <div class="panel" data-lang="npm"><pre>npm install -g ai-cost-guard</pre></div>
+      <div class="panel" data-lang="go"><pre>go install github.com/Oluiy/ai-cost-guard/cmd/ai-guard@latest</pre></div>
+      <div class="panel" data-lang="docker"><pre>git clone https://github.com/Oluiy/ai-cost-guard.git
 cd ai-cost-guard
-go install ./cmd/ai-guard</pre>
-    <p>That puts <code class="inline">ai-guard</code> in <code class="inline">$(go env GOPATH)/bin</code>. Make sure that's on your <code class="inline">PATH</code>, then <code class="inline">ai-guard</code> works as a command from any directory, not just the repo you just cloned.</p>
+docker build -t ai-guard .</pre></div>
+    </div>
+    <p>
+      The install script detects your OS and architecture, downloads the matching binary from the
+      <a href="https://github.com/Oluiy/ai-cost-guard/releases" target="_blank" rel="noopener">releases page</a>,
+      verifies its checksum, and puts it in <code class="inline">/usr/local/bin</code>. Set
+      <code class="inline">INSTALL_DIR</code> to install somewhere else, or
+      <code class="inline">VERSION</code> to pin a specific release.
+    </p>
+    <p>
+      Installing with Go instead puts <code class="inline">ai-guard</code> in
+      <code class="inline">$(go env GOPATH)/bin</code>, which needs to be on your
+      <code class="inline">PATH</code>. Prebuilt binaries for Linux, macOS, and Windows are attached to
+      every release if you'd rather download one directly.
+    </p>
+    <div class="callout">
+      <strong>On piping a script into a shell.</strong> The install script is fetched over HTTPS and verifies each
+      download's SHA-256 against the checksums published with the release before it extracts anything, so a corrupted or
+      swapped archive is rejected rather than executed. What that does <em>not</em> cover is the script itself: you are
+      trusting this repository and GitHub's TLS at the moment you run it. If you'd rather look first, that's two commands
+      instead of one:
+      <pre>curl -fsSLO https://raw.githubusercontent.com/Oluiy/ai-cost-guard/main/install.sh
+less install.sh        # read it
+sh install.sh</pre>
+      Or skip the script entirely and use <code class="inline">go install</code>, or download a binary and its checksum
+      from the releases page by hand.
+    </div>
 
     <h2 id="init">Set it up</h2>
     <p>Run this from wherever you want <code class="inline">config.yaml</code> and the request log to live, commonly the root of the project you're protecting:</p>
@@ -156,12 +191,16 @@ print(resp.content[0].text)</pre>
     <p><strong>After</strong> — the OpenAI Python package, not Anthropic's, still returning a Claude answer:</p>
     <pre>from openai import OpenAI  # yes, the OpenAI package — AI Guard speaks its request format
 
-client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")
+client = OpenAI(base_url="http://localhost:8787/v1",
+    api_key="sk-guard-...")
 resp = client.chat.completions.create(
-    model="claude-5-sonnet",  # unchanged: still the same Claude model
+    model="claude-5-sonnet",  # unchanged: the same Claude model
     max_tokens=1024,
     messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "system", 
+            "content": "You are a helpful assistant."
+        },
         {"role": "user", "content": "hello"},
     ],
 )

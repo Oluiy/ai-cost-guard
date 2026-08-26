@@ -204,6 +204,32 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
     }
 }</pre>
     <p>Your applications then point at <code class="inline">https://ai.example.com/v1</code>, and the dashboard is at <code class="inline">https://ai.example.com/dashboard</code>.</p>
+
+    <h3 id="trusted-proxies">Tell AI Guard about your proxy</h3>
+    <p>
+      Whenever you put a proxy in front, add its address to
+      <code class="inline">trusted_proxies</code>. Skipping this doesn't break anything visibly, which is exactly why it's
+      worth doing deliberately:
+    </p>
+    <pre>trusted_proxies:
+  - 127.0.0.1
+  - 10.0.0.0/8       # or your load balancer's range</pre>
+    <table>
+      <thead><tr><th>Without it</th><th>With it</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Every request appears to come from the proxy, so the dashboard's 5-attempts-per-minute login limit is shared by all users. One attacker locks out your whole team.</td>
+          <td>The limit applies per real client address.</td>
+        </tr>
+        <tr>
+          <td>AI Guard can't tell the client used HTTPS, so the session cookie isn't marked <code class="inline">Secure</code>.</td>
+          <td>The cookie is <code class="inline">Secure</code>, and browsers refuse to send it over plain HTTP.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Only set this when a proxy really is in front.</strong> These headers are trusted once listed, so on a directly-reachable deployment an attacker could set <code class="inline">X-Forwarded-For</code> themselves and claim a new address on every login attempt, defeating the rate limit. Left unset, AI Guard uses the real connection address and ignores the headers.
+    </div>
     <div class="callout">
       <strong>The dashboard is always on the same host and port as the proxy.</strong> It isn't a separate service and there's nothing extra to deploy. Wherever AI Guard is reachable, append <code class="inline">/dashboard</code>. Locally that's <code class="inline">http://localhost:8787/dashboard</code>; behind the proxy above it's <code class="inline">https://ai.example.com/dashboard</code>. Using Redis does not change this.
     </div>
@@ -271,6 +297,7 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
     <a href="#paas">Heroku / Railway / Render</a>
     <a href="#ephemeral">Ephemeral filesystems</a>
     <a href="#subdomain">Its own domain</a>
+    <a href="#trusted-proxies">Trusted proxies</a>
     <a href="#tls">TLS</a>
     <a href="#scale">One instance vs. many</a>
     <a href="#checklist">Production checklist</a>

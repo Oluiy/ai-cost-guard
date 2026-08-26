@@ -72,7 +72,7 @@
     <h2 id="init">ai-guard init</h2>
     <p>Interactive setup. Asks which providers you're using, a real API key for each, cache settings, and any number of budgeted users, each getting a generated virtual key back. Last step, a dashboard login (skippable). Writes <code class="inline">config.yaml</code> in the current directory.</p>
     <pre>ai-guard init</pre>
-    <p>Numeric answers (port, daily budget) are validated and re-prompt on bad input rather than silently substituting a default, a malformed budget can't turn into an accidental unlimited one. If <code class="inline">config.yaml</code> already exists, you're asked to confirm before it's overwritten, existing virtual keys aren't recoverable once that happens.</p>
+    <p>Numeric answers (port, daily budget) are validated and re-prompt on bad input rather than silently substituting a default, a malformed budget can't turn into an accidental unlimited one. <b>If <code class="inline">config.yaml</code> already exists, you're asked to confirm before it's overwritten, existing virtual keys aren't recoverable once that happens.</b></p>
 
     <h2 id="run">ai-guard run</h2>
     <p>Loads <code class="inline">config.yaml</code>, starts the proxy and the dashboard, and blocks until stopped.</p>

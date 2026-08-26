@@ -96,7 +96,7 @@ keys:
 fallback:
   - gpt-4o-mini
 
-dashboard:                     # written by `ai-guard init` / `reset-dashboard-password`
+dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
   session_secret: ...
   users:
     - username: admin
@@ -135,6 +135,21 @@ dashboard:                     # written by `ai-guard init` / `reset-dashboard-p
   backend: redis
   redis_url: redis://localhost:6379/0   # omit to reuse cache.redis_url</pre>
     <p>With this set, every instance reserves and settles spend against the same Redis key, atomically, so the budget holds regardless of which instance a request lands on. Get Redis running locally with <code class="inline">docker run -d -p 6379:6379 redis:7-alpine</code> or <code class="inline">brew install redis</code>.</p>
+
+    <h3 id="fail-closed">Failing closed</h3>
+    <p>
+      By default, a key whose <code class="inline">user_id</code> has no matching entry under
+      <code class="inline">users:</code> spends without a limit. AI Guard warns about this at every startup, but a warning
+      is easy to scroll past, and the usual cause is a typo rather than an intention.
+    </p>
+    <pre>budget:
+  fail_closed: true</pre>
+    <p>With this on, that request is refused instead. Two things it deliberately does not change:</p>
+    <ul>
+      <li><strong>An explicit <code class="inline">daily_limit_usd: 0</code> still means unlimited.</strong> That's someone saying the key is unmetered on purpose, which is different from forgetting to configure it.</li>
+      <li><strong>Single-tenant mode is unaffected.</strong> With no <code class="inline">keys:</code> at all, there's no per-user budget to miss.</li>
+    </ul>
+    <p>It also makes a failed spend lookup refuse rather than pass: if AI Guard can't tell whether you're under budget, failing closed means it says no.</p>
     <div class="callout">
       If AI Guard can't reach the Redis you've configured, it refuses to start rather than silently falling back to unprotected local tracking. A connection error at startup means Redis isn't reachable, not that anything is broken.
     </div>
@@ -160,8 +175,12 @@ dashboard:                     # written by `ai-guard init` / `reset-dashboard-p
         <tr><td><code class="inline">dashboard.session_secret</code></td><td>Signs session cookies. Generated once; don't edit</td></tr>
         <tr><td><code class="inline">dashboard.users[].username</code></td><td>Dashboard login username (one account, currently)</td></tr>
         <tr><td><code class="inline">dashboard.users[].password_hash</code></td><td>bcrypt hash, not the password itself</td></tr>
+        <tr><td><code class="inline">dashboard.session_ttl_hours</code></td><td>How long a login lasts. Defaults to 168 (7 days)</td></tr>
       </tbody>
     </table>
+    <div class="callout">
+      <strong>There is no session revocation list.</strong> Sessions are stateless signed cookies, so a leaked one stays valid until it expires &mdash; which makes <code class="inline">session_ttl_hours</code> your exposure window, worth shortening on anything internet-facing. To revoke every session immediately, run <code class="inline">ai-guard reset-dashboard-password</code>: it rotates <code class="inline">session_secret</code>, which invalidates all outstanding cookies at once.
+    </div>
     <p>If <code class="inline">dashboard.users:</code> is empty, <code class="inline">/dashboard</code> has no login at all &mdash; anyone who can reach the port can see it. AI Guard warns about this at every startup.</p>
 
     <div class="page-nav">
@@ -175,6 +194,7 @@ dashboard:                     # written by `ai-guard init` / `reset-dashboard-p
     <a href="#providers">Providers</a>
     <a href="#cache">Cache</a>
     <a href="#redis">Budget backend and Redis</a>
+    <a href="#fail-closed">Failing closed</a>
     <a href="#users">Users and keys</a>
     <a href="#fallback">Fallback</a>
     <a href="#dashboard-auth">Dashboard login</a>

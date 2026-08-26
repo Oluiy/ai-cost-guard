@@ -122,9 +122,16 @@
         <div class="qs-num">1</div>
         <div class="qs-body">
           <h3>Install</h3>
-          <pre>git clone https://github.com/Oluiy/ai-cost-guard.git
-cd ai-cost-guard
-go install ./cmd/ai-guard</pre>
+          <div class="code-tabs" data-tab-group="install">
+            <div class="tab-row">
+              <button class="tab" data-lang="script">Install script</button>
+              <button class="tab" data-lang="npm">npm</button>
+              <button class="tab" data-lang="go">Go</button>
+            </div>
+            <div class="panel" data-lang="script"><pre>curl -fsSL https://raw.githubusercontent.com/Oluiy/ai-cost-guard/main/install.sh | sh</pre></div>
+            <div class="panel" data-lang="npm"><pre>npm install -g ai-cost-guard</pre></div>
+            <div class="panel" data-lang="go"><pre>go install github.com/Oluiy/ai-cost-guard/cmd/ai-guard@latest</pre></div>
+          </div>
         </div>
       </div>
       <div class="qs-step">
@@ -257,7 +264,7 @@ const client = new OpenAI({
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 12v6c0 1.1 3.6 2 8 2s8-.9 8-2v-6" stroke="currentColor" stroke-width="1.8"/></svg>
         </div>
         <h3>Serves repeat prompts from cache</h3>
-        <p>Identical requests inside the TTL cost $0 and never reach the provider. Streaming clients get a real stream back, so caching still applies to them.</p>
+        <p><b>Identical requests inside the TTL cost $0 and never reach the provider. Streaming clients get a real stream back, so caching still applies to them.</b></p>
       </div>
       <div class="feature-card">
         <div class="icon">

@@ -21,6 +21,12 @@ window.AI_GUARD_SEARCH_INDEX = [
     keywords: "install init run quickstart first request curl openai anthropic sdk virtual key setup",
   },
   {
+    title: "Install",
+    section: "Start · Getting started",
+    url: "guide/getting-started.html#install",
+    keywords: "install download binary install.sh curl npm npx go install docker build release homebrew brew linux macos windows",
+  },
+  {
     title: "Point your app at ai-guard",
     section: "Start · Getting started",
     url: "guide/getting-started.html#point-your-app",
@@ -87,6 +93,12 @@ window.AI_GUARD_SEARCH_INDEX = [
     section: "Reference · Configuration",
     url: "guide/configuration.html#redis",
     keywords: "redis cache backend budget backend multi instance horizontal scale",
+  },
+  {
+    title: "Failing closed",
+    section: "Reference · Configuration",
+    url: "guide/configuration.html#fail-closed",
+    keywords: "fail_closed fail closed unlimited budget typo user_id missing entry refuse deny unmetered",
   },
   {
     title: "Dashboard login",
@@ -167,6 +179,12 @@ window.AI_GUARD_SEARCH_INDEX = [
     keywords: "dashboard api data requests report csv export whoami events sse json",
   },
   {
+    title: "Live settings API",
+    section: "Reference · API",
+    url: "guide/api-reference.html#settings-api",
+    keywords: "settings live dashboard cache ttl budget fallback put patch config write",
+  },
+  {
     title: "CLI reference",
     section: "Reference",
     url: "guide/commands.html",
@@ -209,6 +227,12 @@ window.AI_GUARD_SEARCH_INDEX = [
     section: "Operate · Deployment",
     url: "guide/deployment.html#subdomain",
     keywords: "domain subdomain reverse proxy caddy nginx tls https dns microservice",
+  },
+  {
+    title: "Trusted proxies",
+    section: "Operate · Deployment",
+    url: "guide/deployment.html#trusted-proxies",
+    keywords: "trusted_proxies x-forwarded-for x-forwarded-proto reverse proxy rate limit secure cookie nginx caddy load balancer client ip",
   },
   {
     title: "One instance vs. many",

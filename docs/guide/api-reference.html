@@ -264,6 +264,8 @@ console.log(resp.data[0].embedding.length);</pre></div>
         <tr><td><code class="inline">GET /dashboard/api/requests</code></td><td>Paginated, filterable request log</td></tr>
         <tr><td><code class="inline">GET /dashboard/api/report</code></td><td>Summary for an explicit date range. Add <code class="inline">?format=csv</code> for a download</td></tr>
         <tr><td><code class="inline">GET /dashboard/api/whoami</code></td><td>Who's signed in, and whether auth is enabled at all</td></tr>
+        <tr><td><code class="inline">GET /dashboard/api/settings</code></td><td>The current editable settings: cache on/off, cache TTL, per-user daily budgets, fallback list</td></tr>
+        <tr><td><code class="inline">PUT /dashboard/api/settings</code></td><td>Replaces the editable settings, applies them live, and writes them to <code class="inline">config.yaml</code>. See below</td></tr>
         <tr><td><code class="inline">GET /dashboard/events</code></td><td>Server-Sent Events. The same snapshot pushed every 3 seconds</td></tr>
         <tr><td><code class="inline">POST /dashboard/login</code></td><td>Sets the session cookie. Rate-limited to 5 attempts/minute per IP</td></tr>
         <tr><td><code class="inline">POST /dashboard/logout</code></td><td>Clears the session cookie</td></tr>
@@ -290,6 +292,37 @@ curl -b cookies.txt \
   "http://localhost:8787/dashboard/api/report?from=2026-07-01&to=2026-07-31&user=user_123&format=csv" \
   -o july.csv</pre>
 
+    <h3 id="settings-api">Live settings</h3>
+    <p>
+      <code class="inline">GET</code>/<code class="inline">PUT /dashboard/api/settings</code> read and write the same
+      four things the dashboard's Settings page does: <code class="inline">cache.enabled</code>,
+      <code class="inline">cache.ttl_seconds</code>, per-user <code class="inline">daily_limit_usd</code>, and the
+      <code class="inline">fallback</code> list. Changes apply to the running process immediately, no restart, and are
+      written back to <code class="inline">config.yaml</code>.
+    </p>
+    <p>
+      <strong>Provider <code class="inline">api_key</code>/<code class="inline">base_url</code>, virtual
+      <code class="inline">keys:</code>, and <code class="inline">session_secret</code> are not reachable through this
+      endpoint.</strong> They aren't hidden fields in the response, they simply aren't part of the type this endpoint
+      reads or writes &mdash; there is no code path from a dashboard session to a provider credential.
+    </p>
+    <pre>curl -b cookies.txt http://localhost:8787/dashboard/api/settings</pre>
+    <pre>{
+  "cache_enabled": true,
+  "cache_ttl_seconds": 300,
+  "fallback": ["gpt-4o-mini"],
+  "users": { "user_123": 5 }
+}</pre>
+    <p><code class="inline">PUT</code> takes the same shape and replaces the whole thing (not a partial patch), returning what was actually applied:</p>
+    <pre>curl -b cookies.txt -X PUT http://localhost:8787/dashboard/api/settings \
+  -H "Content-Type: application/json" \
+  -d '{"cache_enabled":true,"cache_ttl_seconds":21600,"fallback":["gpt-4o-mini"],"users":{"user_123":5}}'</pre>
+    <p>Every write is validated before anything changes, so a rejected request leaves both the running config and the file untouched. Two rules worth knowing:</p>
+    <ul>
+      <li><code class="inline">cache_ttl_seconds</code> must be between 1 and 2,592,000 (30 days).</li>
+      <li><strong>Removing a user's budget while a virtual key still maps to them is refused.</strong> A <code class="inline">keys:</code> entry with no matching budget is treated as unlimited spend, so silently dropping the budget would uncap that key. Set the limit to <code class="inline">0</code> instead if you mean for it to be unmetered &mdash; that's explicit and stays visible in <code class="inline">config.yaml</code>.</li>
+    </ul>
+
     <div class="page-nav">
       <a href="./providers.html"><span class="label">Previous</span>Providers</a>
       <a href="./commands.html" class="next"><span class="label">Next</span>CLI reference</a>
@@ -306,6 +339,7 @@ curl -b cookies.txt \
     <a href="#embeddings">Embeddings</a>
     <a href="#healthz">Health check</a>
     <a href="#dashboard-api">Dashboard API</a>
+    <a href="#settings-api">Live settings</a>
   </aside>
 </div>
 

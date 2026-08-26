@@ -194,8 +194,8 @@
     <h2 id="caching">Caching</h2>
     <p>
       The cache key is a SHA-256 hash of the model name plus the full request payload, minus <code class="inline">user</code> and
-      <code class="inline">stream</code> (neither changes the answer). Identical requests inside the TTL are served at zero cost and
-      zero upstream latency.
+      <code class="inline">stream</code> (neither changes the answer). <strong>Identical requests inside the TTL are served at zero cost and
+      zero upstream latency.</strong>
     </p>
     <table>
       <thead><tr><th>Backend</th><th>Behavior</th></tr></thead>

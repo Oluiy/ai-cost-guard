@@ -143,11 +143,17 @@
   // via the shared key, every page you visit next) — the same "pick once,
   // it sticks" pattern Stripe's docs use so you're not re-selecting your
   // language on every single page.
+  //
+  // Blocks that aren't picking a *language* opt into their own key with
+  // data-tab-group (the install-method tabs use "install"). Without that
+  // they'd share the language preference, and choosing "npm" to install
+  // would silently discard someone's saved choice of Python for every
+  // API example on the site.
   function initCodeTabs() {
-    var STORAGE_KEY = "ai-guard-docs-lang";
-    var saved = localStorage.getItem(STORAGE_KEY);
-
     document.querySelectorAll(".code-tabs").forEach(function (block) {
+      var group = block.getAttribute("data-tab-group") || "lang";
+      var storageKey = "ai-guard-docs-" + group;
+      var saved = localStorage.getItem(storageKey);
       var tabs = block.querySelectorAll(".tab");
       var panels = block.querySelectorAll(".panel");
 
@@ -163,7 +169,7 @@
       tabs.forEach(function (tab) {
         tab.addEventListener("click", function () {
           activate(tab.dataset.lang);
-          localStorage.setItem(STORAGE_KEY, tab.dataset.lang);
+          localStorage.setItem(storageKey, tab.dataset.lang);
         });
       });
 

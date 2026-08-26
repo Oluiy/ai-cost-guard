@@ -2,11 +2,12 @@
   "name": "fitguard",
   "version": "0.1.0",
   "description": "Self-hosted, OpenAI-compatible AI gateway that stops runaway LLM bills before they happen.",
+  "keywords": ["ai", "llm", "gateway", "proxy", "openai", "anthropic", "cost", "budget", "rate-limit"],
   "license": "Apache-2.0",
   "homepage": "https://github.com/Oluiy/ai-cost-guard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Oluiy/ai-cost-guard.git"
+    "url": "git+https://github.com/Oluiy/ai-cost-guard.git"
   },
   "bin": {
     "fitguard": "bin/cli.js"

@@ -156,7 +156,7 @@ func buildGeminiRequest(rawBody []byte, model string) (geminiRequest, error) {
 				if inline := parseGeminiInlineImage(part.ImageURL.URL); inline != nil {
 					parts = append(parts, geminiPart{InlineData: inline})
 				}
-				// Remote URLs are dropped, not fetched: ai-guard doesn't
+				// Remote URLs are dropped, not fetched: fitguard doesn't
 				// make server-side requests to caller-supplied URLs.
 			}
 		}

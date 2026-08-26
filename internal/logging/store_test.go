@@ -386,7 +386,7 @@ func TestDistinctModels(t *testing.T) {
 // narrowing so a future refactor doesn't quietly drop it.
 func TestOpen_DatabaseFileIsNotWorldReadable(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "aiguard.db")
+	path := filepath.Join(dir, "fitguard.db")
 
 	store, err := Open(path)
 	if err != nil {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Configuration reference — AI Guard</title>
+<title>Configuration reference — FitGuard</title>
 <meta name="description" content="Every config.yaml field: providers, cache, budget, users, keys, fallback, dashboard login, and when to turn on the Redis backend." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
 <link rel="stylesheet" href="../assets/css/style.css" />
@@ -14,7 +14,7 @@
 <header class="site-header">
   <a class="brand" href="../index.html">
     <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-    AI Guard
+    FitGuard
   </a>
   <nav class="top-links">
     <a href="../index.html">Home</a>
@@ -67,7 +67,7 @@
 
   <article class="guide-content">
     <h1>Configuration reference</h1>
-    <p class="dek"><code class="inline">ai-guard init</code> writes this file for you. This is what every field in it means, for when you want to change one by hand.</p>
+    <p class="dek"><code class="inline">fitguard init</code> writes this file for you. This is what every field in it means, for when you want to change one by hand.</p>
 
     <pre>port: 8787
 data_dir: .
@@ -96,14 +96,14 @@ keys:
 fallback:
   - gpt-4o-mini
 
-dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
+dashboard:    # written by `fitguard init` / `reset-dashboard-password`
   session_secret: ...
   users:
     - username: admin
       password_hash: $2a$10$...</pre>
 
     <h2 id="providers">Providers</h2>
-    <p>One entry per provider you're routing through AI Guard. <code class="inline">${ENV_VAR}</code> is expanded when the file loads, so a real key never has to sit in the file itself.</p>
+    <p>One entry per provider you're routing through FitGuard. <code class="inline">${ENV_VAR}</code> is expanded when the file loads, so a real key never has to sit in the file itself.</p>
     <table>
       <thead><tr><th>Field</th><th>Notes</th></tr></thead>
       <tbody>
@@ -112,6 +112,7 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
       </tbody>
     </table>
     <p>Recognized names are <code class="inline">openai</code>, <code class="inline">anthropic</code>, <code class="inline">gemini</code>, <code class="inline">groq</code>, and <code class="inline">together</code>. Anything else is still accepted and treated as an OpenAI-compatible endpoint, useful for a self-hosted model server, but routing only auto-detects those four names from the model field.</p>
+    <p>To add a provider to an existing config without the destructive overwrite flow of <code class="inline">init</code>, use <a href="./commands.html#add-provider"><code class="inline">fitguard add-provider</code></a>.</p>
 
     <h2 id="cache">Cache</h2>
     <table>
@@ -127,7 +128,7 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
     <h2 id="redis">Budget backend and Redis</h2>
     <p>
       <code class="inline">budget.backend: local</code> (the default) tracks spend in memory. It's
-      correct for exactly one running AI Guard instance. Run more than one behind a load
+      correct for exactly one running FitGuard instance. Run more than one behind a load
       balancer without changing this, and each instance enforces its own copy of the budget,
       so a user's real spend can land at roughly (instance count) &times; their limit.
     </p>
@@ -139,7 +140,7 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
     <h3 id="fail-closed">Failing closed</h3>
     <p>
       By default, a key whose <code class="inline">user_id</code> has no matching entry under
-      <code class="inline">users:</code> spends without a limit. AI Guard warns about this at every startup, but a warning
+      <code class="inline">users:</code> spends without a limit. FitGuard warns about this at every startup, but a warning
       is easy to scroll past, and the usual cause is a typo rather than an intention.
     </p>
     <pre>budget:
@@ -149,9 +150,9 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
       <li><strong>An explicit <code class="inline">daily_limit_usd: 0</code> still means unlimited.</strong> That's someone saying the key is unmetered on purpose, which is different from forgetting to configure it.</li>
       <li><strong>Single-tenant mode is unaffected.</strong> With no <code class="inline">keys:</code> at all, there's no per-user budget to miss.</li>
     </ul>
-    <p>It also makes a failed spend lookup refuse rather than pass: if AI Guard can't tell whether you're under budget, failing closed means it says no.</p>
+    <p>It also makes a failed spend lookup refuse rather than pass: if FitGuard can't tell whether you're under budget, failing closed means it says no.</p>
     <div class="callout">
-      If AI Guard can't reach the Redis you've configured, it refuses to start rather than silently falling back to unprotected local tracking. A connection error at startup means Redis isn't reachable, not that anything is broken.
+      If FitGuard can't reach the Redis you've configured, it refuses to start rather than silently falling back to unprotected local tracking. A connection error at startup means Redis isn't reachable, not that anything is broken.
     </div>
 
     <h2 id="users">Users and keys</h2>
@@ -162,13 +163,14 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
         <tr><td><code class="inline">keys.&lt;token&gt;</code></td><td>Maps a virtual key to the <code class="inline">user_id</code> whose budget applies</td></tr>
       </tbody>
     </table>
-    <p>If <code class="inline">keys:</code> is empty, AI Guard runs in single-tenant mode: every request is unauthenticated and shares one <code class="inline">"default"</code> identity. Fine for a solo local setup, not once more than one caller can reach the port.</p>
+    <p>If <code class="inline">keys:</code> is empty, FitGuard runs in single-tenant mode: every request is unauthenticated and shares one <code class="inline">"default"</code> identity. Fine for a solo local setup, not once more than one caller can reach the port.</p>
 
     <h2 id="fallback">Fallback</h2>
     <p>A flat list of model names, tried in order if the primary model's request errors, rate-limits, or 5xxs. Each one is routed the same way the primary model was, so a fallback to <code class="inline">claude-3-haiku</code> after a <code class="inline">gpt-4o</code> failure hits your <code class="inline">anthropic</code> provider entry, if you've configured one.</p>
+    <p>Every entry is validated against <code class="inline">providers:</code> at load time (and again on any dashboard settings save): a model whose provider isn't configured is rejected outright, rather than silently failing the first time it's actually needed as a fallback. A custom or self-hosted model not in FitGuard's built-in price table still works if named <code class="inline">provider/model</code> (e.g. <code class="inline">together/my-model</code>), which ties it to a configured provider explicitly.</p>
 
     <h2 id="dashboard-auth">Dashboard login</h2>
-    <p>Separate from <code class="inline">keys:</code> above &mdash; this gates the human-facing <code class="inline">/dashboard</code> page, not API callers. Set by <code class="inline">ai-guard init</code> or <code class="inline">ai-guard reset-dashboard-password</code>, never by hand.</p>
+    <p>Separate from <code class="inline">keys:</code> above &mdash; this gates the human-facing <code class="inline">/dashboard</code> page, not API callers. Set by <code class="inline">fitguard init</code> or <code class="inline">fitguard reset-dashboard-password</code>, never by hand.</p>
     <table>
       <thead><tr><th>Field</th><th>Notes</th></tr></thead>
       <tbody>
@@ -179,9 +181,9 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
       </tbody>
     </table>
     <div class="callout">
-      <strong>There is no session revocation list.</strong> Sessions are stateless signed cookies, so a leaked one stays valid until it expires &mdash; which makes <code class="inline">session_ttl_hours</code> your exposure window, worth shortening on anything internet-facing. To revoke every session immediately, run <code class="inline">ai-guard reset-dashboard-password</code>: it rotates <code class="inline">session_secret</code>, which invalidates all outstanding cookies at once.
+      <strong>There is no session revocation list.</strong> Sessions are stateless signed cookies, so a leaked one stays valid until it expires &mdash; which makes <code class="inline">session_ttl_hours</code> your exposure window, worth shortening on anything internet-facing. To revoke every session immediately, run <code class="inline">fitguard reset-dashboard-password</code>: it rotates <code class="inline">session_secret</code>, which invalidates all outstanding cookies at once.
     </div>
-    <p>If <code class="inline">dashboard.users:</code> is empty, <code class="inline">/dashboard</code> has no login at all &mdash; anyone who can reach the port can see it. AI Guard warns about this at every startup.</p>
+    <p>If <code class="inline">dashboard.users:</code> is empty, <code class="inline">/dashboard</code> has no login at all &mdash; anyone who can reach the port can see it. FitGuard warns about this at every startup.</p>
 
     <div class="page-nav">
       <a href="./how-it-works.html"><span class="label">Previous</span>How it works</a>
@@ -202,7 +204,7 @@ dashboard:    # written by `ai-guard init` / `reset-dashboard-password`
 </div>
 
 <footer class="site-footer">
-  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  <p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
 </footer>
 
 <div class="search-overlay" id="search-overlay">

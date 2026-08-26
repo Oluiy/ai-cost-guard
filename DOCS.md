@@ -41,7 +41,7 @@ before deciding whether to try this.
   each get their own view of spend, so a user's budget can be exceeded by
   roughly (instance count) x. Redis fixes this; the default doesn't.
 - **Cost logging is per-process regardless of the budget backend.**
-  `aiguard.db` is a local SQLite file, so each instance's dashboard only shows
+  `fitguard.db` is a local SQLite file, so each instance's dashboard only shows
   requests it handled itself. This one has no fix short of a shared database.
 - **Worst-case cost estimation is a heuristic.** Prompt size comes from message
   text length at ~4 chars/token, completion size from `max_tokens` or a 4096
@@ -56,14 +56,34 @@ before deciding whether to try this.
   read-only or viewer role. Anyone with the password can see everything.
 - **No TLS.** Serves plain HTTP by design and needs a reverse proxy in front.
 
-## Blockers before this is genuinely installable
+## Shipping the first release
 
-1. **The repo is private.** `go install github.com/Oluiy/ai-cost-guard/cmd/ai-guard@latest`
-   is shown in the README and the docs, and it does not work for anyone but me.
-   Making the repo public is what makes that instruction true.
-2. **No tagged release.** `.github/workflows/release.yml` only fires on a `v*`
-   tag and none has been pushed, so there are no prebuilt binaries for anyone
-   who doesn't have a Go toolchain.
+The repo is public now, and the distribution tooling is in place and tested
+(`.goreleaser.yaml`, `install.sh`, `npm/`, scratch `Dockerfile`, GoReleaser
+workflow). What's left is actually cutting the release:
+
+1. **Commit everything.** Nothing in the working tree is committed yet.
+2. **Push a `v0.1.0` tag.** `.github/workflows/release.yml` fires on `v*` and
+   runs GoReleaser, which produces the archives and `checksums.txt` that
+   `install.sh` and the npm postinstall both download. Until that tag exists,
+   both of those installers fail with a 404: they have nothing to fetch.
+3. **Publish the npm package.** `cd npm && npm publish`. Its version and the
+   git tag have to stay in lockstep (`0.1.0` <-> `v0.1.0`), because
+   postinstall derives the download URL from the package version.
+
+Order matters: tag first, then `npm publish`. Publishing npm before the
+release assets exist means anyone who installs in that window gets a failed
+postinstall.
+
+## Still not built
+
+- **Homebrew.** No formula and no tap. Needs a separate `homebrew-fitguard`
+  repo with a formula pointing at the release assets. `brew install` is
+  advertised nowhere right now, which is correct until that exists.
+- **Published container image.** The `Dockerfile` builds a 15.5MB scratch
+  image and works, but nothing pushes it to a registry. The docs tell people
+  to `docker build` locally, which is accurate. Adding a `dockers:` block to
+  `.goreleaser.yaml` plus GHCR login in the workflow would change that.
 
 ## Notes to self
 
@@ -72,4 +92,3 @@ before deciding whether to try this.
   section an evaluating engineer looks for, but it's also public.
 - `ENTERPRISE.md` is still tracked and still enumerates gaps (TLS, secrets
   management, HA observability). Same decision applies to it.
-- Nothing in the working tree is committed yet.

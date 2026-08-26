@@ -24,7 +24,7 @@ func NewRedisCache(url string) (*RedisCache, error) {
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		return nil, err
 	}
-	return &RedisCache{client: client, prefix: "aiguard:cache:"}, nil
+	return &RedisCache{client: client, prefix: "fitguard:cache:"}, nil
 }
 
 func (c *RedisCache) Get(ctx context.Context, key string) ([]byte, bool) {

@@ -5,9 +5,9 @@
 // Paths are root-relative to the docs/ site (no "./" or "../"): app.js
 // resolves each one against whatever depth the current page happens to
 // be at, so this file doesn't need to know or care where it's loaded from.
-window.AI_GUARD_SEARCH_INDEX = [
+window.FITGUARD_SEARCH_INDEX = [
   {
-    title: "AI Guard",
+    title: "FitGuard",
     section: "Home",
     url: "index.html",
     keywords: "overview landing home stop bills cost gateway proxy llm",
@@ -27,7 +27,7 @@ window.AI_GUARD_SEARCH_INDEX = [
     keywords: "install download binary install.sh curl npm npx go install docker build release homebrew brew linux macos windows",
   },
   {
-    title: "Point your app at ai-guard",
+    title: "Point your app at fitguard",
     section: "Start · Getting started",
     url: "guide/getting-started.html#point-your-app",
     keywords: "baseurl base_url integration openai sdk python typescript switch migrate",
@@ -131,6 +131,18 @@ window.AI_GUARD_SEARCH_INDEX = [
     keywords: "gemini google generativelanguage flash pro setup example",
   },
   {
+    title: "Groq",
+    section: "Reference · Providers",
+    url: "guide/providers.html#groq",
+    keywords: "groq llama mixtral fast inference setup example",
+  },
+  {
+    title: "Together AI",
+    section: "Reference · Providers",
+    url: "guide/providers.html#together",
+    keywords: "together ai llama meta-llama open source models setup example",
+  },
+  {
     title: "API reference",
     section: "Reference",
     url: "guide/api-reference.html",
@@ -146,7 +158,7 @@ window.AI_GUARD_SEARCH_INDEX = [
     title: "Response headers",
     section: "Reference · API",
     url: "guide/api-reference.html#response-headers",
-    keywords: "x-cache x-ai-guard-model-used x-ai-guard-warning headers hit miss truncated",
+    keywords: "x-cache x-fitguard-model-used x-fitguard-warning headers hit miss truncated",
   },
   {
     title: "Streaming",
@@ -182,13 +194,19 @@ window.AI_GUARD_SEARCH_INDEX = [
     title: "Live settings API",
     section: "Reference · API",
     url: "guide/api-reference.html#settings-api",
-    keywords: "settings live dashboard cache ttl budget fallback put patch config write",
+    keywords: "settings live dashboard cache ttl budget fallback put patch config write issued_keys providers available_models",
   },
   {
     title: "CLI reference",
     section: "Reference",
     url: "guide/commands.html",
-    keywords: "ai-guard init run version config flag command terminal",
+    keywords: "fitguard init add-provider run reset-dashboard-password version config flag command terminal",
+  },
+  {
+    title: "fitguard add-provider",
+    section: "Reference · CLI",
+    url: "guide/commands.html#add-provider",
+    keywords: "add provider groq together gemini fallback unlock new provider without overwrite",
   },
 
   // ---------- Operate ----------

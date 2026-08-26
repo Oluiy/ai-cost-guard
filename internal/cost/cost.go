@@ -37,7 +37,6 @@ var Table = map[string]Price{
 	"o4-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
 
 	// Anthropic
-	"claude-5-sonnet":   {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
 	"claude-3-7-sonnet": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
 	"claude-3-5-sonnet": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
 	"claude-3-5-haiku":  {InputPer1K: 0.0008, OutputPer1K: 0.004, Provider: "anthropic"},

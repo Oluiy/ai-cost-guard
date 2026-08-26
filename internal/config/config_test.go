@@ -215,8 +215,8 @@ func TestWarnings_NoWarningWhenDashboardUserConfigured(t *testing.T) {
 }
 
 func TestLoad_ExpandsBracedEnvVars(t *testing.T) {
-	t.Setenv("AI_GUARD_TEST_KEY", "sk-from-env")
-	path := writeTempConfig(t, "providers:\n  openai:\n    api_key: ${AI_GUARD_TEST_KEY}\n")
+	t.Setenv("FITGUARD_TEST_KEY", "sk-from-env")
+	path := writeTempConfig(t, "providers:\n  openai:\n    api_key: ${FITGUARD_TEST_KEY}\n")
 
 	cfg, err := Load(path)
 	if err != nil {
@@ -295,7 +295,7 @@ func TestSave_CreatesFileOwnerOnly(t *testing.T) {
 // The subtle case: os.WriteFile applies its mode only when it creates the
 // file. Rewriting a config.yaml that already existed as 0644 (hand-made,
 // restored from backup, COPYd into an image) used to leave it readable by
-// every local account, including after `ai-guard reset-dashboard-password`
+// every local account, including after `fitguard reset-dashboard-password`
 // wrote a fresh secret into it.
 func TestSave_TightensPermissionsOnPreExistingLooseFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")

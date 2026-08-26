@@ -1,5 +1,5 @@
-# ai-guard configuration.
-# Copy this to config.yaml (or run `ai-guard init` to generate one interactively).
+# fitguard configuration.
+# Copy this to config.yaml (or run `fitguard init` to generate one interactively).
 
 port: 8787
 data_dir: .
@@ -17,6 +17,11 @@ providers:
   groq:
     api_key: ${GROQ_API_KEY}
     base_url: https://api.groq.com/openai/v1
+  together:
+    api_key: ${TOGETHER_API_KEY}
+    base_url: https://api.together.xyz/v1
+# Add a provider to an existing config.yaml without hand-editing this
+# block: `fitguard add-provider`.
 
 cache:
   enabled: true
@@ -25,7 +30,7 @@ cache:
   redis_url: redis://localhost:6379/0
 
 # Where budget-enforcement state (in-flight reservations, and for redis,
-# settled spend) lives. "local" (default) is correct for a single ai-guard
+# settled spend) lives. "local" (default) is correct for a single fitguard
 # instance. If you run more than one instance behind a load balancer, use
 # "redis" so they share one view of each user's spend — with "local",
 # each instance enforces its own copy of the budget, so a user's real
@@ -33,6 +38,14 @@ cache:
 # budget:
 #   backend: redis
 #   redis_url: redis://localhost:6379/0   # omit to reuse cache.redis_url above
+#
+#   # Refuse requests from a key whose user_id has no entry under `users:`,
+#   # instead of treating it as unlimited. Off by default, which is
+#   # friendlier for local use but means one typo in a user_id silently
+#   # grants that key unlimited spend. Turn it on where a missed budget is
+#   # worse than a refused request. An explicit `daily_limit_usd: 0` still
+#   # means unlimited: this catches accidents, not deliberate choices.
+#   fail_closed: true
 
 # Per-user daily spend limits in USD, keyed by user_id (your own label,
 # e.g. a customer or service name — not something the caller sends).
@@ -44,8 +57,8 @@ users:
 
 # Virtual API keys: what callers actually send as their Authorization
 # bearer token, mapped to the user_id whose budget above applies. Your
-# real provider keys above are never exposed to callers. `ai-guard init`
-# generates these for you; if this map is empty, ai-guard runs in
+# real provider keys above are never exposed to callers. `fitguard init`
+# generates these for you; if this map is empty, fitguard runs in
 # single-tenant mode (every caller is unauthenticated and shares one
 # "default" identity — fine for local/solo use only).
 keys:
@@ -53,13 +66,15 @@ keys:
   sk-guard-another-random-value: user_456
 
 # If the primary model's request fails or rate-limits, try these models
-# in order (first configured provider wins per model).
+# in order. Each one must be served by a provider configured above (e.g.
+# claude-3-haiku needs an `anthropic:` entry), or fitguard refuses to
+# start / refuses the dashboard settings write that introduced it.
 fallback:
   - gpt-4o-mini
   - claude-3-haiku
 
 # The dashboard's login (one admin account). Don't hand-write this —
-# `ai-guard init` sets it up interactively, and `ai-guard
+# `fitguard init` sets it up interactively, and `fitguard
 # reset-dashboard-password` changes it later (also works if you skipped
 # this during init and want to add a login now). Leaving `users` empty
 # means `/dashboard` has no login at all.
@@ -68,3 +83,30 @@ fallback:
 #   users:
 #     - username: admin
 #       password_hash: $2a$10$...
+#
+#   # How long a dashboard login lasts. Defaults to 168 (7 days).
+#   # Sessions are stateless signed cookies with nothing to revoke
+#   # server-side, so this is the window a leaked cookie stays usable —
+#   # shorten it on anything internet-facing. To revoke everything at
+#   # once, run `fitguard reset-dashboard-password`, which rotates
+#   # session_secret and invalidates every outstanding session.
+#   session_ttl_hours: 168
+
+# Reverse proxies allowed to speak for their clients via X-Forwarded-For
+# and X-Forwarded-Proto. Set this when fitguard runs behind Caddy, nginx,
+# or a cloud load balancer.
+#
+# It matters for two things:
+#   - The dashboard login rate limiter (5 attempts/minute) keys on the
+#     caller's address. Without this, every request behind a proxy looks
+#     like it came from the proxy itself, so one attacker's attempts
+#     lock out everyone else.
+#   - The session cookie's Secure attribute, which is set when the
+#     client's original request used HTTPS.
+#
+# Leave it unset when fitguard is reachable directly: honoring these
+# headers from anyone would let a caller invent a fresh source address
+# per request and slip past the rate limiter entirely.
+# trusted_proxies:
+#   - 127.0.0.1
+#   - 10.0.0.0/8

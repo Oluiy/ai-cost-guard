@@ -7,11 +7,11 @@ import (
 )
 
 // CookieName is the session cookie the dashboard reads/writes.
-const CookieName = "ai_guard_session"
+const CookieName = "fitguard_session"
 
 // secureCookies reports whether the session cookie should carry Secure.
 // c.Protocol() reflects X-Forwarded-Proto behind a trusted proxy, so a
-// TLS-terminating proxy still yields "https" even though ai-guard itself
+// TLS-terminating proxy still yields "https" even though fitguard itself
 // speaks plain HTTP. Without EnableTrustedProxyCheck, any caller can
 // claim https for itself — harmless here, since that only makes its own
 // cookie more restrictive.

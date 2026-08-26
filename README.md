@@ -1,4 +1,4 @@
-# AI Cost Guard
+# FitGuard
 
 A self-hostable, OpenAI-compatible AI gateway that stops runaway LLM bills
 before they happen: the kind of incident where a stuck loop or an
@@ -8,16 +8,16 @@ Single Go binary. No required external dependencies (Redis is optional).
 Drop it in front of OpenAI, Anthropic, Gemini, Groq, or Together by
 changing one `baseURL`.
 
-📖 **[Full documentation](./docs/index.html)**: getting started, how it
-works, the complete API reference with examples in five languages, provider
-setup, deployment, and troubleshooting. Open `docs/index.html` in a browser.
+📖 **[Full documentation](https://ai-cost-guard-ruddy.vercel.app/)**: getting
+started, how it works, the complete API reference with examples in five
+languages, provider setup, deployment, and troubleshooting.
 
 🏢 **[Enterprise deployments](./ENTERPRISE.md)**: budget enforcement across
-instances, hardening, and what to put in front of AI Cost Guard when it runs
+instances, hardening, and what to put in front of FitGuard when it runs
 in a production environment.
 
-💚 **[Sponsor this project](./GITHUB-SPONSORS-AI-COST-GUARD.md)**: if AI Cost
-Guard is saving you real money on your provider bill, sponsoring keeps it
+💚 **[Sponsor this project](./GITHUB-SPONSORS-AI-COST-GUARD.md)**: if FitGuard
+is saving you real money on your provider bill, sponsoring keeps it
 maintained. Tiers and what your sponsorship funds are in that doc, or use
 the **Sponsor** button at the top of this repo.
 
@@ -32,39 +32,54 @@ Most teams calling LLM APIs directly have none of:
 - **Fallback routing**: a provider outage takes your app down instead of degrading to a cheaper model.
 - **Visibility**: no per-request cost log to see where the money actually went.
 
-AI Cost Guard adds all of this as a transparent proxy, in front of an
+FitGuard adds all of this as a transparent proxy, in front of an
 OpenAI-compatible API surface, so existing SDKs work unmodified.
+
+## Install
+
+**Install script** (macOS/Linux, downloads a prebuilt binary and verifies
+its checksum):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Oluiy/ai-cost-guard/main/install.sh | sh
+```
+
+**npm**:
+
+```bash
+npm install -g fitguard
+```
+
+**Go** (any platform with a Go toolchain):
+
+```bash
+go install github.com/Oluiy/ai-cost-guard/cmd/fitguard@latest
+```
+
+Prebuilt binaries for Linux, macOS, and Windows are also on the
+[releases page](https://github.com/Oluiy/ai-cost-guard/releases).
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/Oluiy/ai-cost-guard.git
-cd ai-cost-guard
-go install ./cmd/ai-guard   # builds from source, installs to $GOPATH/bin
-
-ai-guard init   # interactive: pick providers, paste real API keys, add budgeted users
-ai-guard run    # starts the gateway on http://localhost:8787
+fitguard init   # interactive: pick providers, paste real API keys, add budgeted users
+fitguard run    # starts the gateway on http://localhost:8787
 ```
 
-`go install github.com/Oluiy/ai-cost-guard/cmd/ai-guard@latest` will also
-work directly, no clone needed, once the repo is public. It's currently
-private, which `go install` can't resolve without local `GOPRIVATE` + git
-credential setup, so `git clone` (above) is the reliable path for now.
-
-`ai-guard init` asks you to add one or more **budgeted users** and issues a
-virtual API key for each: that's what your app authenticates to ai-guard
-with, *not* your real OpenAI/Anthropic key (ai-guard holds those and attaches
+`fitguard init` asks you to add one or more **budgeted users** and issues a
+virtual API key for each: that's what your app authenticates to fitguard
+with, *not* your real OpenAI/Anthropic key (fitguard holds those and attaches
 them upstream; your app never sees them). Each key gets its own daily budget,
 and, importantly, that budget can't be bypassed by an app bug or a caller
 sending a different name, because it's tied to the key, not to anything the
 caller self-reports.
 
-Then point your app at ai-guard, using the issued key in place of your real one:
+Then point your app at fitguard, using the issued key in place of your real one:
 
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")  # key from `ai-guard init`
+client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")  # key from `fitguard init`
 client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "hello"}],
@@ -81,32 +96,35 @@ Anthropic, Gemini, and Groq models (`claude-*`, `gemini-*`, `llama-*`,
 `mixtral-*`, ...) are routed automatically based on the `model` field. No
 client changes needed beyond the `baseURL`/`apiKey`.
 
-Open `http://localhost:8787/dashboard` for live spend, cache hit rate, and
-top expensive requests. `ai-guard init` also sets up a login for it (one
-admin account), skippable, but skipping leaves it reachable with no login.
+Open `http://localhost:8787/dashboard` for live spend, cache hit rate, top
+expensive requests, and a **Settings** page for changing cache/budget/fallback
+behavior without a restart. `fitguard init` sets up a login for it
+(skippable, but skipping leaves it reachable with no login).
 
-If you run `ai-guard init` with no budgeted users, it falls back to
-single-tenant mode: every caller shares one unauthenticated "default"
-identity. That's fine for solo local use; it is **not** a substitute for
-issued keys once more than one caller can reach the gateway.
+Running `fitguard init` with no budgeted users falls back to single-tenant
+mode — fine for solo local use, not once more than one caller can reach the
+gateway. Both are covered in [**Getting started**](https://ai-cost-guard-ruddy.vercel.app/guide/getting-started.html).
 
 ## Features
 
-| Feature | How it works |
+| Feature | |
 |---|---|
-| **Semantic cache** | Hashes `model` + request payload; identical requests within the TTL are served from cache with `X-Cache: HIT` and cost $0, served before any budget check since it costs nothing. |
-| **Per-user budgets** | Each virtual API key maps to a `daily_limit_usd`. Before calling upstream, ai-guard estimates the request's worst-case cost (from `max_tokens`) and reserves it against the budget, so a burst of concurrent requests, or one request with a huge `max_tokens`, can't slip past a check that only looked at already-settled spend. Over budget → `429`. Reservations live in-process by default (correct for one instance); set `budget.backend: redis` to share enforcement across multiple ai-guard instances behind a load balancer. |
-| **finish_reason guard** | Every response with `finish_reason: "length"` is logged and flagged with an `X-AI-Guard-Warning` header: the #1 signal of a truncation/loop bug. |
-| **Auto fallback** | If the primary model's request errors or rate-limits, ai-guard retries against the next model in your configured `fallback` list. |
-| **Cost logging** | Every request is logged to SQLite: user, model, tokens, cost, latency, cache hit, finish reason. |
-| **Live dashboard** | `/dashboard`: spend today, cache hit rate, spend-by-hour chart, spend by user, and top expensive requests, all updating live over SSE. Protected by a login; `ai-guard reset-dashboard-password` recovers it any time. |
-| **Streaming** | `stream: true` is fully supported, including caching (a cache hit still returns a real stream) and fallback (a failed provider is retried *before* anything reaches the client, not mid-stream). |
-| **Embeddings** | `/v1/embeddings`: cached and budget-checked the same way as chat completions. |
-| **Vision & tool calling** | Multimodal (image) content and function/tool calling are translated for Anthropic; OpenAI-compatible providers pass them through natively. |
+| **Exact-match cache** | Identical requests within the TTL cost $0. Not semantic — a one-character rewording is a miss. |
+| **Per-user budgets** | Worst-case cost is reserved *before* calling upstream, so concurrent requests can't jointly overspend. Over budget → `429`. |
+| **finish_reason guard** | Flags truncated responses (`finish_reason: "length"`) — the #1 signal of a runaway loop. |
+| **Auto fallback** | Errors or rate-limits retry against your configured `fallback` list, before anything reaches the client. |
+| **Cost logging** | Every request logged to SQLite: user, model, tokens, cost, latency, cache hit. No prompt content stored. |
+| **Live dashboard** | Spend, cache hit rate, top expensive requests, updating live over SSE. Login-protected. |
+| **Streaming** | `stream: true` fully supported, including through caching and fallback. |
+| **Embeddings** | `/v1/embeddings`, cached and budget-checked the same way as chat completions. |
+| **Vision & tool calling** | Translated for Anthropic; OpenAI-compatible providers pass them through natively. |
+
+How each of these actually works, mechanism by mechanism, is in
+[**How it works**](https://ai-cost-guard-ruddy.vercel.app/guide/how-it-works.html).
 
 ## Configuration
 
-`ai-guard init` writes a `config.yaml` for you interactively. See
+`fitguard init` writes a `config.yaml` for you interactively. See
 [`config.example.yaml`](./config.example.yaml) for the full shape, including
 `${ENV_VAR}` expansion for keeping API keys out of the file:
 
@@ -126,14 +144,19 @@ fallback:
 Run with a specific config path:
 
 ```bash
-ai-guard run --config /path/to/config.yaml
+fitguard run --config /path/to/config.yaml
 ```
+
+Every field, including the two security-relevant ones worth knowing before
+you deploy beyond your own machine (`budget.fail_closed`,
+`trusted_proxies`), is documented in the
+[**Configuration reference**](https://ai-cost-guard-ruddy.vercel.app/guide/configuration.html).
 
 ## Docker
 
 ```bash
-docker build -t ai-guard .
-docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml ai-guard
+docker build -t fitguard .
+docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml fitguard
 ```
 
 ## Development
@@ -143,19 +166,8 @@ go build ./...
 go test ./...
 ```
 
-Project layout:
-
-```
-cmd/ai-guard/       CLI entrypoint (cobra: init, run)
-internal/config/    YAML config loading + validation
-internal/proxy/      /v1/chat/completions handler, provider routing/translation, fallback
-internal/cache/      in-memory + Redis response cache
-internal/budget/     per-user daily spend enforcement
-internal/cost/       model price table + cost calculation
-internal/logging/    SQLite request/cost log
-internal/dashboard/  embedded live cost dashboard (HTML + SSE)
-internal/cli/        interactive init + run commands
-```
+Package layout and the config concurrency model are in
+[**ARCHITECTURE.md**](./ARCHITECTURE.md).
 
 ## License
 

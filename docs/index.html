@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI Guard — stop the bill before the loop does</title>
-<meta name="description" content="AI Guard is a self-hosted proxy that caps LLM spend before a request goes out, not after the invoice arrives. Drop it in front of OpenAI, Anthropic, Gemini, Groq, or Together with one baseURL change." />
+<title>FitGuard — stop the bill before the loop does</title>
+<meta name="description" content="FitGuard is a self-hosted proxy that caps LLM spend before a request goes out, not after the invoice arrives. Drop it in front of OpenAI, Anthropic, Gemini, Groq, or Together with one baseURL change." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
 <link rel="stylesheet" href="./assets/css/style.css" />
 </head>
@@ -14,7 +14,7 @@
 <header class="site-header">
   <a class="brand" href="./index.html">
     <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-    AI Guard
+    FitGuard
   </a>
   <nav class="top-links">
     <a href="./index.html">Home</a>
@@ -80,7 +80,7 @@
     <h1>Cap the bill <span class="accent">before the request goes out.</span></h1>
     <p class="lead">
       A stuck retry loop with an unbounded <code class="inline">max_tokens</code> ran up an $8,000
-      bill over 11 days before anyone noticed. AI Guard is a self-hosted proxy that sits in front
+      bill over 11 days before anyone noticed. FitGuard is a self-hosted proxy that sits in front
       of OpenAI, Anthropic, Gemini, Groq, and Together, and refuses a request that would push a
       user over their budget.
     </p>
@@ -129,8 +129,8 @@
               <button class="tab" data-lang="go">Go</button>
             </div>
             <div class="panel" data-lang="script"><pre>curl -fsSL https://raw.githubusercontent.com/Oluiy/ai-cost-guard/main/install.sh | sh</pre></div>
-            <div class="panel" data-lang="npm"><pre>npm install -g ai-cost-guard</pre></div>
-            <div class="panel" data-lang="go"><pre>go install github.com/Oluiy/ai-cost-guard/cmd/ai-guard@latest</pre></div>
+            <div class="panel" data-lang="npm"><pre>npm install -g fitguard</pre></div>
+            <div class="panel" data-lang="go"><pre>go install github.com/Oluiy/ai-cost-guard/cmd/fitguard@latest</pre></div>
           </div>
         </div>
       </div>
@@ -139,14 +139,14 @@
         <div class="qs-body">
           <h3>Set it up</h3>
           <p>Interactive. Pick your providers, paste your real API keys, and add a budgeted user. You get back a virtual key.</p>
-          <pre>ai-guard init</pre>
+          <pre>fitguard init</pre>
         </div>
       </div>
       <div class="qs-step">
         <div class="qs-num">3</div>
         <div class="qs-body">
           <h3>Run it</h3>
-          <pre>ai-guard run
+          <pre>fitguard run
 # gateway   http://localhost:8787
 # dashboard http://localhost:8787/dashboard</pre>
         </div>
@@ -166,13 +166,13 @@
 
 client = OpenAI(
     base_url="http://localhost:8787/v1",   # was api.openai.com
-    api_key="sk-guard-...",                 # from `ai-guard init`
+    api_key="sk-guard-...",                 # from `fitguard init`
 )</pre></div>
             <div class="panel" data-lang="typescript"><pre>import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "http://localhost:8787/v1",   // was api.openai.com
-  apiKey: "sk-guard-...",                // from `ai-guard init`
+  apiKey: "sk-guard-...",                // from `fitguard init`
 });</pre></div>
             <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
@@ -197,31 +197,31 @@ const client = new OpenAI({
       <div class="carousel-viewport">
         <div class="carousel-track" id="carousel-track">
           <figure class="carousel-slide">
-            <img src="./assets/img/01-overview-dark.png" alt="AI Guard cost dashboard overview in dark theme: spend, requests, cache hit rate, and active users at a glance" loading="lazy" />
+            <img src="./assets/img/01-overview-dark.png" alt="FitGuard cost dashboard overview in dark theme: spend, requests, cache hit rate, and active users at a glance" loading="lazy" />
             <figcaption>Spend, cache hit rate, and active users at a glance, updating live.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/04-overview-light.png" alt="AI Guard cost dashboard in light theme, showing spend trending by day" loading="lazy" />
+            <img src="./assets/img/04-overview-light.png" alt="FitGuard cost dashboard in light theme, showing spend trending by day" loading="lazy" />
             <figcaption>Same dashboard, light theme. Spend trending by day, not just today.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/02-requests-dark.png" alt="AI Guard full request log with filters for time range, status, model, and user" loading="lazy" />
+            <img src="./assets/img/02-requests-dark.png" alt="FitGuard full request log with filters for time range, status, model, and user" loading="lazy" />
             <figcaption>Every request, filterable by time range, status, model, and user.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/03-requests-dark-30d.png" alt="AI Guard request log over a 30-day range, showing full dates instead of just times" loading="lazy" />
+            <img src="./assets/img/03-requests-dark-30d.png" alt="FitGuard request log over a 30-day range, showing full dates instead of just times" loading="lazy" />
             <figcaption>Multi-day ranges show the actual date, not just the time.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/05-requests-light-status.png" alt="AI Guard request log with color-coded status and cache hit badges" loading="lazy" />
+            <img src="./assets/img/05-requests-light-status.png" alt="FitGuard request log with color-coded status and cache hit badges" loading="lazy" />
             <figcaption>Errors and cache hits are color-coded, so problems jump out.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/06-requests-light-filtered.png" alt="AI Guard request log filtered by success status and a specific user" loading="lazy" />
+            <img src="./assets/img/06-requests-light-filtered.png" alt="FitGuard request log filtered by success status and a specific user" loading="lazy" />
             <figcaption>Stack filters together: status, model, and user, all at once.</figcaption>
           </figure>
           <figure class="carousel-slide">
-            <img src="./assets/img/07-custom-report.png" alt="AI Guard custom report for a chosen date range, showing totals and a CSV export option" loading="lazy" />
+            <img src="./assets/img/07-custom-report.png" alt="FitGuard custom report for a chosen date range, showing totals and a CSV export option" loading="lazy" />
             <figcaption>Pick any date range, see the total, export it as CSV.</figcaption>
           </figure>
         </div>
@@ -278,7 +278,7 @@ const client = new OpenAI({
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 4v16" stroke="currentColor" stroke-width="1.8"/></svg>
         </div>
         <h3>Budgets tied to the key</h3>
-        <p>Callers authenticate with a key AI Guard issued, so the budget applies to something they don't control. A header the client sets itself can be omitted on one code path and skip the limit entirely.</p>
+        <p>Callers authenticate with a key FitGuard issued, so the budget applies to something they don't control. A header the client sets itself can be omitted on one code path and skip the limit entirely.</p>
       </div>
       <div class="feature-card">
         <div class="icon">
@@ -328,7 +328,7 @@ const client = new OpenAI({
           <td class="center">&#10003;</td>
         </tr>
         <tr class="highlight">
-          <td>AI Guard</td>
+          <td>FitGuard</td>
           <td class="center">before</td>
           <td class="center">&#10003;</td>
           <td class="center">&#10003;</td>
@@ -421,7 +421,7 @@ await client.chat.completions.create({
 </main>
 
 <footer class="site-footer">
-  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  <p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
 </footer>
 
 <div class="search-overlay" id="search-overlay">

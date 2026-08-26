@@ -1,4 +1,4 @@
-// AI Guard dashboard login screen. No framework, no build step, same
+// FitGuard dashboard login screen. No framework, no build step, same
 // conventions as dashboard.js.
 (function () {
   "use strict";

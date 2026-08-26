@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>API reference — AI Guard</title>
-<meta name="description" content="Every endpoint AI Guard exposes: chat completions, embeddings, health, and the dashboard JSON API. Request shapes, response headers, and the exact error codes you can get back." />
+<title>API reference — FitGuard</title>
+<meta name="description" content="Every endpoint FitGuard exposes: chat completions, embeddings, health, and the dashboard JSON API. Request shapes, response headers, and the exact error codes you can get back." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
 <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
@@ -14,7 +14,7 @@
 <header class="site-header">
   <a class="brand" href="../index.html">
     <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-    AI Guard
+    FitGuard
   </a>
   <nav class="top-links">
     <a href="../index.html">Home</a>
@@ -67,21 +67,21 @@
 
   <article class="guide-content">
     <h1>API reference</h1>
-    <p class="dek">AI Guard speaks the OpenAI API. If your code already calls OpenAI, the base URL and the key are the only things that change. This page documents what you send, what comes back, and the errors you can receive.</p>
+    <p class="dek">FitGuard speaks the OpenAI API. If your code already calls OpenAI, the base URL and the key are the only things that change. This page documents what you send, what comes back, and the errors you can receive.</p>
 
     <div class="callout">
-      <strong>Base URL.</strong> Everything below is relative to wherever AI Guard is running: <code class="inline">http://localhost:8787</code> locally, or your own domain in production. The OpenAI-compatible endpoints live under <code class="inline">/v1</code>, so point your SDK at <code class="inline">http://localhost:8787/v1</code>.
+      <strong>Base URL.</strong> Everything below is relative to wherever FitGuard is running: <code class="inline">http://localhost:8787</code> locally, or your own domain in production. The OpenAI-compatible endpoints live under <code class="inline">/v1</code>, so point your SDK at <code class="inline">http://localhost:8787/v1</code>.
     </div>
 
     <h2 id="auth">Authentication</h2>
-    <p>Send the virtual key AI Guard issued you (from <code class="inline">ai-guard init</code>), not your real provider key:</p>
+    <p>Send the virtual key FitGuard issued you (from <code class="inline">fitguard init</code>), not your real provider key:</p>
     <pre>Authorization: Bearer sk-guard-a1b2c3...</pre>
     <p>
-      AI Guard resolves that key to a <code class="inline">user_id</code> server-side, applies that user's budget, and attaches your
+      FitGuard resolves that key to a <code class="inline">user_id</code> server-side, applies that user's budget, and attaches your
       <em>real</em> provider credentials only on the upstream leg. Your application code and logs never contain them.
     </p>
     <p>
-      If <code class="inline">keys:</code> is empty in your config, AI Guard runs in single-tenant mode: no header is required and every
+      If <code class="inline">keys:</code> is empty in your config, FitGuard runs in single-tenant mode: no header is required and every
       caller shares one <code class="inline">"default"</code> identity. Convenient locally, unsafe once more than one caller can reach the port.
     </p>
 
@@ -177,7 +177,7 @@ System.out.println(client.chat().completions().create(params));</pre></div>
     </div>
 
     <h3 id="response-headers">Response headers</h3>
-    <p>AI Guard adds these headers on top of a normal OpenAI response body. They're the quickest way to confirm the gateway is doing what you expect.</p>
+    <p>FitGuard adds these headers on top of a normal OpenAI response body. They're the quickest way to confirm the gateway is doing what you expect.</p>
     <table>
       <thead><tr><th>Header</th><th>Value</th><th>Meaning</th></tr></thead>
       <tbody>
@@ -187,13 +187,13 @@ System.out.println(client.chat().completions().create(params));</pre></div>
       </tbody>
     </table>
     <div class="callout">
-      <strong>Streaming caveat.</strong> Streamed responses set <code class="inline">X-Cache</code> and <code class="inline">X-AI-Guard-Model-Used</code>, but never <code class="inline">X-AI-Guard-Warning</code>. HTTP headers are sent before the first byte of the body, and AI Guard doesn't know the finish reason until the stream ends. A truncated <em>streamed</em> answer is flagged in the log and the dashboard, not to the client.
+      <strong>Streaming caveat.</strong> Streamed responses set <code class="inline">X-Cache</code> and <code class="inline">X-AI-Guard-Model-Used</code>, but never <code class="inline">X-AI-Guard-Warning</code>. HTTP headers are sent before the first byte of the body, and FitGuard doesn't know the finish reason until the stream ends. A truncated <em>streamed</em> answer is flagged in the log and the dashboard, not to the client.
     </div>
 
     <h3 id="streaming">Streaming</h3>
     <p>Set <code class="inline">stream: true</code> and you get standard OpenAI SSE chunks terminated by <code class="inline">data: [DONE]</code>. Three things are worth knowing:</p>
     <ul>
-      <li><strong>Fallback still protects you.</strong> AI Guard opens the upstream stream and checks it succeeded <em>before</em> writing anything to you. If it fails, it tries the next fallback model. You get a clean <code class="inline">502</code>, never a half-open stream.</li>
+      <li><strong>Fallback still protects you.</strong> FitGuard opens the upstream stream and checks it succeeded <em>before</em> writing anything to you. If it fails, it tries the next fallback model. You get a clean <code class="inline">502</code>, never a half-open stream.</li>
       <li><strong>A cache hit still returns a stream.</strong> Cached responses are synthesized back into valid SSE, so clients that always stream still get the cache savings.</li>
       <li><strong>Cost is settled when the stream ends.</strong> The budget reservation is taken up front and reconciled against real usage once the last chunk lands.</li>
     </ul>
@@ -221,7 +221,7 @@ System.out.println(client.chat().completions().create(params));</pre></div>
     <p>OpenAI-compatible. Routed, cached, and budget-checked exactly like chat completions, with two deliberate differences:</p>
     <ul>
       <li><strong>No fallback.</strong> One attempt against the requested model's provider. Chat fallback models aren't valid embedding models, and a model swap partway through an indexing run would write mismatched dimensions into your vector store.</li>
-      <li><strong>Anthropic returns <code class="inline">502</code> with a clear message.</strong> It has no embeddings API, so AI Guard reports that rather than returning an empty result.</li>
+      <li><strong>Anthropic returns <code class="inline">502</code> with a clear message.</strong> It has no embeddings API, so FitGuard reports that rather than returning an empty result.</li>
     </ul>
     <div class="code-tabs">
       <div class="tab-row">
@@ -295,32 +295,39 @@ curl -b cookies.txt \
     <h3 id="settings-api">Live settings</h3>
     <p>
       <code class="inline">GET</code>/<code class="inline">PUT /dashboard/api/settings</code> read and write the same
-      four things the dashboard's Settings page does: <code class="inline">cache.enabled</code>,
+      things the dashboard's Settings page does: <code class="inline">cache.enabled</code>,
       <code class="inline">cache.ttl_seconds</code>, per-user <code class="inline">daily_limit_usd</code>, and the
       <code class="inline">fallback</code> list. Changes apply to the running process immediately, no restart, and are
-      written back to <code class="inline">config.yaml</code>.
+      written back to <code class="inline">config.yaml</code>. The response also includes <code class="inline">providers</code>
+      (configured provider names) and <code class="inline">available_models</code> (chat models those providers serve) as
+      read-only context for building a fallback picker &mdash; sending them back in a <code class="inline">PUT</code> has no effect.
     </p>
     <p>
       <strong>Provider <code class="inline">api_key</code>/<code class="inline">base_url</code>, virtual
-      <code class="inline">keys:</code>, and <code class="inline">session_secret</code> are not reachable through this
-      endpoint.</strong> They aren't hidden fields in the response, they simply aren't part of the type this endpoint
-      reads or writes &mdash; there is no code path from a dashboard session to a provider credential.
+      <code class="inline">keys:</code>, and <code class="inline">session_secret</code> are not writable through this
+      endpoint.</strong> They aren't hidden fields, they simply aren't part of the type this endpoint reads or writes
+      &mdash; there is no code path from a dashboard session to a provider credential. Use
+      <a href="./commands.html#add-provider"><code class="inline">fitguard add-provider</code></a> to add a provider.
     </p>
     <pre>curl -b cookies.txt http://localhost:8787/dashboard/api/settings</pre>
     <pre>{
   "cache_enabled": true,
   "cache_ttl_seconds": 300,
   "fallback": ["gpt-4o-mini"],
-  "users": { "user_123": 5 }
+  "users": { "user_123": 5 },
+  "providers": ["openai"],
+  "available_models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "..."]
 }</pre>
     <p><code class="inline">PUT</code> takes the same shape and replaces the whole thing (not a partial patch), returning what was actually applied:</p>
     <pre>curl -b cookies.txt -X PUT http://localhost:8787/dashboard/api/settings \
   -H "Content-Type: application/json" \
   -d '{"cache_enabled":true,"cache_ttl_seconds":21600,"fallback":["gpt-4o-mini"],"users":{"user_123":5}}'</pre>
-    <p>Every write is validated before anything changes, so a rejected request leaves both the running config and the file untouched. Two rules worth knowing:</p>
+    <p>Every write is validated before anything changes, so a rejected request leaves both the running config and the file untouched. Rules worth knowing:</p>
     <ul>
       <li><code class="inline">cache_ttl_seconds</code> must be between 1 and 2,592,000 (30 days).</li>
       <li><strong>Removing a user's budget while a virtual key still maps to them is refused.</strong> A <code class="inline">keys:</code> entry with no matching budget is treated as unlimited spend, so silently dropping the budget would uncap that key. Set the limit to <code class="inline">0</code> instead if you mean for it to be unmetered &mdash; that's explicit and stays visible in <code class="inline">config.yaml</code>.</li>
+      <li><strong>Every <code class="inline">fallback</code> entry must be served by a configured provider</strong>, or the whole write is rejected with an error naming the missing provider and listing valid models. Add the provider first with <code class="inline">fitguard add-provider</code>.</li>
+      <li><strong>Adding a new <code class="inline">user_id</code> under <code class="inline">users</code> issues it a virtual API key</strong>, returned once in the response as <code class="inline">issued_keys</code> (<code class="inline">{"user_id": "sk-guard-..."}</code>). It isn't retrievable again after this response, so the caller must capture it immediately.</li>
     </ul>
 
     <div class="page-nav">
@@ -344,7 +351,7 @@ curl -b cookies.txt \
 </div>
 
 <footer class="site-footer">
-  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  <p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
 </footer>
 
 <div class="search-overlay" id="search-overlay">

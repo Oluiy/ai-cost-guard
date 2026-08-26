@@ -1,4 +1,4 @@
-// ai-guard docs — shared site behavior. No framework, no build step: this
+// fitguard docs — shared site behavior. No framework, no build step: this
 // runs as-is in every page via a plain <script> tag. Split into small
 // named functions (not one big IIFE dump) so any one piece is easy to
 // find and review on its own.
@@ -16,7 +16,7 @@
   // visitor's choice feels consistent whether they're reading docs or
   // looking at their own spend data.
   function initThemeToggle() {
-    var STORAGE_KEY = "ai-guard-docs-theme";
+    var STORAGE_KEY = "fitguard-docs-theme";
     var root = document.documentElement;
     var saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "light" || saved === "dark") {
@@ -49,7 +49,7 @@
   }
 
   // ---------- Search ----------
-  // AI_GUARD_SEARCH_INDEX is defined in search-index.js, loaded before
+  // FITGUARD_SEARCH_INDEX is defined in search-index.js, loaded before
   // this file. Matching is deliberately simple (substring, not fuzzy) —
   // the whole docs set is small enough that "does the title or a keyword
   // contain this" finds the right page every time.
@@ -63,7 +63,7 @@
     // Resolve that against however deep the current page is, once, here
     // — the index itself never needs to know where it's being loaded from.
     var siteRoot = document.body.getAttribute("data-site-root") || "./";
-    var index = (window.AI_GUARD_SEARCH_INDEX || []).map(function (item) {
+    var index = (window.FITGUARD_SEARCH_INDEX || []).map(function (item) {
       return Object.assign({}, item, { url: siteRoot + item.url });
     });
 
@@ -152,7 +152,7 @@
   function initCodeTabs() {
     document.querySelectorAll(".code-tabs").forEach(function (block) {
       var group = block.getAttribute("data-tab-group") || "lang";
-      var storageKey = "ai-guard-docs-" + group;
+      var storageKey = "fitguard-docs-" + group;
       var saved = localStorage.getItem(storageKey);
       var tabs = block.querySelectorAll(".tab");
       var panels = block.querySelectorAll(".panel");

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Providers — AI Guard</title>
-<meta name="description" content="Call OpenAI, Anthropic, and Gemini through AI Guard. Code samples in curl, Python, TypeScript, C#, and Java for each provider." />
+<title>Providers — FitGuard</title>
+<meta name="description" content="Call OpenAI, Anthropic, Gemini, Groq, and Together through FitGuard. Code samples in curl, Python, TypeScript, C#, and Java for each provider." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
 <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
@@ -14,7 +14,7 @@
 <header class="site-header">
   <a class="brand" href="../index.html">
     <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-    AI Guard
+    FitGuard
   </a>
   <nav class="top-links">
     <a href="../index.html">Home</a>
@@ -67,18 +67,18 @@
 
   <article class="guide-content">
     <h1>Providers</h1>
-    <p class="dek">OpenAI, Anthropic, and Gemini all go through the same endpoint, the same virtual key, and the same client code. The only thing that changes between them is the <code class="inline">model</code> field.</p>
+    <p class="dek">OpenAI, Anthropic, Gemini, Groq, and Together all go through the same endpoint, the same virtual key, and the same client code. The only thing that changes between them is the <code class="inline">model</code> field.</p>
 
     <h2 id="how-it-works">How this works</h2>
     <p>
-      AI Guard exposes one endpoint, shaped like OpenAI's chat completions API: <code class="inline">POST /v1/chat/completions</code>.
+      FitGuard exposes one endpoint, shaped like OpenAI's chat completions API: <code class="inline">POST /v1/chat/completions</code>.
       It reads the <code class="inline">model</code> field, works out which upstream provider that model belongs to, translates
       the request into that provider's native format if needed, and translates the response back. Your client only ever speaks
       the OpenAI shape. It never sees Anthropic's or Gemini's actual request format, and it never sees your real provider keys.
     </p>
     <p>
-      Every example on this page uses the same two values: your AI Guard URL as <code class="inline">base_url</code>, and a
-      virtual key from <code class="inline">ai-guard init</code> as the API key. Switching providers means changing one string,
+      Every example on this page uses the same two values: your FitGuard URL as <code class="inline">base_url</code>, and a
+      virtual key from <code class="inline">fitguard init</code> as the API key. Switching providers means changing one string,
       the model name. Nothing else in your code changes.
     </p>
 
@@ -93,7 +93,7 @@
         <button class="tab" data-lang="java">Java</button>
       </div>
       <div class="panel" data-lang="curl">
-<pre>curl https://your-ai-guard-host/v1/chat/completions \
+<pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -104,7 +104,7 @@
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1",
+client = OpenAI(base_url="https://your-fitguard-host/v1",
     api_key="sk-guard-...")
 resp = client.chat.completions.create(
     model="gpt-4o",
@@ -116,7 +116,7 @@ print(resp.choices[0].message.content)</pre>
 <pre>import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://your-ai-guard-host/v1",
+  baseURL: "https://your-fitguard-host/v1",
   apiKey: "sk-guard-...",
 });
 
@@ -132,7 +132,7 @@ console.log(resp.choices[0].message.content);</pre>
 // Initialize the HTTP client with the AI guard host URL and API key.
 var client = new HttpClient
 {
-    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+    BaseAddress = new Uri("https://your-fitguard-host/v1/"),
 };
 
 // Set the Authorization header with the AI guard API key.
@@ -182,7 +182,7 @@ String json = """
 
 // Create the request body publisher.
 HttpRequest request = HttpRequest.newBuilder()
-    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .uri(URI.create("https://your-fitguard-host/v1/chat/completions"))
     .header("Authorization", "Bearer sk-guard-...")
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(json))
@@ -200,14 +200,14 @@ System.out.println(response.body());</pre>
     <h2 id="anthropic">Anthropic</h2>
     <p>
       Use Claude model names: <code class="inline">claude-3-5-sonnet</code>, <code class="inline">claude-3-haiku</code>, and so on.
-      AI Guard translates the request into Anthropic's Messages API and translates the response back into the OpenAI shape your
+      FitGuard translates the request into Anthropic's Messages API and translates the response back into the OpenAI shape your
       client already expects, so the client code below is identical to the OpenAI examples except for the model name.
     </p>
     <div class="callout">
       If your app currently calls Claude with Anthropic's own SDK (<code class="inline">anthropic.Anthropic(...)</code>, <code class="inline">.messages.create(...)</code>), see
       <a href="./getting-started.html#anthropic-sdk">Already using Anthropic's own SDK?</a> in the getting started guide.
       It's not a drop-in swap the way switching OpenAI models is: Anthropic's client speaks a different request shape than
-      AI Guard's OpenAI-compatible endpoint expects, so that section walks through the actual change needed.
+      FitGuard's OpenAI-compatible endpoint expects, so that section walks through the actual change needed.
     </div>
     <div class="code-tabs">
       <div class="tab-row">
@@ -218,7 +218,7 @@ System.out.println(response.body());</pre>
         <button class="tab" data-lang="java">Java</button>
       </div>
       <div class="panel" data-lang="curl">
-<pre>curl https://your-ai-guard-host/v1/chat/completions \
+<pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -229,7 +229,7 @@ System.out.println(response.body());</pre>
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1", 
+client = OpenAI(base_url="https://your-fitguard-host/v1", 
     api_key="sk-guard-...")
     
 resp = client.chat.completions.create(
@@ -242,7 +242,7 @@ print(resp.choices[0].message.content)</pre>
 <pre>import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://your-ai-guard-host/v1",
+  baseURL: "https://your-fitguard-host/v1",
   apiKey: "sk-guard-...",
 });
 
@@ -257,7 +257,7 @@ console.log(resp.choices[0].message.content);</pre>
 
 var client = new HttpClient
 {
-    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+    BaseAddress = new Uri("https://your-fitguard-host/v1/"),
 };
 
 // Set the authorization header.
@@ -290,7 +290,7 @@ String json = """
     """;
 
 HttpRequest request = HttpRequest.newBuilder()
-    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .uri(URI.create("https://your-fitguard-host/v1/chat/completions"))
     .header("Authorization", "Bearer sk-guard-...")
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(json))
@@ -304,7 +304,7 @@ System.out.println(response.body());</pre>
     </div>
 
     <h2 id="gemini">Gemini</h2>
-    <p>Use Gemini model names: <code class="inline">gemini-2.5-pro</code>, <code class="inline">gemini-2.5-flash</code>, <code class="inline">gemini-1.5-pro</code>, and so on. AI Guard translates the request into Gemini's <code class="inline">generateContent</code> format and translates the response back, the same way it does for Anthropic.</p>
+    <p>Use Gemini model names: <code class="inline">gemini-2.5-pro</code>, <code class="inline">gemini-2.5-flash</code>, <code class="inline">gemini-1.5-pro</code>, and so on. FitGuard translates the request into Gemini's <code class="inline">generateContent</code> format and translates the response back, the same way it does for Anthropic.</p>
     <div class="code-tabs">
       <div class="tab-row">
         <button class="tab" data-lang="curl">curl</button>
@@ -314,7 +314,7 @@ System.out.println(response.body());</pre>
         <button class="tab" data-lang="java">Java</button>
       </div>
       <div class="panel" data-lang="curl">
-<pre>curl https://your-ai-guard-host/v1/chat/completions \
+<pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -325,7 +325,7 @@ System.out.println(response.body());</pre>
       <div class="panel" data-lang="python">
 <pre>from openai import OpenAI
 
-client = OpenAI(base_url="https://your-ai-guard-host/v1",
+client = OpenAI(base_url="https://your-fitguard-host/v1",
     api_key="sk-guard-...")
     
 resp = client.chat.completions.create(
@@ -338,7 +338,7 @@ print(resp.choices[0].message.content)</pre>
 <pre>import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://your-ai-guard-host/v1",
+  baseURL: "https://your-fitguard-host/v1",
   apiKey: "sk-guard-...",
 });
 
@@ -352,7 +352,7 @@ console.log(resp.choices[0].message.content);</pre>
 <pre>using System.Net.Http.Json;
 
 var client = new HttpClient {
-    BaseAddress = new Uri("https://your-ai-guard-host/v1/"),
+    BaseAddress = new Uri("https://your-fitguard-host/v1/"),
 };
 client.DefaultRequestHeaders.Authorization =
     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
@@ -385,7 +385,7 @@ String json = """
     """;
 
 HttpRequest request = HttpRequest.newBuilder()
-    .uri(URI.create("https://your-ai-guard-host/v1/chat/completions"))
+    .uri(URI.create("https://your-fitguard-host/v1/chat/completions"))
     .header("Authorization", "Bearer sk-guard-...")
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(json))
@@ -401,18 +401,40 @@ System.out.println(response.body());</pre>
     <div class="callout warn">
       One real limitation, not a bug: if you send an image as a remote URL (<code class="inline">image_url.url</code> pointing
       at <code class="inline">https://...</code>), Gemini rejects it. Gemini only accepts inline base64 image data or a file
-      already uploaded through its own File API, and AI Guard does not fetch remote URLs on your behalf to convert them,
-      since that would let a request make AI Guard's server fetch arbitrary attacker-supplied URLs. Send images as base64
+      already uploaded through its own File API, and FitGuard does not fetch remote URLs on your behalf to convert them,
+      since that would let a request make FitGuard's server fetch arbitrary attacker-supplied URLs. Send images as base64
       data URIs (<code class="inline">data:image/png;base64,...</code>) when using Gemini. OpenAI and Anthropic both accept
       remote image URLs directly, so this restriction is specific to Gemini.
     </div>
 
+    <h2 id="groq">Groq</h2>
+    <p>Use Groq's hosted model names: <code class="inline">llama-3.3-70b-versatile</code>, <code class="inline">llama-3.1-8b-instant</code>, <code class="inline">mixtral-8x7b-32768</code>, and so on. Groq's API is already OpenAI-compatible, so requests pass through with no translation.</p>
+    <pre>curl https://your-fitguard-host/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama-3.3-70b-versatile",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+
+    <h2 id="together">Together AI</h2>
+    <p>Use Together's model names, which are namespaced by publisher, e.g. <code class="inline">meta-llama/Llama-3-70b-chat-hf</code>. Together's API is also OpenAI-compatible. A model name containing a <code class="inline">/</code> that isn't a recognized provider prefix (<code class="inline">openai/</code>, <code class="inline">anthropic/</code>, etc.) routes to Together by default, since that's the convention its own model names use.</p>
+    <pre>curl https://your-fitguard-host/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "meta-llama/Llama-3-70b-chat-hf",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'</pre>
+
     <h2 id="mixing">Mixing providers in one app</h2>
-    <p>Nothing about the client changes between providers, so a single app can call all three without any conditional logic. The only difference is which string you put in <code class="inline">model</code>:</p>
-    <pre>await client.chat.completions.create({ model: "gpt-4o-mini", ... });        // OpenAI
-await client.chat.completions.create({ model: "claude-3-haiku", ... });     // Anthropic
-await client.chat.completions.create({ model: "gemini-2.5-flash", ... });   // Gemini</pre>
-    <p>Each of these still goes through the same cache, the same budget check, and the same cost log. See <a href="./configuration.html#fallback">Fallback</a> in the configuration reference if you want AI Guard to try a different provider automatically when the primary one fails.</p>
+    <p>Nothing about the client changes between providers, so a single app can call all five without any conditional logic. The only difference is which string you put in <code class="inline">model</code>:</p>
+    <pre>await client.chat.completions.create({ model: "gpt-4o-mini", ... });                     // OpenAI
+await client.chat.completions.create({ model: "claude-3-haiku", ... });                  // Anthropic
+await client.chat.completions.create({ model: "gemini-2.5-flash", ... });                // Gemini
+await client.chat.completions.create({ model: "llama-3.3-70b-versatile", ... });         // Groq
+await client.chat.completions.create({ model: "meta-llama/Llama-3-70b-chat-hf", ... });  // Together</pre>
+    <p>Each of these still goes through the same cache, the same budget check, and the same cost log. Adding a provider you don't already have configured is one command: <a href="./commands.html#add-provider"><code class="inline">fitguard add-provider</code></a>. See <a href="./configuration.html#fallback">Fallback</a> in the configuration reference if you want FitGuard to try a different provider automatically when the primary one fails.</p>
 
     <div class="page-nav">
       <a href="./configuration.html"><span class="label">Previous</span>Configuration</a>
@@ -426,12 +448,14 @@ await client.chat.completions.create({ model: "gemini-2.5-flash", ... });   // G
     <a href="#openai">OpenAI</a>
     <a href="#anthropic">Anthropic</a>
     <a href="#gemini">Gemini</a>
+    <a href="#groq">Groq</a>
+    <a href="#together">Together AI</a>
     <a href="#mixing">Mixing providers</a>
   </aside>
 </div>
 
 <footer class="site-footer">
-  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  <p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
 </footer>
 
 <div class="search-overlay" id="search-overlay">

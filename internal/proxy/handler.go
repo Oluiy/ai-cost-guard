@@ -82,7 +82,7 @@ func errorJSON(message, typ string) fiber.Map {
 
 // authenticate resolves the caller's user_id from their Authorization
 // header against configured virtual keys. With no keys configured,
-// ai-guard is single-tenant: every caller is "default".
+// fitguard is single-tenant: every caller is "default".
 func (h *Handler) authenticate(c *fiber.Ctx) (userID string, ok bool) {
 	if len(h.Cfg.Keys) == 0 {
 		return "default", true
@@ -111,7 +111,7 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 	userID, authOK := h.authenticate(c)
 	if !authOK {
 		return c.Status(fiber.StatusUnauthorized).JSON(errorJSON(
-			"missing or invalid API key; pass Authorization: Bearer <ai-guard key> (see `ai-guard init`)", "invalid_api_key"))
+			"missing or invalid API key; pass Authorization: Bearer <fitguard key> (see `fitguard init`)", "invalid_api_key"))
 	}
 
 	var parsed map[string]any

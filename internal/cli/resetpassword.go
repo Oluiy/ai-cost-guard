@@ -15,7 +15,7 @@ import (
 func RunResetDashboardPassword(configPath string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		return fmt.Errorf("run 'ai-guard init' first, or check your config: %w", err)
+		return fmt.Errorf("run 'fitguard init' first, or check your config: %w", err)
 	}
 
 	defaultUsername := "admin"

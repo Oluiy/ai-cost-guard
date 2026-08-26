@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Deployment — AI Guard</title>
-<meta name="description" content="Ship AI Guard: Docker, DigitalOcean, Heroku/Railway/Render, running it on its own subdomain behind a reverse proxy, and what to change before you scale past one instance." />
+<title>Deployment — FitGuard</title>
+<meta name="description" content="Ship FitGuard: Docker, DigitalOcean, Heroku/Railway/Render, running it on its own subdomain behind a reverse proxy, and what to change before you scale past one instance." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z%22 fill=%22%233987e5%22/><rect x=%229.2%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/><rect x=%2212.4%22 y=%228%22 width=%222.4%22 height=%228%22 rx=%221.2%22 fill=%22%2304101f%22/></svg>" />
 <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
@@ -14,7 +14,7 @@
 <header class="site-header">
   <a class="brand" href="../index.html">
     <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-    AI Guard
+    FitGuard
   </a>
   <nav class="top-links">
     <a href="../index.html">Home</a>
@@ -67,7 +67,7 @@
 
   <article class="guide-content">
     <h1>Deployment</h1>
-    <p class="dek">AI Guard is one static binary with no required external services, so deploying it is mostly a question of where the config file and the database live. This page covers each target and the two failure modes that are easy to miss.</p>
+    <p class="dek">FitGuard is one static binary with no required external services, so deploying it is mostly a question of where the config file and the database live. This page covers each target and the two failure modes that are easy to miss.</p>
 
     <div class="callout">
       <strong>Two failure modes worth knowing up front,</strong> because neither one produces an error: an <a href="#ephemeral">ephemeral filesystem</a> wiping the request log on every deploy, and <a href="#scale">running more than one instance</a> with the default budget backend. Fixes for both are below.
@@ -75,10 +75,10 @@
 
     <h2 id="config">Generate your config locally first</h2>
     <p>
-      <code class="inline">ai-guard init</code> is interactive, so run it on your machine, not in a container build.
+      <code class="inline">fitguard init</code> is interactive, so run it on your machine, not in a container build.
       It writes a <code class="inline">config.yaml</code> that you then ship.
     </p>
-    <pre>ai-guard init</pre>
+    <pre>fitguard init</pre>
     <p>
       Keep real provider keys out of the file itself by using <code class="inline">${ENV_VAR}</code>, which is expanded when
       the config loads. That's what lets the same file be safe to commit and still work in production:
@@ -95,38 +95,38 @@ providers:
 
     <h2 id="docker">Docker</h2>
     <p>The included Dockerfile builds a static <code class="inline">CGO_ENABLED=0</code> binary onto Alpine, running as a non-root user with <code class="inline">/data</code> as the working directory.</p>
-    <pre>docker build -t ai-guard .
+    <pre>docker build -t fitguard .
 
 docker run -p 8787:8787 \
   -v $(pwd)/config.yaml:/data/config.yaml \
-  -v ai-guard-data:/data \
+  -v fitguard-data:/data \
   -e OPENAI_API_KEY=sk-... \
-  ai-guard</pre>
+  fitguard</pre>
     <p>
-      The second volume matters: <code class="inline">aiguard.db</code> is written to <code class="inline">/data</code>, and
+      The second volume matters: <code class="inline">fitguard.db</code> is written to <code class="inline">/data</code>, and
       without a named volume it is removed with the container, along with your spend history and everything the dashboard shows.
     </p>
 
     <h2 id="digitalocean">DigitalOcean</h2>
     <h3>Droplet (recommended)</h3>
-    <p>A plain VM suits AI Guard well: a persistent disk and a single instance, which is what the default configuration assumes.</p>
+    <p>A plain VM suits FitGuard well: a persistent disk and a single instance, which is what the default configuration assumes.</p>
     <pre># on the droplet
 git clone https://github.com/Oluiy/ai-cost-guard.git
 cd ai-cost-guard
-go install ./cmd/ai-guard
+go install ./cmd/fitguard
 
 # copy your config.yaml up, then run it under systemd
-sudo systemctl enable --now ai-guard</pre>
+sudo systemctl enable --now fitguard</pre>
     <p>A minimal unit file:</p>
     <pre>[Unit]
-Description=AI Guard
+Description=FitGuard
 After=network.target
 
 [Service]
-ExecStart=/root/go/bin/ai-guard run --config /etc/ai-guard/config.yaml
+ExecStart=/root/go/bin/fitguard run --config /etc/fitguard/config.yaml
 Environment=OPENAI_API_KEY=sk-...
 Restart=always
-WorkingDirectory=/var/lib/ai-guard
+WorkingDirectory=/var/lib/fitguard
 
 [Install]
 WantedBy=multi-user.target</pre>
@@ -147,7 +147,7 @@ WantedBy=multi-user.target</pre>
     <h3 id="ephemeral">3. Ephemeral filesystems</h3>
     <p>
       Heroku, Railway, Render, and DigitalOcean App Platform all give containers a <strong>disposable filesystem</strong>,
-      wiped on every deploy, restart, and dyno cycle. AI Guard writes <code class="inline">aiguard.db</code> to disk, so on
+      wiped on every deploy, restart, and dyno cycle. FitGuard writes <code class="inline">fitguard.db</code> to disk, so on
       those platforms:
     </p>
     <ul>
@@ -181,7 +181,7 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
     <h2 id="subdomain">Running it on its own domain</h2>
     <p>
       If you already run services on subdomains (<code class="inline">identity.example.com</code>,
-      <code class="inline">sales.example.com</code>), give AI Guard one too:
+      <code class="inline">sales.example.com</code>), give FitGuard one too:
       <code class="inline">ai.example.com</code>. It's an independent service in the request path for all of them, and a
       subdomain keeps its routing, TLS, and access rules separate from any single app.
     </p>
@@ -205,7 +205,7 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
 }</pre>
     <p>Your applications then point at <code class="inline">https://ai.example.com/v1</code>, and the dashboard is at <code class="inline">https://ai.example.com/dashboard</code>.</p>
 
-    <h3 id="trusted-proxies">Tell AI Guard about your proxy</h3>
+    <h3 id="trusted-proxies">Tell FitGuard about your proxy</h3>
     <p>
       Whenever you put a proxy in front, add its address to
       <code class="inline">trusted_proxies</code>. Skipping this doesn't break anything visibly, which is exactly why it's
@@ -222,21 +222,21 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
           <td>The limit applies per real client address.</td>
         </tr>
         <tr>
-          <td>AI Guard can't tell the client used HTTPS, so the session cookie isn't marked <code class="inline">Secure</code>.</td>
+          <td>FitGuard can't tell the client used HTTPS, so the session cookie isn't marked <code class="inline">Secure</code>.</td>
           <td>The cookie is <code class="inline">Secure</code>, and browsers refuse to send it over plain HTTP.</td>
         </tr>
       </tbody>
     </table>
     <div class="callout">
-      <strong>Only set this when a proxy really is in front.</strong> These headers are trusted once listed, so on a directly-reachable deployment an attacker could set <code class="inline">X-Forwarded-For</code> themselves and claim a new address on every login attempt, defeating the rate limit. Left unset, AI Guard uses the real connection address and ignores the headers.
+      <strong>Only set this when a proxy really is in front.</strong> These headers are trusted once listed, so on a directly-reachable deployment an attacker could set <code class="inline">X-Forwarded-For</code> themselves and claim a new address on every login attempt, defeating the rate limit. Left unset, FitGuard uses the real connection address and ignores the headers.
     </div>
     <div class="callout">
-      <strong>The dashboard is always on the same host and port as the proxy.</strong> It isn't a separate service and there's nothing extra to deploy. Wherever AI Guard is reachable, append <code class="inline">/dashboard</code>. Locally that's <code class="inline">http://localhost:8787/dashboard</code>; behind the proxy above it's <code class="inline">https://ai.example.com/dashboard</code>. Using Redis does not change this.
+      <strong>The dashboard is always on the same host and port as the proxy.</strong> It isn't a separate service and there's nothing extra to deploy. Wherever FitGuard is reachable, append <code class="inline">/dashboard</code>. Locally that's <code class="inline">http://localhost:8787/dashboard</code>; behind the proxy above it's <code class="inline">https://ai.example.com/dashboard</code>. Using Redis does not change this.
     </div>
 
     <h2 id="tls">TLS</h2>
     <p>
-      AI Guard serves plain HTTP and does not terminate TLS itself, since reverse proxies and load balancers already handle
+      FitGuard serves plain HTTP and does not terminate TLS itself, since reverse proxies and load balancers already handle
       certificate management well. <strong>Put it behind Caddy, nginx, a cloud load balancer, or your platform's built-in
       TLS.</strong> Virtual keys travel in an <code class="inline">Authorization</code> header, so exposing the port over
       unencrypted HTTP on a public network leaks them.
@@ -245,7 +245,7 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
     <h2 id="scale">One instance vs. many</h2>
     <p>
       With the default <code class="inline">budget.backend: local</code>, reservations live in one process's memory.
-      A single AI Guard instance enforces budgets correctly, including under concurrent load.
+      A single FitGuard instance enforces budgets correctly, including under concurrent load.
     </p>
     <p>
       Multiple instances behind a load balancer, still on <code class="inline">local</code>, each have their own view of spend.
@@ -260,12 +260,12 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
     <h3>The dashboard caveat when scaling</h3>
     <p>
       <strong>Cost logging stays per-instance even with <code class="inline">budget.backend: redis</code>.</strong>
-      <code class="inline">aiguard.db</code> is a local SQLite file, so each instance's dashboard only shows the requests it
+      <code class="inline">fitguard.db</code> is a local SQLite file, so each instance's dashboard only shows the requests it
       handled itself. Budget enforcement no longer depends on that data once Redis is the source of truth, but the dashboard does.
     </p>
     <p>Your options: point every instance's <code class="inline">data_dir</code> at the same shared, concurrent-safe filesystem, or accept per-instance dashboards and aggregate externally via <code class="inline">/dashboard/api/data</code>.</p>
     <div class="callout">
-      Don't point multiple instances at the same <code class="inline">aiguard.db</code> on a filesystem that isn't safe for concurrent SQLite access. You'll get <code class="inline">database is locked</code> errors. See <a href="./troubleshooting.html">troubleshooting</a>.
+      Don't point multiple instances at the same <code class="inline">fitguard.db</code> on a filesystem that isn't safe for concurrent SQLite access. You'll get <code class="inline">database is locked</code> errors. See <a href="./troubleshooting.html">troubleshooting</a>.
     </div>
 
     <h2 id="checklist">Production checklist</h2>
@@ -274,12 +274,12 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
       <tbody>
         <tr><td>&#9744;</td><td>Real provider keys come from environment variables, not the committed config</td></tr>
         <tr><td>&#9744;</td><td>TLS terminates at a reverse proxy or platform load balancer</td></tr>
-        <tr><td>&#9744;</td><td>A dashboard login is configured (<code class="inline">ai-guard reset-dashboard-password</code>)</td></tr>
+        <tr><td>&#9744;</td><td>A dashboard login is configured (<code class="inline">fitguard reset-dashboard-password</code>)</td></tr>
         <tr><td>&#9744;</td><td>Every caller has its own virtual key with its own budget, not a shared one</td></tr>
         <tr><td>&#9744;</td><td><code class="inline">budget.backend: redis</code> if more than one instance runs</td></tr>
         <tr><td>&#9744;</td><td><code class="inline">data_dir</code> points at persistent storage, or you've accepted losing history</td></tr>
         <tr><td>&#9744;</td><td><code class="inline">/healthz</code> is wired to your uptime monitor</td></tr>
-        <tr><td>&#9744;</td><td>Startup warnings from <code class="inline">ai-guard run</code> are clean</td></tr>
+        <tr><td>&#9744;</td><td>Startup warnings from <code class="inline">fitguard run</code> are clean</td></tr>
       </tbody>
     </table>
 
@@ -305,7 +305,7 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
 </div>
 
 <footer class="site-footer">
-  <p>AI Guard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
+  <p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener">View source on GitHub</a>.</p>
 </footer>
 
 <div class="search-overlay" id="search-overlay">

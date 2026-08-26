@@ -866,7 +866,6 @@ td.primary {
    read as a different application bolted onto the side of the dashboard. */
 
 .settings-note {
-  max-width: 760px;
   margin: 0 0 20px;
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -882,9 +881,25 @@ td.primary {
   font-size: 13px;
 }
 
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel-card-wide {
+  grid-column: 1 / -1;
+}
+
 .panel-card {
-  max-width: 760px;
-  margin: 0 0 18px;
+  margin: 0;
   padding: 20px 22px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -994,8 +1009,7 @@ td.primary {
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 760px;
-  margin-top: 4px;
+  margin-top: 18px;
 }
 
 .btn-primary,

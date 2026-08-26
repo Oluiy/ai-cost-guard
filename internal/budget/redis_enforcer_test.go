@@ -118,7 +118,7 @@ func TestRedisEnforcer_ReleaseReconcilesToActualCost(t *testing.T) {
 }
 
 // This is the whole point of RedisEnforcer: two independent Enforcer
-// objects — standing in for two separate ai-guard processes — sharing
+// objects — standing in for two separate fitguard processes — sharing
 // nothing but Redis must still never jointly over-admit a user's budget.
 // MemoryEnforcer can't make this guarantee (each instance's in-flight map
 // is invisible to the other); this test would fail against two

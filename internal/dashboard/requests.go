@@ -163,7 +163,7 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("# AI Guard report: %s to %s\n", c.Query("from"), c.Query("to")))
+	buf.WriteString(fmt.Sprintf("# FitGuard report: %s to %s\n", c.Query("from"), c.Query("to")))
 	buf.WriteString(fmt.Sprintf("# Requests: %d, Total spend: $%.4f, Cache hit rate: %.1f%%\n",
 		summary.Requests, summary.TotalCostUSD, cacheHitRate*100))
 	w := csv.NewWriter(&buf)
@@ -178,6 +178,6 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 	w.Flush()
 
 	c.Set("Content-Type", "text/csv; charset=utf-8")
-	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="ai-guard-report-%s-to-%s.csv"`, c.Query("from"), c.Query("to")))
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="fitguard-report-%s-to-%s.csv"`, c.Query("from"), c.Query("to")))
 	return c.Send(buf.Bytes())
 }

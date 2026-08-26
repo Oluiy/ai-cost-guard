@@ -22,13 +22,13 @@ import (
 	"github.com/Oluiy/ai-cost-guard/internal/proxy"
 )
 
-// RunServer loads configPath and starts the ai-guard proxy server. It
+// RunServer loads configPath and starts the fitguard proxy server. It
 // blocks until the server stops (either it fails to start, or it's shut
 // down cleanly via SIGINT/SIGTERM).
 func RunServer(configPath string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		return fmt.Errorf("run 'ai-guard init' first, or check your config: %w", err)
+		return fmt.Errorf("run 'fitguard init' first, or check your config: %w", err)
 	}
 
 	for _, w := range cfg.Warnings() {
@@ -39,7 +39,7 @@ func RunServer(configPath string) error {
 		return fmt.Errorf("creating data_dir %q: %w", cfg.DataDir, err)
 	}
 
-	dbPath := filepath.Join(cfg.DataDir, "aiguard.db")
+	dbPath := filepath.Join(cfg.DataDir, "fitguard.db")
 	store, err := logging.Open(dbPath)
 	if err != nil {
 		return fmt.Errorf("opening request log %q: %w", dbPath, err)
@@ -78,10 +78,10 @@ func RunServer(configPath string) error {
 		}
 		re.SetFailClosed(cfg.BudgetBackend.FailClosed)
 		enforcer = re
-		pterm.Info.Printfln("budget backend: redis @ %s (correct across multiple ai-guard instances)", maskRedisURL(cfg.BudgetBackend.RedisURL))
+		pterm.Info.Printfln("budget backend: redis @ %s (correct across multiple fitguard instances)", maskRedisURL(cfg.BudgetBackend.RedisURL))
 	default:
 		enforcer = budget.NewFailClosed(store, settings, cfg.BudgetBackend.FailClosed)
-		pterm.Info.Println("budget backend: local (correct for a single ai-guard instance only)")
+		pterm.Info.Println("budget backend: local (correct for a single fitguard instance only)")
 	}
 	if cfg.BudgetBackend.FailClosed {
 		pterm.Info.Println("budget enforcement: fail-closed (a key with no configured budget is refused)")
@@ -89,7 +89,7 @@ func RunServer(configPath string) error {
 	handler := proxy.New(cfg, settings, c, enforcer, store)
 
 	app := fiber.New(fiber.Config{
-		AppName:               "ai-guard",
+		AppName:               "fitguard",
 		DisableStartupMessage: true,
 		// Only honor X-Forwarded-For/-Proto from an explicitly trusted
 		// proxy; otherwise a caller could spoof its own address and
@@ -170,7 +170,7 @@ func maskRedisURL(raw string) string {
 }
 
 func printBanner(cfg *config.Config) {
-	pterm.DefaultBigText.WithLetters(pterm.NewLettersFromStringWithStyle("AI Guard", pterm.NewStyle(pterm.FgCyan))).Render()
+	pterm.DefaultBigText.WithLetters(pterm.NewLettersFromStringWithStyle("FitGuard", pterm.NewStyle(pterm.FgCyan))).Render()
 	providers := make([]string, 0, len(cfg.Providers))
 	for name := range cfg.Providers {
 		providers = append(providers, name)

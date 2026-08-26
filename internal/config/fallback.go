@@ -35,7 +35,7 @@ func ValidateFallback(fallback []string, providers map[string]Provider) error {
 		}
 		if _, ok := providers[provider]; !ok {
 			return fmt.Errorf("fallback model %q needs the %q provider, which isn't configured — "+
-				"add it with `ai-guard add-provider`, or pick a model from: %s",
+				"add it with `fitguard add-provider`, or pick a model from: %s",
 				model, provider, strings.Join(cost.ChatModelsFor(names), ", "))
 		}
 	}

@@ -43,7 +43,7 @@ func TestSetSessionCookie_PlainHTTPOmitsSecure(t *testing.T) {
 	}
 }
 
-// Behind a TLS-terminating proxy the connection to ai-guard is plain
+// Behind a TLS-terminating proxy the connection to fitguard is plain
 // HTTP, but the client used HTTPS. The cookie must be Secure in that
 // case, which is the whole production deployment story.
 func TestSetSessionCookie_ForwardedHTTPSSetsSecure(t *testing.T) {

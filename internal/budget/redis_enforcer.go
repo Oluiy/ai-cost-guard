@@ -10,7 +10,7 @@ import (
 )
 
 // RedisEnforcer enforces per-user daily budgets using Redis as a shared,
-// atomic ledger, correct across multiple ai-guard instances behind a
+// atomic ledger, correct across multiple fitguard instances behind a
 // load balancer, unlike MemoryEnforcer.
 type RedisEnforcer struct {
 	client     *redis.Client
@@ -36,7 +36,7 @@ func NewRedisEnforcer(url string, users BudgetLookup) (*RedisEnforcer, error) {
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		return nil, err
 	}
-	return &RedisEnforcer{client: client, users: users, prefix: "aiguard:budget:"}, nil
+	return &RedisEnforcer{client: client, users: users, prefix: "fitguard:budget:"}, nil
 }
 
 // budgetKeyTTL bounds how long a day's budget key lives.

@@ -18,7 +18,7 @@ func TestParseGeminiInlineImage_DataURI(t *testing.T) {
 func TestParseGeminiInlineImage_RemoteURLUnsupported(t *testing.T) {
 	// Unlike Anthropic (which passes a remote URL through for the
 	// provider to fetch), Gemini has no such option for inline content —
-	// and ai-guard deliberately doesn't fetch it server-side (SSRF risk),
+	// and fitguard deliberately doesn't fetch it server-side (SSRF risk),
 	// so this must come back nil rather than something half-translated.
 	if inline := parseGeminiInlineImage("https://example.com/cat.png"); inline != nil {
 		t.Fatalf("expected nil for a remote URL, got %+v", inline)

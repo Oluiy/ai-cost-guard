@@ -1,4 +1,4 @@
-/ai-guard
+/fitguard
 /dist/
 *.db
 *.db-journal
@@ -12,3 +12,8 @@ DOCS.md
 dashboard-ui/node_modules/
 dashboard-ui/dist/
 GITHUB-SPONSORS-AI-COST-GUARD.md
+app_built.md
+sqlite_style/
+docs copy/
+changeview.md
+ai-guard

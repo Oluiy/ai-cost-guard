@@ -1,4 +1,4 @@
-// Package cli implements the ai-guard command-line experience.
+// Package cli implements the fitguard command-line experience.
 package cli
 
 import (
@@ -48,7 +48,7 @@ func promptForProviders(cfg *config.Config, options []string) error {
 
 	selected, err := pterm.DefaultInteractiveMultiselect.
 		WithOptions(options).
-		WithDefaultText("Which providers do you want to route through ai-guard?").
+		WithDefaultText("Which providers do you want to route through fitguard?").
 		Show()
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func promptForProviders(cfg *config.Config, options []string) error {
 func RunAddProvider(configPath string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		return fmt.Errorf("run 'ai-guard init' first, or check your config: %w", err)
+		return fmt.Errorf("run 'fitguard init' first, or check your config: %w", err)
 	}
 
 	var available []string
@@ -117,13 +117,13 @@ func RunAddProvider(configPath string) error {
 	pterm.Info.Printfln("Providers now configured: %s", strings.Join(names, ", "))
 	pterm.Info.Printfln("Models you can now use as fallback: %s",
 		strings.Join(cost.ChatModelsFor(names), ", "))
-	pterm.Info.Println("Restart `ai-guard run` for the new provider to take effect.")
+	pterm.Info.Println("Restart `fitguard run` for the new provider to take effect.")
 	return nil
 }
 
 // RunInit walks the user through an interactive setup and writes configPath.
 func RunInit(configPath string) error {
-	pterm.DefaultBigText.WithLetters(pterm.NewLettersFromStringWithStyle("AI Guard", pterm.NewStyle(pterm.FgCyan))).Render()
+	pterm.DefaultBigText.WithLetters(pterm.NewLettersFromStringWithStyle("FitGuard", pterm.NewStyle(pterm.FgCyan))).Render()
 	pterm.Info.Println("Let's set up your cost-protected AI gateway.")
 	pterm.Println()
 
@@ -153,7 +153,7 @@ func RunInit(configPath string) error {
 		return err
 	}
 
-	port, err := promptValidatedInt("Port to run ai-guard on", config.DefaultPort, 1, 65535)
+	port, err := promptValidatedInt("Port to run fitguard on", config.DefaultPort, 1, 65535)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func RunInit(configPath string) error {
 
 	pterm.Println()
 	pterm.Info.Println("Now let's add budgeted users. Each one gets their own daily spend limit " +
-		"and a virtual API key — callers authenticate to ai-guard with that key (never your real " +
+		"and a virtual API key — callers authenticate to fitguard with that key (never your real " +
 		"provider keys), so budgets can't be evaded just by sending a different name in a header.")
 
 	type issuedKey struct {
@@ -258,7 +258,7 @@ func RunInit(configPath string) error {
 	}
 
 	if len(issued) == 0 {
-		pterm.Warning.Println("No budgeted users configured — ai-guard will run in single-tenant mode: " +
+		pterm.Warning.Println("No budgeted users configured — fitguard will run in single-tenant mode: " +
 			"every caller shares one \"default\" identity with no authentication and no budget limit. " +
 			"Fine for local/solo use; not for anything with multiple callers.")
 	}
@@ -295,7 +295,7 @@ func RunInit(configPath string) error {
 		pterm.Println()
 	}
 
-	nextSteps := "ai-guard run\n\nThen point your app at:\n" + fmt.Sprintf("  http://localhost:%d/v1", cfg.Port)
+	nextSteps := "fitguard run\n\nThen point your app at:\n" + fmt.Sprintf("  http://localhost:%d/v1", cfg.Port)
 	if len(issued) > 0 {
 		nextSteps += "\n\nAuthenticate with the issued key instead of your real provider key:\n" +
 			fmt.Sprintf("  Authorization: Bearer %s", issued[0].key)
@@ -309,7 +309,7 @@ func RunInit(configPath string) error {
 
 // setUpDashboardLogin optionally creates the one dashboard admin account.
 // Skipping it leaves /dashboard reachable with no login, warned about at
-// every `ai-guard run`. Returns whether an account was created.
+// every `fitguard run`. Returns whether an account was created.
 func setUpDashboardLogin(cfg *config.Config) (bool, error) {
 	pterm.Info.Println("Last step: protect the dashboard with a login, so spend and usage data " +
 		"isn't visible to anyone who can reach the port — the same thing tools like Grafana and Coolify do.")
@@ -322,7 +322,7 @@ func setUpDashboardLogin(cfg *config.Config) (bool, error) {
 	}
 	if !setUp {
 		pterm.Warning.Println("Skipped — the dashboard will be reachable by anyone with no login. " +
-			"Run `ai-guard reset-dashboard-password` any time to add one.")
+			"Run `fitguard reset-dashboard-password` any time to add one.")
 		return false, nil
 	}
 

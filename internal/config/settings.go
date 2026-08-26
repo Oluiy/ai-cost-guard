@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
 // generateKey returns a random gateway-issued virtual API key.
@@ -20,7 +22,7 @@ func generateKey() (string, error) {
 }
 
 // Settings holds the subset of Config the dashboard can change while
-// ai-guard is running: cache on/off, cache TTL, fallback list, and
+// fitguard is running: cache on/off, cache TTL, fallback list, and
 // per-user budgets. Everything else (provider credentials, virtual keys,
 // session secret, port, data_dir) stays on Config and is terminal-only.
 //
@@ -80,6 +82,12 @@ type Editable struct {
 	CacheTTLSeconds int                `json:"cache_ttl_seconds"`
 	Fallback        []string           `json:"fallback"`
 	Users           map[string]float64 `json:"users"` // user_id -> daily_limit_usd
+
+	// Providers and AvailableModels are read-only context for the UI
+	// (ignored on write): which providers are configured and which chat
+	// models they serve, so the fallback picker can offer valid choices.
+	Providers       []string `json:"providers,omitempty"`
+	AvailableModels []string `json:"available_models,omitempty"`
 }
 
 // Snapshot returns the current editable settings, deep-copied.
@@ -94,11 +102,19 @@ func (s *Settings) Snapshot() Editable {
 	fallback := make([]string, len(s.cfg.Fallback))
 	copy(fallback, s.cfg.Fallback)
 
+	providerNames := make([]string, 0, len(s.cfg.Providers))
+	for name := range s.cfg.Providers {
+		providerNames = append(providerNames, name)
+	}
+	sort.Strings(providerNames)
+
 	return Editable{
 		CacheEnabled:    s.cfg.Cache.Enabled,
 		CacheTTLSeconds: s.cfg.Cache.TTL,
 		Fallback:        fallback,
 		Users:           users,
+		Providers:       providerNames,
+		AvailableModels: cost.ChatModelsFor(providerNames),
 	}
 }
 

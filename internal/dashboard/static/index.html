@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI Guard — Cost Dashboard</title>
+<title>FitGuard — Cost Dashboard</title>
 <link rel="stylesheet" href="/dashboard/css/dashboard.css" />
 </head>
 <body>
@@ -11,7 +11,7 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
-      <span class="brand-name">AI Guard</span>
+      <span class="brand-name">FitGuard</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Dashboard sections">
@@ -208,48 +208,50 @@
           credential-class and stay in the terminal.
         </div>
 
-        <div class="panel-card">
-          <h2>Caching</h2>
-          <label class="field-row">
-            <input type="checkbox" id="set-cache-enabled" />
-            <span>Enable response caching</span>
-          </label>
-          <label class="field">
-            <span class="field-label">Cache TTL (seconds)</span>
-            <input type="number" id="set-cache-ttl" min="1" max="2592000" />
-            <span class="field-hint">
-              How long an identical request stays cached. The default 300 (5 minutes) does
-              nothing for a job that repeats the same prompt hours apart &mdash; raise it to
-              cover your interval (6 hours = 21600).
-            </span>
-          </label>
-        </div>
-
-        <div class="panel-card">
-          <h2>Daily budgets</h2>
-          <p class="field-hint">Limits in USD per user, per day. 0 means unlimited.</p>
-          <table class="settings-table">
-            <thead><tr><th>User</th><th>Daily limit (USD)</th><th></th></tr></thead>
-            <tbody id="set-users-body"></tbody>
-          </table>
-          <div class="add-row">
-            <input type="text" id="set-new-user" placeholder="user_id" />
-            <input type="number" id="set-new-limit" placeholder="5.00" min="0" step="0.01" />
-            <button type="button" class="btn-secondary" id="set-add-user">Add user</button>
+        <div class="settings-grid">
+          <div class="panel-card">
+            <h2>Caching</h2>
+            <label class="field-row">
+              <input type="checkbox" id="set-cache-enabled" />
+              <span>Enable response caching</span>
+            </label>
+            <label class="field">
+              <span class="field-label">Cache TTL (seconds)</span>
+              <input type="number" id="set-cache-ttl" min="1" max="2592000" />
+              <span class="field-hint">
+                How long an identical request stays cached. The default 300 (5 minutes) does
+                nothing for a job that repeats the same prompt hours apart &mdash; raise it to
+                cover your interval (6 hours = 21600).
+              </span>
+            </label>
+            <p class="field-hint" id="set-providers-hint"></p>
           </div>
-          <p class="field-hint">
-            Adding a user here sets a budget, but does not issue a virtual key &mdash; keys are
-            created by <code>ai-guard init</code>.
-          </p>
-        </div>
 
-        <div class="panel-card">
-          <h2>Fallback models</h2>
-          <p class="field-hint">Tried in order when the requested model errors or rate-limits.</p>
-          <div id="set-fallback-list"></div>
-          <div class="add-row">
-            <input type="text" id="set-new-fallback" placeholder="gpt-4o-mini" />
-            <button type="button" class="btn-secondary" id="set-add-fallback">Add model</button>
+          <div class="panel-card">
+            <h2>Fallback models</h2>
+            <p class="field-hint">Tried in order when the requested model errors or rate-limits.
+              Only models served by a configured provider are accepted.</p>
+            <div id="set-fallback-list"></div>
+            <div class="add-row">
+              <input type="text" id="set-new-fallback" list="set-fallback-options" placeholder="gpt-4o-mini" />
+              <datalist id="set-fallback-options"></datalist>
+              <button type="button" class="btn-secondary" id="set-add-fallback">Add model</button>
+            </div>
+          </div>
+
+          <div class="panel-card panel-card-wide">
+            <h2>Daily budgets</h2>
+            <p class="field-hint">Limits in USD per user, per day. 0 means unlimited. A new user
+              is issued a virtual API key immediately, shown once on save.</p>
+            <table class="settings-table">
+              <thead><tr><th>User</th><th>Daily limit (USD)</th><th></th></tr></thead>
+              <tbody id="set-users-body"></tbody>
+            </table>
+            <div class="add-row">
+              <input type="text" id="set-new-user" placeholder="user_id" />
+              <input type="number" id="set-new-limit" placeholder="5.00" min="0" step="0.01" />
+              <button type="button" class="btn-secondary" id="set-add-user">Add user</button>
+            </div>
           </div>
         </div>
 

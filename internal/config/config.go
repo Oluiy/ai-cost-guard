@@ -1,4 +1,4 @@
-// Package config loads and validates ai-guard's YAML configuration.
+// Package config loads and validates fitguard's YAML configuration.
 package config
 
 import (
@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config is the root configuration for ai-guard.
+// Config is the root configuration for fitguard.
 type Config struct {
 	Port      int                 `yaml:"port"`
 	DataDir   string              `yaml:"data_dir"`
@@ -69,15 +69,15 @@ type RouteConfig struct {
 
 // DashboardConfig protects the /dashboard UI with a login. Users is a
 // list so more than one account can be added later without a config
-// migration; `ai-guard init` only creates one today.
+// migration; `fitguard init` only creates one today.
 type DashboardConfig struct {
-	// SessionSecret signs session cookies. Generated once by `ai-guard
+	// SessionSecret signs session cookies. Generated once by `fitguard
 	// init` so sessions survive restarts.
 	SessionSecret string          `yaml:"session_secret"`
 	Users         []DashboardUser `yaml:"users"`
 	// SessionTTLHours is how long a login stays valid. Defaults to 168
 	// (7 days). Sessions can't be revoked individually; rotating
-	// SessionSecret via `ai-guard reset-dashboard-password` invalidates
+	// SessionSecret via `fitguard reset-dashboard-password` invalidates
 	// all of them at once.
 	SessionTTLHours int `yaml:"session_ttl_hours"`
 }
@@ -178,7 +178,7 @@ func (c *Config) Validate() error {
 	// together, so this only fires on a hand-edited config.
 	if len(c.Dashboard.Users) > 0 && c.Dashboard.SessionSecret == "" {
 		return fmt.Errorf("dashboard.users is set but dashboard.session_secret is empty — " +
-			"run `ai-guard reset-dashboard-password` instead of hand-editing dashboard.users, " +
+			"run `fitguard reset-dashboard-password` instead of hand-editing dashboard.users, " +
 			"it generates both together")
 	}
 	return nil
@@ -211,7 +211,7 @@ func (c *Config) Warnings() []string {
 
 	if len(c.Dashboard.Users) == 0 {
 		warnings = append(warnings, "no dashboard users configured — the /dashboard UI has no login "+
-			"and is visible to anyone who can reach it; run `ai-guard reset-dashboard-password` to set one up")
+			"and is visible to anyone who can reach it; run `fitguard reset-dashboard-password` to set one up")
 	}
 
 	return warnings

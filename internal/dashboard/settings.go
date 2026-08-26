@@ -57,6 +57,8 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 			"cache_ttl_seconds": resp.CacheTTLSeconds,
 			"fallback":          resp.Fallback,
 			"users":             resp.Users,
+			"providers":         resp.Providers,
+			"available_models":  resp.AvailableModels,
 			// Shown once: keys aren't retrievable again after this response.
 			"issued_keys": issuedKeys,
 		})

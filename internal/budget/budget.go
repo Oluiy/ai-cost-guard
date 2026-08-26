@@ -17,7 +17,7 @@ type SpendLookup interface {
 
 // BudgetLookup resolves a user's configured daily limit and whether one
 // exists at all. An interface, not a map, because limits can change
-// while ai-guard runs. Satisfied by *config.Settings.
+// while fitguard runs. Satisfied by *config.Settings.
 type BudgetLookup interface {
 	Budget(userID string) (config.Budget, bool)
 }

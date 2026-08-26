@@ -1,4 +1,4 @@
-// Package dashboard serves the embedded ai-guard cost dashboard.
+// Package dashboard serves the embedded fitguard cost dashboard.
 package dashboard
 
 import (

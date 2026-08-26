@@ -22,7 +22,7 @@ func (h *Handler) Embeddings(c *fiber.Ctx) error {
 	userID, authOK := h.authenticate(c)
 	if !authOK {
 		return c.Status(fiber.StatusUnauthorized).JSON(errorJSON(
-			"missing or invalid API key; pass Authorization: Bearer <ai-guard key> (see `ai-guard init`)", "invalid_api_key"))
+			"missing or invalid API key; pass Authorization: Bearer <fitguard key> (see `fitguard init`)", "invalid_api_key"))
 	}
 
 	var parsed map[string]any

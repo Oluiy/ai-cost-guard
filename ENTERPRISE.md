@@ -1,10 +1,10 @@
-# AI Cost Guard: Enterprise Readiness
+# FitGuard: Enterprise Readiness
 
-This document is for anyone evaluating ai-guard for use inside an
+This document is for anyone evaluating fitguard for use inside an
 organization, not a solo/local deployment. It says plainly what's solid
 today, what's missing, and what you'd need to add or wrap around it before
 it belongs in a production enterprise environment. For how the system
-works day to day, see the [documentation](./docs/index.html); for the
+works day to day, see the [documentation](https://ai-cost-guard-ruddy.vercel.app/); for the
 quickstart, see [README.md](./README.md).
 
 ## Bottom line
@@ -23,7 +23,7 @@ wrap it yourself.
 ## What you can rely on today
 
 - **Per-user budget enforcement that holds under concurrency**, including
-  across multiple ai-guard instances behind a load balancer, when
+  across multiple fitguard instances behind a load balancer, when
   `budget.backend: redis` is set. This is not a claim taken on faith: it's
   covered by a `-race`-tested concurrency test
   (`TestRedisEnforcer_TwoInstancesShareOneBudget`) that runs two independent
@@ -32,7 +32,7 @@ wrap it yourself.
   real HTTP against two separate running processes.
 - **Authentication via gateway-issued virtual keys**, not a client-supplied
   identity, so a budget can't be evaded by a caller simply omitting or
-  changing a header. See [Authentication](./docs/guide/api-reference.html#auth)
+  changing a header. See [Authentication](https://ai-cost-guard-ruddy.vercel.app/guide/api-reference.html#auth)
   for why this distinction matters.
 - **Response caching, including for streaming clients**: a cache hit is
   synthesized into a valid stream rather than silently falling back to a
@@ -40,15 +40,67 @@ wrap it yourself.
 - **Provider fallback that never hands a client a broken partial response**,
   confirmed for streaming: fallback works *before* anything is
   written to the client (see
-  [Streaming](./docs/guide/api-reference.html#streaming)).
+  [Streaming](https://ai-cost-guard-ruddy.vercel.app/guide/api-reference.html#streaming)).
 - **Full request/cost audit trail** in SQLite: every request's user, model,
-  tokens, cost, latency, cache hit, and finish_reason.
+  tokens, cost, latency, cache hit, and finish_reason. Prompt and response
+  *content* is never written to this log — only the metadata above.
+- **Timing-safe login.** The dashboard's login compares against a decoy
+  bcrypt hash when the submitted username doesn't exist, so a failed
+  attempt takes the same time whether or not that username is real —
+  closing a username-enumeration side channel that existed until this was
+  specifically tested for and fixed.
+- **Concurrency-tested under real load, not just unit tests.** A live
+  `-race`-instrumented run under concurrent proxy traffic and concurrent
+  settings writes (see below) surfaced and fixed a genuine data race in
+  the logging library's shared printer — the kind of bug unit tests alone
+  do not catch. That run is why this list makes a concurrency claim at
+  all, rather than an assumption.
+
+## Dashboard settings: read-only no longer
+
+As of this version, the dashboard's **Settings** page can change
+`cache.enabled`, `cache.ttl_seconds`, per-user `daily_limit_usd`, and the
+`fallback` list live, with no restart, writing back to `config.yaml`. This
+changes the enterprise risk calculus for the dashboard: a compromised
+dashboard session used to be read-only (spend visibility only); it can now
+change what the gateway does.
+
+What limits that:
+
+- **Provider `api_key`, `base_url`, virtual `keys:`, and `session_secret`
+  are not reachable through this API at all** — not hidden in the UI, not
+  present in the wire format (`config.Editable`) the endpoint accepts or
+  returns. There is no code path from a dashboard session to a provider
+  credential.
+- **It refuses to orphan a live virtual key.** Removing a user's budget
+  while a `keys:` entry still maps to them would otherwise silently make
+  that key spend without a cap; the server rejects the request and names
+  the affected user rather than allowing it.
+- **Adding a new `user_id` mints a virtual key.** A compromised dashboard
+  session can now create a new authenticated caller against your gateway,
+  not just change budgets for existing ones — the key is capped by
+  whatever `daily_limit_usd` is set in the same request, and is returned
+  once in the response body (`issued_keys`), never logged or retrievable
+  again.
+- **`fallback` entries are rejected unless their provider is configured.**
+  A write naming a model whose provider isn't in `providers:` fails
+  validation rather than being accepted and only failing later, at request
+  time. Providers themselves are still terminal-only, added via
+  `fitguard add-provider`, not through this API.
+- Every write is validated before anything is mutated (bad values leave
+  the running config and the file untouched), and the on-disk file is
+  tightened to owner-only permissions on every write, including one that
+  arrived some other way at looser permissions.
+- It's gated behind the same session-cookie auth as the rest of the
+  dashboard — everything in "What's missing" below about that auth
+  (no RBAC, no SSO, one admin account) applies here too, now with
+  slightly higher stakes than a read-only view.
 
 ## What's missing
 
 ### Security & compliance
 
-- **No TLS.** ai-guard listens on plain HTTP. It must sit behind a reverse
+- **No TLS.** fitguard listens on plain HTTP. It must sit behind a reverse
   proxy or load balancer that terminates TLS. This isn't optional for any
   network you don't fully trust, and it isn't documented anywhere as a
   deployment requirement today, which it should be.
@@ -60,8 +112,8 @@ wrap it yourself.
 - **No key lifecycle.** Virtual keys are a static map in the config file.
   Rotating or revoking one means editing the file and restarting the
   process. There's no API, no expiry, no scoped permissions.
-- **The dashboard's login is one admin account, not RBAC.** `ai-guard init`
-  (or `ai-guard reset-dashboard-password` any time after) sets up a single
+- **The dashboard's login is one admin account, not RBAC.** `fitguard init`
+  (or `fitguard reset-dashboard-password` any time after) sets up a single
   username/password gating `/dashboard`: session cookies are a signed
   HMAC, not a database-backed session store, and login attempts are
   rate-limited. There's no separate read-only/viewer account, no SSO, and
@@ -69,6 +121,19 @@ wrap it yourself.
   the dashboard reachable with no login at all, same as before this
   existed, fine on a private network, not acceptable exposed any wider
   without your own reverse-proxy auth in front regardless.
+  - Sessions default to a 7-day lifetime (`dashboard.session_ttl_hours`,
+    configurable) and there is no server-side revocation list: a leaked
+    cookie is valid until it expires. The one immediate revocation is
+    rotating `session_secret` via `fitguard reset-dashboard-password`,
+    which invalidates every outstanding session at once.
+  - If fitguard runs behind a reverse proxy, set `trusted_proxies` to its
+    address. This is what makes the login rate limiter key on the real
+    caller instead of the proxy (otherwise every request behind the proxy
+    looks like one client and a single attacker can exhaust the limiter
+    for everyone), and what lets the session cookie be marked `Secure`.
+    It's opt-in and must name the actual proxy: honoring these headers
+    from an untrusted source would let a caller spoof its own address and
+    bypass the rate limiter entirely.
 - **No formal security audit.** This codebase has had a careful manual
   security-minded review during development (closing an auth-bypass class
   of bug where budgets could be evaded by a client-controlled identity,
@@ -78,10 +143,17 @@ wrap it yourself.
   neither has been done.
 - **No compliance posture.** No SOC2, no audit logging of *configuration*
   changes (only of proxied requests), no data residency controls.
+- **A misconfigured budget mapping fails open by default.** A `keys:`
+  entry whose `user_id` has no matching `users:` entry is treated as
+  unlimited spend rather than refused — usually a typo, but a silent one.
+  `fitguard run` warns loudly about it at every startup, and setting
+  `budget.fail_closed: true` refuses the request instead; it defaults to
+  off because it's the wrong default for solo/local use, where budgets
+  are often not configured at all.
 
 ### High availability & scale
 
-- **Cost-log analytics don't scale horizontally.** `aiguard.db` is a local
+- **Cost-log analytics don't scale horizontally.** `fitguard.db` is a local
   SQLite file. Even with `budget.backend: redis` making *enforcement*
   correct across instances, each instance's `/dashboard` only reflects
   requests it personally handled. There's no unified fleet-wide view.
@@ -92,7 +164,7 @@ wrap it yourself.
   modest concurrency: dozens of concurrent requests in tests and live
   smoke tests. Nothing has been measured at the throughput an enterprise
   deployment would actually need to plan capacity around.
-- **Single point of failure by default.** ai-guard has no built-in
+- **Single point of failure by default.** fitguard has no built-in
   clustering, leader election, or request queuing. Running it reliably at
   scale means putting standard infrastructure (a load balancer, a process
   supervisor with restart policies, health-check-based routing) around it
@@ -126,17 +198,20 @@ wrap it yourself.
 None of the above requires waiting on this project. Most of it is
 standard infrastructure you likely already run:
 
-- Put ai-guard behind a TLS-terminating reverse proxy or load balancer
-  (nginx, Caddy, your cloud LB); don't expose it directly.
+- Put fitguard behind a TLS-terminating reverse proxy or load balancer
+  (nginx, Caddy, your cloud LB); don't expose it directly. Set
+  `trusted_proxies` to that proxy's address once you do.
+- Set `budget.fail_closed: true` so a misconfigured `keys:`/`users:`
+  mapping refuses a request instead of silently granting unlimited spend.
 - Inject `config.yaml`'s `${ENV_VAR}` values from your existing secrets
   manager instead of a plain file.
 - Put the `/dashboard` path behind the same authenticating proxy, or don't
   expose it beyond a private network.
-- Run one ai-guard instance per logical unit you're willing to have
+- Run one fitguard instance per logical unit you're willing to have
   degrade independently, with `budget.backend: redis` and
   `cache.backend: redis` pointed at infrastructure you already operate
   with HA.
-- Ship ai-guard's structured pterm/log output to whatever log aggregation
+- Ship fitguard's structured pterm/log output to whatever log aggregation
   you already run, and poll `/dashboard/api/data` on an interval into your
   existing metrics pipeline until a native exporter exists.
 - Load-test it yourself against your actual traffic shape before trusting
@@ -144,7 +219,7 @@ standard infrastructure you likely already run:
 
 ## Who this is for right now
 
-- **Good fit today:** a single team, a single ai-guard instance (or a
+- **Good fit today:** a single team, a single fitguard instance (or a
   small Redis-backed cluster) in front of a moderate-traffic internal or
   early-stage product, run by people comfortable operating the
   infrastructure around it themselves (TLS, secrets, log shipping).

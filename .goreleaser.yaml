@@ -1,0 +1,62 @@
+version: 2
+
+project_name: fitguard
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fitguard
+    main: ./cmd/fitguard
+    binary: fitguard
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Not a requested target, and not a real platform anyone runs.
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: fitguard
+    ids:
+      - fitguard
+    # install.sh and the npm postinstall script both build this exact
+    # name to know what to download, so it's fixed here rather than left
+    # to GoReleaser's default template.
+    name_template: "fitguard_{{ .Os }}_{{ .Arch }}"
+    formats: ["tar.gz"]
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  # A fixed name (no version in it) so install.sh doesn't need to know
+  # the release tag to find the checksum file.
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: Oluiy
+    name: ai-cost-guard
+  prerelease: auto

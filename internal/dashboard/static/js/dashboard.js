@@ -1,11 +1,11 @@
-// AI Guard dashboard client. No framework, no build step — this is loaded
+// FitGuard dashboard client. No framework, no build step — this is loaded
 // as a plain <script> alongside dashboard.css. Split into named functions
 // by concern (chart, tables, filters, nav, account, live connection) so
 // any one piece is easy to find and change without reading the whole file.
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "ai-guard-dashboard-filters";
+  var STORAGE_KEY = "fitguard-dashboard-filters";
   var tooltip = document.getElementById("tooltip");
   var state = loadFilters();
   var eventSource = null;
@@ -929,6 +929,24 @@
 
       list.appendChild(row);
     });
+
+    var options = document.getElementById("set-fallback-options");
+    if (options) {
+      options.innerHTML = "";
+      (settingsDraft.available_models || []).forEach(function (model) {
+        var opt = document.createElement("option");
+        opt.value = model;
+        options.appendChild(opt);
+      });
+    }
+
+    var providersHint = document.getElementById("set-providers-hint");
+    if (providersHint) {
+      var providers = settingsDraft.providers || [];
+      providersHint.textContent = providers.length
+        ? "Configured providers: " + providers.join(", ") + ". Add more with `fitguard add-provider`."
+        : "No providers configured.";
+    }
   }
 
   function setSettingsStatus(msg, isError) {
@@ -1119,7 +1137,7 @@
 
         if (issued && Object.keys(issued).length) {
           // Virtual keys are shown once here and never sent back by the
-          // server again, same as ai-guard init on the terminal.
+          // server again, same as fitguard init on the terminal.
           var lines = Object.keys(issued).map(function (id) {
             return id + ": " + issued[id];
           });

@@ -135,16 +135,39 @@ WantedBy=multi-user.target</pre>
     <p>Works, but it's a container platform with an ephemeral filesystem &mdash; read <a href="#ephemeral">the section below</a> before choosing it. Attach a managed Redis and set both backends to <code class="inline">redis</code>.</p>
 
     <h2 id="paas">Heroku, Railway, and Render</h2>
-    <p>All three work with the existing Dockerfile. Two platform-specific things to get right:</p>
+    <p>All three build the existing Dockerfile straight from your GitHub repo. That's the part that trips people up:
+      <code class="inline">config.yaml</code> is gitignored (on purpose &mdash; it holds real keys), so it's never in the repo
+      these platforms clone and build from, and there's no local disk to <code class="inline">-v</code> mount a file from
+      the way the plain Docker command above does. Three things to get right:</p>
 
-    <h3>1. Bind to the platform's port</h3>
-    <p>These platforms assign a port through <code class="inline">$PORT</code> and route to it. Hardcode 8787 and your app is unreachable.</p>
-    <pre>port: ${PORT}</pre>
+    <h3>1. Put your whole config in one environment variable</h3>
+    <p>
+      Set <code class="inline">FITGUARD_CONFIG</code> in the platform's dashboard (Heroku Config Vars, Railway Variables,
+      Render Environment) to the entire contents of your local <code class="inline">config.yaml</code>, pasted as one
+      multi-line value. When it's set, fitguard uses it directly instead of reading a file &mdash; nothing to mount, no
+      volume, no shell needed (the image is <code class="inline">FROM scratch</code>, which has no shell in it at all).
+      The <code class="inline">${ENV_VAR}</code> expansion for individual keys still works the same as before, so your
+      real provider keys still go in as their own separate variables, referenced from inside
+      <code class="inline">FITGUARD_CONFIG</code>:
+    </p>
+    <pre># FITGUARD_CONFIG value:
+port: ${PORT}
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+users:
+  user_123:
+    daily_limit_usd: 5
+keys:
+  sk-guard-...: user_123</pre>
 
-    <h3>2. Set your secrets as environment variables</h3>
-    <p>Use the platform's own secret store (Heroku Config Vars, Railway Variables, Render Environment) for each <code class="inline">${...}</code> your config references. Never commit real keys.</p>
+    <h3>2. Bind to the platform's port</h3>
+    <p>These platforms assign a port through <code class="inline">$PORT</code> and route to it. Hardcode 8787 and your app is unreachable &mdash; that's why <code class="inline">port: ${PORT}</code> is in the config above.</p>
 
-    <h3 id="ephemeral">3. Ephemeral filesystems</h3>
+    <h3>3. Set your secrets as environment variables</h3>
+    <p>Every <code class="inline">${...}</code> referenced inside <code class="inline">FITGUARD_CONFIG</code> (like <code class="inline">OPENAI_API_KEY</code>) needs its own separate variable in the platform's secret store too. Never commit real keys.</p>
+
+    <h3 id="ephemeral">4. Ephemeral filesystems</h3>
     <p>
       Heroku, Railway, Render, and DigitalOcean App Platform all give containers a <strong>disposable filesystem</strong>,
       wiped on every deploy, restart, and dyno cycle. FitGuard writes <code class="inline">fitguard.db</code> to disk, so on

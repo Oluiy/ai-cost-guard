@@ -69,6 +69,14 @@
     <h1>Configuration reference</h1>
     <p class="dek"><code class="inline">fitguard init</code> writes this file for you. This is what every field in it means, for when you want to change one by hand.</p>
 
+    <div class="callout">
+      <strong>No file on disk to point <code class="inline">--config</code> at?</strong> Set the environment variable
+      <code class="inline">FITGUARD_CONFIG</code> to the full YAML content below instead &mdash; fitguard uses it directly
+      when it's set, no file needed. This is what makes platforms that build straight from your GitHub repo (Render,
+      Railway, Heroku) work, since <code class="inline">config.yaml</code> is gitignored and never reaches them otherwise.
+      See <a href="./deployment.html#paas">Heroku, Railway, and Render</a> for a full walkthrough.
+    </div>
+
     <pre>port: 8787
 data_dir: .
 

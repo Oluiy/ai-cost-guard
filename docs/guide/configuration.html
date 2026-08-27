@@ -48,7 +48,11 @@
   <aside class="guide-sidebar">
     <div class="group">
       <div class="group-label">Start</div>
-      <a href="./getting-started.html">Getting started</a>
+      <details>
+        <summary>Getting started</summary>
+        <a href="./getting-started.html">Overview</a>
+        <a href="./getting-started-example.html">Full example</a>
+      </details>
       <a href="./how-it-works.html">How it works</a>
     </div>
     <div class="group">
@@ -74,7 +78,7 @@
       <code class="inline">FITGUARD_CONFIG</code> to the full YAML content below instead &mdash; fitguard uses it directly
       when it's set, no file needed. This is what makes platforms that build straight from your GitHub repo (Render,
       Railway, Heroku) work, since <code class="inline">config.yaml</code> is gitignored and never reaches them otherwise.
-      See <a href="./deployment.html#paas">Heroku, Railway, and Render</a> for a full walkthrough.
+      See the <a href="./deployment-paas.html">hosted platform deployment guide</a> for a full walkthrough.
     </div>
 
     <pre>port: 8787

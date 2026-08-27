@@ -48,7 +48,11 @@
   <aside class="guide-sidebar">
     <div class="group">
       <div class="group-label">Start</div>
-      <a href="./getting-started.html">Getting started</a>
+      <details>
+        <summary>Getting started</summary>
+        <a href="./getting-started.html">Overview</a>
+        <a href="./getting-started-example.html">Full example</a>
+      </details>
       <a href="./how-it-works.html">How it works</a>
     </div>
     <div class="group">
@@ -58,9 +62,16 @@
       <a href="./api-reference.html">API reference</a>
       <a href="./commands.html">CLI reference</a>
     </div>
+    <details open>
+      <summary>Deployment</summary>
+      <a href="./deployment.html" class="active">Overview</a>
+      <a href="./deployment-docker.html">Docker</a>
+      <a href="./deployment-paas.html">Render / Heroku / Railway</a>
+      <a href="./deployment-vps.html">VPS</a>
+      <a href="./deployment-operations.html">Persistence &amp; operations</a>
+    </details>
     <div class="group">
-      <div class="group-label">Operate</div>
-      <a href="./deployment.html" class="active">Deployment</a>
+      <div class="group-label">Support</div>
       <a href="./troubleshooting.html">Troubleshooting</a>
     </div>
   </aside>
@@ -70,7 +81,25 @@
     <p class="dek">FitGuard is one static binary with no required external services, so deploying it is mostly a question of where the config file and the database live. This page covers each target and the two failure modes that are easy to miss.</p>
 
     <div class="callout">
-      <strong>Two failure modes worth knowing up front,</strong> because neither one produces an error: an <a href="#ephemeral">ephemeral filesystem</a> wiping the request log on every deploy, and <a href="#scale">running more than one instance</a> with the default budget backend. Fixes for both are below.
+      <strong>Two failure modes worth knowing up front,</strong> because neither one produces an error: an <a href="./deployment-operations.html#storage">ephemeral filesystem</a> wiping the request log on every deploy, and <a href="#scale">running more than one instance</a> with the default budget backend. Fixes for both are below.
+    </div>
+
+    <h2 id="what-goes-where">What goes where</h2>
+    <p>The question every one of these deployment paths eventually raises: what actually gets committed, what stays on your machine, and what only ever exists as an environment variable? One table, before anything else:</p>
+    <table>
+      <thead><tr><th>File</th><th>Goes in git?</th><th>Where it lives instead</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">Dockerfile</code></td><td>Yes</td><td>&mdash;</td></tr>
+        <tr><td><code class="inline">config.example.yaml</code></td><td>Yes</td><td>The checked-in template, no real values</td></tr>
+        <tr><td><code class="inline">config.yaml</code> (or any name you give your real config)</td><td><strong>No, never</strong></td><td>Your own machine only, or the <code class="inline">FITGUARD_CONFIG</code> env var on platforms with no persistent disk</td></tr>
+        <tr><td><code class="inline">fitguard.db</code></td><td><strong>No, never</strong></td><td>Runtime data &mdash; regenerated automatically, already gitignored</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      If you see a filename like <code class="inline">config.production.yaml</code> anywhere in these docs, that's just an
+      example name for "your real config, for production" &mdash; not something FitGuard looks for specifically. Call it
+      whatever you want. It's never committed either way; it either stays on your laptop to be copied up by hand (VPS) or
+      its contents go straight into an environment variable (Render/Railway/Heroku) &mdash; see below.
     </div>
 
     <h2 id="config">Generate your config locally first</h2>
@@ -81,7 +110,11 @@
     <pre>fitguard init</pre>
     <p>
       Keep real provider keys out of the file itself by using <code class="inline">${ENV_VAR}</code>, which is expanded when
-      the config loads. That's what lets the same file be safe to commit and still work in production:
+      the config loads. That makes the file's <em>content</em> safe &mdash; no secret ever sits in it &mdash; which is why
+      it's fine to paste into <code class="inline">FITGUARD_CONFIG</code> or copy to a server. It's still gitignored by
+      default in this repo regardless, on purpose: even a secret-free config is credential-adjacent (provider names,
+      user IDs, budgets), and "never committed" is a simpler rule to follow than "committed, but only if you double-check
+      it first."
     </p>
     <pre>port: ${PORT}
 providers:
@@ -94,7 +127,7 @@ providers:
     </div>
 
     <h2 id="docker">Docker</h2>
-    <p>The included Dockerfile builds a static <code class="inline">CGO_ENABLED=0</code> binary onto Alpine, running as a non-root user with <code class="inline">/data</code> as the working directory.</p>
+    <p>The included Dockerfile builds a static <code class="inline">CGO_ENABLED=0</code> binary and copies it, plus a CA certificate bundle, into a <code class="inline">scratch</code> image. The default command reads <code class="inline">/data/config.yaml</code>, so mount your config and data there.</p>
     <pre>docker build -t fitguard .
 
 docker run -p 8787:8787 \
@@ -107,99 +140,14 @@ docker run -p 8787:8787 \
       without a named volume it is removed with the container, along with your spend history and everything the dashboard shows.
     </p>
 
-    <h2 id="digitalocean">DigitalOcean</h2>
-    <h3>Droplet (recommended)</h3>
-    <p>A plain VM suits FitGuard well: a persistent disk and a single instance, which is what the default configuration assumes.</p>
-    <pre># on the droplet
-git clone https://github.com/Oluiy/ai-cost-guard.git
-cd ai-cost-guard
-go install ./cmd/fitguard
-
-# copy your config.yaml up, then run it under systemd
-sudo systemctl enable --now fitguard</pre>
-    <p>A minimal unit file:</p>
-    <pre>[Unit]
-Description=FitGuard
-After=network.target
-
-[Service]
-ExecStart=/root/go/bin/fitguard run --config /etc/fitguard/config.yaml
-Environment=OPENAI_API_KEY=sk-...
-Restart=always
-WorkingDirectory=/var/lib/fitguard
-
-[Install]
-WantedBy=multi-user.target</pre>
-
-    <h3>App Platform</h3>
-    <p>Works, but it's a container platform with an ephemeral filesystem &mdash; read <a href="#ephemeral">the section below</a> before choosing it. Attach a managed Redis and set both backends to <code class="inline">redis</code>.</p>
-
-    <h2 id="paas">Heroku, Railway, and Render</h2>
-    <p>All three build the existing Dockerfile straight from your GitHub repo. That's the part that trips people up:
-      <code class="inline">config.yaml</code> is gitignored (on purpose &mdash; it holds real keys), so it's never in the repo
-      these platforms clone and build from, and there's no local disk to <code class="inline">-v</code> mount a file from
-      the way the plain Docker command above does. Three things to get right:</p>
-
-    <h3>1. Put your whole config in one environment variable</h3>
-    <p>
-      Set <code class="inline">FITGUARD_CONFIG</code> in the platform's dashboard (Heroku Config Vars, Railway Variables,
-      Render Environment) to the entire contents of your local <code class="inline">config.yaml</code>, pasted as one
-      multi-line value. When it's set, fitguard uses it directly instead of reading a file &mdash; nothing to mount, no
-      volume, no shell needed (the image is <code class="inline">FROM scratch</code>, which has no shell in it at all).
-      The <code class="inline">${ENV_VAR}</code> expansion for individual keys still works the same as before, so your
-      real provider keys still go in as their own separate variables, referenced from inside
-      <code class="inline">FITGUARD_CONFIG</code>:
-    </p>
-    <pre># FITGUARD_CONFIG value:
-port: ${PORT}
-providers:
-  openai:
-    api_key: ${OPENAI_API_KEY}
-users:
-  user_123:
-    daily_limit_usd: 5
-keys:
-  sk-guard-...: user_123</pre>
-
-    <h3>2. Bind to the platform's port</h3>
-    <p>These platforms assign a port through <code class="inline">$PORT</code> and route to it. Hardcode 8787 and your app is unreachable &mdash; that's why <code class="inline">port: ${PORT}</code> is in the config above.</p>
-
-    <h3>3. Set your secrets as environment variables</h3>
-    <p>Every <code class="inline">${...}</code> referenced inside <code class="inline">FITGUARD_CONFIG</code> (like <code class="inline">OPENAI_API_KEY</code>) needs its own separate variable in the platform's secret store too. Never commit real keys.</p>
-
-    <h3 id="ephemeral">4. Ephemeral filesystems</h3>
-    <p>
-      Heroku, Railway, Render, and DigitalOcean App Platform all give containers a <strong>disposable filesystem</strong>,
-      wiped on every deploy, restart, and dyno cycle. FitGuard writes <code class="inline">fitguard.db</code> to disk, so on
-      those platforms:
-    </p>
+    <h2 id="platforms">Choose a deployment path</h2>
+    <p>Start locally, then choose one short guide. FitGuard's production decisions are simple: keep secrets out of Git, expose the platform's port, protect the dashboard, and decide where <code class="inline">fitguard.db</code> should live.</p>
     <ul>
-      <li>Your <strong>request log and dashboard history</strong> reset on every deploy.</li>
-      <li>With the default <code class="inline">budget.backend: local</code>, in-flight reservations are lost on restart too.</li>
+      <li><a href="./deployment-docker.html"><strong>Docker</strong></a> &mdash; local containers and a persistent named volume.</li>
+      <li><a href="./deployment-paas.html"><strong>Render, Heroku, and Railway</strong></a> &mdash; hosted container deployment, environment configuration, Redis, and platform storage.</li>
+      <li><a href="./deployment-vps.html"><strong>VPS</strong></a> &mdash; one production server on DigitalOcean, Microsoft Azure, or AWS with systemd and HTTPS.</li>
+      <li><a href="./deployment-operations.html"><strong>Persistence and operations</strong></a> &mdash; SQLite history, Redis state, backups, proxies, TLS, and scaling.</li>
     </ul>
-    <p>Two ways to handle it, depending on what you need:</p>
-    <table>
-      <thead><tr><th>If you need</th><th>Do this</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Budgets enforced reliably</td>
-          <td>Add Redis and set <code class="inline">budget.backend: redis</code>. Budget state then lives outside the container and survives everything</td>
-        </tr>
-        <tr>
-          <td>Spend history that persists</td>
-          <td>Attach a persistent disk and point <code class="inline">data_dir</code> at it. Render Disks and Railway Volumes both support this; Heroku does not, so use another platform if spend history matters to you</td>
-        </tr>
-      </tbody>
-    </table>
-    <pre>budget:
-  backend: redis
-  redis_url: ${REDIS_URL}
-
-cache:
-  enabled: true
-  backend: redis          # optional, but you already have Redis
-
-data_dir: /var/data        # a mounted persistent disk, if the platform has one</pre>
 
     <h2 id="subdomain">Running it on its own domain</h2>
     <p>
@@ -314,17 +262,17 @@ data_dir: /var/data        # a mounted persistent disk, if the platform has one<
 
   <aside class="guide-toc">
     <div class="label">On this page</div>
+    <a href="#what-goes-where">What goes where</a>
     <a href="#config">Generate your config</a>
     <a href="#docker">Docker</a>
-    <a href="#digitalocean">DigitalOcean</a>
-    <a href="#paas">Heroku / Railway / Render</a>
-    <a href="#ephemeral">Ephemeral filesystems</a>
+    <a href="#platforms">Choose a deployment path</a>
     <a href="#subdomain">Its own domain</a>
     <a href="#trusted-proxies">Trusted proxies</a>
     <a href="#tls">TLS</a>
     <a href="#scale">One instance vs. many</a>
     <a href="#checklist">Production checklist</a>
   </aside>
+
 </div>
 
 <footer class="site-footer">

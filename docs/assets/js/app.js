@@ -23,6 +23,11 @@
       root.setAttribute("data-theme", saved);
     }
 
+    var systemTheme = matchMedia("(prefers-color-scheme: dark)");
+    systemTheme.addEventListener("change", function () {
+      if (!localStorage.getItem(STORAGE_KEY)) root.removeAttribute("data-theme");
+    });
+
     var toggle = document.querySelector("[data-theme-toggle]");
     if (!toggle) return;
 
@@ -181,15 +186,24 @@
   }
 
   // ---------- Copy-to-clipboard on code blocks ----------
+  // The button lives in a wrapper around <pre>, not inside it, for two
+  // reasons: pre.innerText would otherwise include the button's own
+  // "Copy" text (it's the last DOM child), and a button that's part of
+  // pre's horizontally-scrolling content drifts over the code as the
+  // block scrolls instead of staying put in the corner.
   function initCopyButtons() {
     document.querySelectorAll(".code-tabs pre, .guide-content pre").forEach(function (pre) {
+      var wrap = document.createElement("div");
+      wrap.className = "pre-wrap";
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+
       var btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.type = "button";
       btn.textContent = "Copy";
       btn.addEventListener("click", function () {
-        var text = pre.innerText.replace(/^Copy\n?/, "");
-        navigator.clipboard.writeText(text).then(function () {
+        navigator.clipboard.writeText(pre.innerText).then(function () {
           btn.textContent = "Copied";
           btn.classList.add("copied");
           setTimeout(function () {
@@ -198,8 +212,7 @@
           }, 1400);
         });
       });
-      pre.style.position = "relative";
-      pre.appendChild(btn);
+      wrap.appendChild(btn);
     });
   }
   // ---------- Dashboard screenshot carousel ----------

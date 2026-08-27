@@ -5,35 +5,35 @@
    its spend chart, so the product and its docs read as one thing. */
 
 :root {
-  /* Surfaces, darkest to lightest */
-  --bg: #0a0b0d;
-  --bg-raised: #12141a;
-  --bg-inset: #0e1015;
-  --border: #22262f;
-  --border-strong: #333947;
+  /* Light is the default; dark mode follows the operating system below. */
+  --bg: #f4f6f9;
+  --bg-raised: #ffffff;
+  --bg-inset: #eaeef4;
+  --border: #d4dbe4;
+  --border-strong: #9aa6b6;
 
   /* Text */
-  --text: #eef0f5;
-  --text-muted: #99a0ad;
-  --text-faint: #5c6270;
+  --text: #0c1116;
+  --text-muted: #4a5462;
+  --text-faint: #6b7583;
 
   /* Brand blue, taken from the dashboard's own spend chart. */
-  --accent: #3987e5;
-  --accent-strong: #6ba8ef;
-  --accent-dim: #1f3a5c;
-  --accent-ink: #071019;
+  --accent: #1f6feb;
+  --accent-strong: #0a53c4;
+  --accent-dim: #dce9fd;
+  --accent-ink: #ffffff;
 
   /* Signal colors, matching the dashboard exactly */
-  --ok: #29c46a;
-  --warn: #fab219;
-  --fail: #e66767;
+  --ok: #17803d;
+  --warn: #9a6700;
+  --fail: #cf222e;
 
   /* Translucent, so the sticky header frosts whatever scrolls under it.
      A variable rather than a literal because light mode needs its own,
      and a hardcoded value here is invisible to the theme override. */
-  --header-bg: rgba(10, 11, 13, 0.82);
-  --illustration: var(--border-strong);
-  --grid-opacity: 0.3;
+  --header-bg: rgba(255, 255, 255, 0.85);
+  --illustration: #9dabbd;
+  --grid-opacity: 0.55;
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica,
@@ -64,8 +64,54 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   scroll-behavior: smooth;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0a0b0d;
+    --bg-raised: #12141a;
+    --bg-inset: #0e1015;
+    --border: #22262f;
+    --border-strong: #333947;
+    --text: #eef0f5;
+    --text-muted: #99a0ad;
+    --text-faint: #5c6270;
+    --accent: #3987e5;
+    --accent-strong: #6ba8ef;
+    --accent-dim: #1f3a5c;
+    --accent-ink: #071019;
+    --ok: #29c46a;
+    --warn: #fab219;
+    --fail: #e66767;
+    --header-bg: rgba(10, 11, 13, 0.82);
+    --illustration: var(--border-strong);
+    --grid-opacity: 0.3;
+  }
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a0b0d;
+  --bg-raised: #12141a;
+  --bg-inset: #0e1015;
+  --border: #22262f;
+  --border-strong: #333947;
+  --text: #eef0f5;
+  --text-muted: #99a0ad;
+  --text-faint: #5c6270;
+  --accent: #3987e5;
+  --accent-strong: #6ba8ef;
+  --accent-dim: #1f3a5c;
+  --accent-ink: #071019;
+  --ok: #29c46a;
+  --warn: #fab219;
+  --fail: #e66767;
+  --header-bg: rgba(10, 11, 13, 0.82);
+  --illustration: var(--border-strong);
+  --grid-opacity: 0.3;
 }
 
 body {
@@ -228,6 +274,12 @@ kbd {
   align-items: center;
   color: var(--text-muted);
   padding: 6px;
+}
+
+.gh-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .gh-icon:hover {
@@ -769,6 +821,10 @@ table.compare tr.highlight td {
   max-width: 100%;
 }
 
+.pre-wrap {
+  position: relative;
+}
+
 .copy-btn {
   position: absolute;
   top: 10px;
@@ -841,6 +897,41 @@ table.compare tr.highlight td {
   padding-left: 10px;
   margin: 0 0 6px;
   padding: 0 10px;
+}
+
+.guide-sidebar details {
+  margin-bottom: 22px;
+}
+
+.guide-sidebar summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0 10px 6px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.guide-sidebar summary::-webkit-details-marker {
+  display: none;
+}
+
+.guide-sidebar summary::after {
+  content: "+";
+  float: right;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.guide-sidebar details[open] summary::after {
+  content: "-";
+}
+
+.guide-sidebar summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .guide-sidebar a {
@@ -925,13 +1016,12 @@ table.compare tr.highlight td {
   border-radius: var(--radius);
   padding: 16px 52px 16px 18px;
   overflow-x: auto;
-  /* Guide examples are usually a single command or token (an API key,
-     an "ai-guard init" line) rather than multi-line code, so wrapping
-     reads better than a hidden horizontal scrollbar — and, unlike
-     overflow-x alone, it can't let an unbroken string like a generated
-     key escape the box's own border. */
-  white-space: pre-wrap;
-  word-break: break-all;
+  /* Scroll long lines horizontally rather than wrapping them: wrapping
+     broke multi-line code with trailing comments (a comment mid-wraps
+     onto the next line, reading as a separate statement) and split long
+     unbroken tokens like generated API keys mid-string. A contained
+     horizontal scrollbar reads better than either. */
+  white-space: pre;
   max-width: 100%;
   font-size: 14.5px;
   line-height: 1.6;

@@ -48,7 +48,11 @@
   <aside class="guide-sidebar">
     <div class="group">
       <div class="group-label">Start</div>
-      <a href="./getting-started.html">Getting started</a>
+      <details>
+        <summary>Getting started</summary>
+        <a href="./getting-started.html">Overview</a>
+        <a href="./getting-started-example.html">Full example</a>
+      </details>
       <a href="./how-it-works.html">How it works</a>
     </div>
     <div class="group">
@@ -156,17 +160,17 @@
     <p>Confirm the running instance is using the file you think it is with <code class="inline">--config</code>, and that it contains a <code class="inline">dashboard:</code> block with both <code class="inline">session_secret</code> and a user entry.</p>
 
     <h3>The dashboard is empty after every deploy</h3>
-    <p>Ephemeral filesystem. Your <code class="inline">fitguard.db</code> is being wiped. See <a href="./deployment.html#ephemeral">ephemeral filesystems</a>.</p>
+    <p>Ephemeral filesystem. Your <code class="inline">fitguard.db</code> is being wiped. See <a href="./deployment-operations.html#storage">persistence and operations</a>.</p>
 
     <h3>The dashboard shows only some of my traffic</h3>
     <p>
       You're running more than one instance. Cost logging is per-instance because <code class="inline">fitguard.db</code> is a
       local file, so each dashboard shows only what that instance handled. This is true even with
-      <code class="inline">budget.backend: redis</code>. See <a href="./deployment.html#scale">scaling</a>.
+      <code class="inline">budget.backend: redis</code>. See <a href="./deployment-operations.html#proxy">scaling and operations</a>.
     </p>
 
     <h3>The live feed stops updating behind a proxy</h3>
-    <p>The dashboard updates over Server-Sent Events, and nginx buffers those by default. Set <code class="inline">proxy_buffering off;</code> &mdash; see the <a href="./deployment.html#subdomain">nginx example</a>.</p>
+    <p>The dashboard updates over Server-Sent Events, and nginx buffers those by default. Set <code class="inline">proxy_buffering off;</code> &mdash; see the <a href="./deployment-vps.html#https">VPS HTTPS setup</a>.</p>
 
     <h3><code class="inline">database is locked</code></h3>
     <p>Multiple processes are pointed at the same <code class="inline">fitguard.db</code>. Give each instance its own <code class="inline">data_dir</code>, or use genuinely concurrent-safe shared storage.</p>
@@ -189,7 +193,7 @@
     </p>
 
     <h3>Budget state is per-process unless you use Redis</h3>
-    <p>And <strong>cost logging is per-process regardless</strong>. See <a href="./deployment.html#scale">scaling</a>.</p>
+    <p>And <strong>cost logging is per-process regardless</strong>. See <a href="./deployment-operations.html#proxy">scaling and operations</a>.</p>
 
     <h3>Cost estimation is a heuristic</h3>
     <p>

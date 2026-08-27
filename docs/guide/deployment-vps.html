@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>VPS Deployment — FitGuard</title><meta name="description" content="Deploy FitGuard on a DigitalOcean, Azure, or AWS Ubuntu VPS." /><link rel="stylesheet" href="../assets/css/style.css" /></head>
+<body data-site-root="../"><div class="grid-bg"></div><header class="site-header">
+  <a class="brand" href="../index.html">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 1.3 20.7 4.6V11.1C20.7 17.1 17 21.3 12 22.9 7 21.3 3.3 17.1 3.3 11.1V4.6Z" fill="#3987e5"/><rect x="9.2" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/><rect x="12.4" y="8" width="2.4" height="8" rx="1.2" fill="#04101f"/></svg></span>
+    FitGuard
+  </a>
+  <nav class="top-links">
+    <a href="../index.html">Home</a>
+    <a href="./getting-started.html">Guide</a>
+    <a href="./api-reference.html">API</a>
+    <a href="./configuration.html">Configuration</a>
+    <a href="./deployment.html">Deployment</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <button class="search-trigger" data-search-open type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search docs</span>
+      <span class="kbd"><kbd>&#8984;</kbd><kbd>K</kbd></span>
+    </button>
+    <button class="theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+    <a class="sponsor-link" href="https://github.com/sponsors/Oluiy" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.655 14.916 8 14.25l.345.666a.752.752 0 0 1-.69 0Zm0 0L8 14.25l.345.666.002-.001.006-.003.018-.01a7.643 7.643 0 0 0 .31-.17 22.075 22.075 0 0 0 3.433-2.414C13.956 10.731 16 8.35 16 5.5 16 2.836 13.914 1 11.75 1 10.203 1 8.847 1.802 8 3.02 7.153 1.802 5.797 1 4.25 1 2.086 1 0 2.836 0 5.5c0 2.85 2.044 5.231 3.885 6.818a22.08 22.08 0 0 0 3.744 2.584l.018.01.006.003h.002Z"/></svg>
+      <span>Sponsor</span>
+    </a>
+    <a class="gh-icon" href="https://github.com/Oluiy/ai-cost-guard" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.25 5.68.42.36.78 1.07.78 2.16 0 1.56-.02 2.81-.02 3.19 0 .31.21.67.8.56A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"/></svg>
+    </a>
+    <a class="btn btn-primary" href="./getting-started.html">Get started</a>
+  </div>
+</header>
+<div class="guide-layout"><aside class="guide-sidebar">
+    <div class="group">
+      <div class="group-label">Start</div>
+      <details>
+        <summary>Getting started</summary>
+        <a href="./getting-started.html">Overview</a>
+        <a href="./getting-started-example.html">Full example</a>
+      </details>
+      <a href="./how-it-works.html">How it works</a>
+    </div>
+    <div class="group">
+      <div class="group-label">Reference</div>
+      <a href="./configuration.html">Configuration</a>
+      <a href="./providers.html">Providers</a>
+      <a href="./api-reference.html">API reference</a>
+      <a href="./commands.html">CLI reference</a>
+    </div>
+    <details open><summary>Deployment</summary><a href="./deployment.html">Overview</a><a href="./deployment-docker.html">Docker</a><a href="./deployment-paas.html">Render / Heroku / Railway</a><a href="./deployment-vps.html" class="active">VPS</a><a href="./deployment-operations.html">Persistence &amp; operations</a></details><div class="group"><div class="group-label">Support</div><a href="./troubleshooting.html">Troubleshooting</a></div></aside><article class="guide-content"><h1>VPS</h1><p class="dek">A VPS gives FitGuard a persistent filesystem and predictable networking. This guide uses Ubuntu and works on a DigitalOcean Droplet, Microsoft Azure VM, or AWS EC2 instance.</p>
+<h2 id="create">Create the server</h2><p>Choose Ubuntu 24.04, attach an SSH key, and allow inbound TCP 80 and 443. Restrict SSH to your administration IP. On AWS, use an EBS-backed instance; on DigitalOcean, use the boot disk or a Block Storage volume; on Azure, use the VM's managed disk.</p><p>Use each provider's current image and size identifiers. They change by region, so select them in the provider console rather than copying a stale identifier from this page.</p>
+<h2 id="install">Install FitGuard</h2><div class="callout"><strong>What moves to the server, and what doesn't:</strong> the compiled <code class="inline">fitguard</code> binary and your config both get copied up by hand (below) &mdash; nothing about that config file is special or expected by name, <code class="inline">config.production.yaml</code> below is just what this guide calls it; name it anything. Nothing here is committed to git first: you build/download the binary and write the config on your own machine, then <code class="inline">scp</code> them directly to the server. <code class="inline">fitguard.db</code> is never copied for a fresh install &mdash; it's created automatically on first run; see <a href="./deployment-operations.html#migration">Move local data to production</a> only if you're bringing existing history over.</div><p>Build or download the Linux binary on a trusted machine, then copy it and your config to the server:</p><pre>scp fitguard config.production.yaml ubuntu@&lt;server-ip&gt;:/tmp/
+ssh ubuntu@&lt;server-ip&gt;
+sudo useradd --system --home /var/lib/fitguard --shell /usr/sbin/nologin fitguard
+sudo install -d -o fitguard -g fitguard -m 750 /var/lib/fitguard
+sudo install -d -m 750 /etc/fitguard
+sudo install -m 755 /tmp/fitguard /usr/local/bin/fitguard
+sudo install -m 600 /tmp/config.production.yaml /etc/fitguard/config.yaml
+sudo chown fitguard:fitguard /var/lib/fitguard</pre><p>The <code class="inline">useradd</code> command is run on the server; skip it if the account already exists. Set <code class="inline">data_dir: /var/lib/fitguard</code> so the SQLite file is on the persistent disk.</p>
+<h2 id="service">Run it with systemd</h2><p>Create the environment file first. <code class="inline">EnvironmentFile</code> is not optional in the unit below, so systemd refuses to start the service if this file does not exist:</p><pre>sudo tee /etc/fitguard/fitguard.env &gt;/dev/null &lt;&lt;'EOF'
+OPENAI_API_KEY=sk-...
+# REDIS_URL=rediss://...
+EOF
+sudo chmod 600 /etc/fitguard/fitguard.env</pre><p>systemd reads this file as root before dropping to the <code class="inline">fitguard</code> user, so it does not need to be readable by that account.</p><pre>sudo tee /etc/systemd/system/fitguard.service &gt;/dev/null &lt;&lt;'EOF'
+[Unit]
+Description=FitGuard AI gateway
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=fitguard
+Group=fitguard
+WorkingDirectory=/var/lib/fitguard
+ExecStart=/usr/local/bin/fitguard run --config /etc/fitguard/config.yaml
+EnvironmentFile=/etc/fitguard/fitguard.env
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now fitguard
+curl -fsS http://127.0.0.1:8787/healthz</pre><p>Store provider keys and <code class="inline">REDIS_URL</code> in a root-readable environment file or secret manager, not in the repository. Keep the systemd unit itself free of secrets.</p>
+<h2 id="https">Add HTTPS</h2><p>Point a DNS record at the server and put Caddy or nginx in front of FitGuard. Proxy <code class="inline">/</code> to <code class="inline">127.0.0.1:8787</code>, disable proxy buffering for the dashboard's SSE stream, and set <code class="inline">trusted_proxies</code> to the proxy address.</p>
+<h2 id="verify">Confirm it actually worked</h2><p>In order, on the server (or against your domain once HTTPS is up):</p><ol><li><code class="inline">sudo systemctl status fitguard</code> &mdash; <code class="inline">active (running)</code>, not <code class="inline">failed</code></li><li><code class="inline">curl -fsS http://127.0.0.1:8787/healthz</code> (or <code class="inline">https://your-domain/healthz</code>) returns ok</li><li>Log in to <code class="inline">/dashboard</code> in a browser</li><li>Send one real request through <code class="inline">/v1/chat/completions</code> with a virtual key</li><li>Confirm that request shows up on the dashboard's Requests page</li><li>Restart the service (<code class="inline">sudo systemctl restart fitguard</code>) and confirm that request is still there &mdash; proves <code class="inline">data_dir</code> is actually on the persistent disk, not the wrong path</li></ol><div class="callout"><strong>Next:</strong> Read <a href="./deployment-operations.html">Persistence and operations</a> for backups, Redis, TLS, and scaling.</div><div class="page-nav"><a href="./deployment-paas.html"><span class="label">Previous</span>Hosted platforms</a><a href="./deployment-operations.html" class="next"><span class="label">Next</span>Persistence & operations</a></div></article><aside class="guide-toc"><div class="label">On this page</div><a href="#create">Create the server</a><a href="#install">Install FitGuard</a><a href="#service">Run with systemd</a><a href="#https">Add HTTPS</a><a href="#verify">Confirm it worked</a></aside></div><footer class="site-footer"><p>FitGuard is Apache 2.0 licensed. <a href="https://github.com/Oluiy/ai-cost-guard">View source on GitHub</a>.</p></footer><script src="../assets/js/search-index.js"></script><script src="../assets/js/app.js"></script></body></html>

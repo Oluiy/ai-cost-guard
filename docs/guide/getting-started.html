@@ -48,7 +48,11 @@
   <aside class="guide-sidebar">
     <div class="group">
       <div class="group-label">Start</div>
-      <a href="./getting-started.html" class="active">Getting started</a>
+      <details open>
+        <summary>Getting started</summary>
+        <a href="./getting-started.html" class="active">Overview</a>
+        <a href="./getting-started-example.html">Full example</a>
+      </details>
       <a href="./how-it-works.html">How it works</a>
     </div>
     <div class="group">
@@ -207,6 +211,10 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)</pre>
     <p>The system prompt moves from a top-level field into a normal <code class="inline">role: "system"</code> message; FitGuard translates it back to Anthropic's shape on the way out. Tool calls and image content in messages are translated the same way, in both directions.</p>
 
+    <h2 id="full-example">Full example: migrating an existing Anthropic integration</h2>
+    <p>A complete, concrete walkthrough of everything above &mdash; install, set up, swap the code, run in dev, deploy to production &mdash; for a real project that already calls Anthropic directly. Available in Python, TypeScript, .NET, Java, Go, and Rust.</p>
+    <p><a href="./getting-started-example.html" class="btn btn-primary">Read the full example</a></p>
+
     <h2 id="streaming">Streaming</h2>
     <p>Set <code class="inline">stream: true</code> like you would against the provider directly. Two things behave a little differently because of what streaming actually is:</p>
     <ul>
@@ -249,6 +257,7 @@ print(resp.choices[0].message.content)</pre>
     <a href="#run">Run it</a>
     <a href="#point-your-app">Point your app at it</a>
     <a href="#anthropic-sdk">Using Anthropic's SDK?</a>
+    <a href="#full-example">Full example: dev to production</a> (separate page)
     <a href="#streaming">Streaming</a>
     <a href="#budgets">Budgets and virtual keys</a>
     <a href="#dashboard">The dashboard</a>

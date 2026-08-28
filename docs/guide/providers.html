@@ -95,7 +95,9 @@
         <button class="tab" data-lang="ts">TypeScript</button>
         <button class="tab" data-lang="csharp">C#</button>
         <button class="tab" data-lang="java">Java</button>
-      </div>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl">
 <pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
@@ -199,11 +201,37 @@ HttpResponse&lt;String&gt; response = client.send
 // Read the response body as a string.
 System.out.println(response.body());</pre>
       </div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model": "gpt-4o",
+    "messages": []map[string]string{
+        {"role": "user", "content": "hello"},
+        {"role": "system", "content": "You are an assistant."},
+    },
+})
+req, _ := http.NewRequest("POST", "https://your-fitguard-host/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("https://your-fitguard-host/v1/chat/completions")
+    .bearer_auth("sk-guard-...")
+    .json(&serde_json::json!({
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "user", "content": "hello"},
+            {"role": "system", "content": "You are an assistant."}
+        ]
+    }))
+    .send()?;</pre>
+      </div>
     </div>
 
     <h2 id="anthropic">Anthropic</h2>
     <p>
-      Use Claude model names: <code class="inline">claude-3-5-sonnet</code>, <code class="inline">claude-3-haiku</code>, and so on.
+      Use Claude model names: <code class="inline">claude-sonnet-5</code>, <code class="inline">claude-haiku-4-5</code>, and so on.
       FitGuard translates the request into Anthropic's Messages API and translates the response back into the OpenAI shape your
       client already expects, so the client code below is identical to the OpenAI examples except for the model name.
     </p>
@@ -220,13 +248,15 @@ System.out.println(response.body());</pre>
         <button class="tab" data-lang="ts">TypeScript</button>
         <button class="tab" data-lang="csharp">C#</button>
         <button class="tab" data-lang="java">Java</button>
-      </div>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl">
 <pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-3-5-sonnet",
+    "model": "claude-sonnet-5",
     "messages": [{"role": "user", "content": "hello"}]
   }'</pre>
       </div>
@@ -237,7 +267,7 @@ client = OpenAI(base_url="https://your-fitguard-host/v1",
     api_key="sk-guard-...")
     
 resp = client.chat.completions.create(
-    model="claude-3-5-sonnet",
+    model="claude-sonnet-5",
     messages=[{"role": "user", "content": "hello"}],
 )
 print(resp.choices[0].message.content)</pre>
@@ -251,7 +281,7 @@ const client = new OpenAI({
 });
 
 const resp = await client.chat.completions.create({
-  model: "claude-3-5-sonnet",
+  model: "claude-sonnet-5",
   messages: [{ role: "user", content: "hello" }],
 });
 console.log(resp.choices[0].message.content);</pre>
@@ -270,7 +300,7 @@ client.DefaultRequestHeaders.Authorization =
         "sk-guard-...");
 
 var payload = new {
-    model = "claude-3-5-sonnet",
+    model = "claude-sonnet-5",
     messages = new[] { new { role = "user", content = "hello" } }
 };
 
@@ -285,7 +315,7 @@ Console.WriteLine(body);</pre>
 
 String json = """
     {
-        "model":"claude-3-5-sonnet",
+        "model":"claude-sonnet-5",
         "messages":[
             {"role":"user","content":"hello"},
             {"role":"system","content":"You are an assistant."},
@@ -305,6 +335,32 @@ HttpResponse&lt;String&gt; response = client.send(request,
     
 System.out.println(response.body());</pre>
       </div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model": "claude-sonnet-5",
+    "messages": []map[string]string{
+        {"role": "user", "content": "hello"},
+        {"role": "system", "content": "You are an assistant."},
+    },
+})
+req, _ := http.NewRequest("POST", "https://your-fitguard-host/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("https://your-fitguard-host/v1/chat/completions")
+    .bearer_auth("sk-guard-...")
+    .json(&serde_json::json!({
+        "model": "claude-sonnet-5",
+        "messages": [
+            {"role": "user", "content": "hello"},
+            {"role": "system", "content": "You are an assistant."}
+        ]
+    }))
+    .send()?;</pre>
+      </div>
     </div>
 
     <h2 id="gemini">Gemini</h2>
@@ -316,7 +372,9 @@ System.out.println(response.body());</pre>
         <button class="tab" data-lang="ts">TypeScript</button>
         <button class="tab" data-lang="csharp">C#</button>
         <button class="tab" data-lang="java">Java</button>
-      </div>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl">
 <pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
@@ -400,6 +458,26 @@ HttpResponse&lt;String&gt; response = client.send(request,
 
 System.out.println(response.body());</pre>
       </div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model":    "gemini-2.5-flash",
+    "messages": []map[string]string{{"role": "user", "content": "hello"}},
+})
+req, _ := http.NewRequest("POST", "https://your-fitguard-host/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("https://your-fitguard-host/v1/chat/completions")
+    .bearer_auth("sk-guard-...")
+    .json(&serde_json::json!({
+        "model": "gemini-2.5-flash",
+        "messages": [{"role": "user", "content": "hello"}]
+    }))
+    .send()?;</pre>
+      </div>
     </div>
     <br>
     <div class="callout warn">
@@ -434,7 +512,7 @@ System.out.println(response.body());</pre>
     <h2 id="mixing">Mixing providers in one app</h2>
     <p>Nothing about the client changes between providers, so a single app can call all five without any conditional logic. The only difference is which string you put in <code class="inline">model</code>:</p>
     <pre>await client.chat.completions.create({ model: "gpt-4o-mini", ... });                     // OpenAI
-await client.chat.completions.create({ model: "claude-3-haiku", ... });                  // Anthropic
+await client.chat.completions.create({ model: "claude-haiku-4-5", ... });                  // Anthropic
 await client.chat.completions.create({ model: "gemini-2.5-flash", ... });                // Gemini
 await client.chat.completions.create({ model: "llama-3.3-70b-versatile", ... });         // Groq
 await client.chat.completions.create({ model: "meta-llama/Llama-3-70b-chat-hf", ... });  // Together</pre>

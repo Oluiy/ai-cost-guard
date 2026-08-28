@@ -94,7 +94,7 @@
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
         <span class="title">~/orders-api</span>
       </div>
-      <pre><span class="cmd muted">curl localhost:8787/v1/chat/completions -d '{"model":"claude-5-sonnet", "max_tokens":50000, ...}'</span>
+      <pre><span class="cmd muted">curl localhost:8787/v1/chat/completions -d '{"model":"claude-sonnet-5", "max_tokens":50000, ...}'</span>
 <span class="fail">429</span> <span class="muted">{"error":{"message":"daily budget of $5.00 exceeded or would be exceeded by this request","type":"budget_exceeded"}}</span>
 
 <span class="muted">→ nothing was sent upstream. nothing was spent.</span></pre>
@@ -158,10 +158,18 @@
           <p>Change the base URL and use the virtual key from step 2, not your real provider key. Nothing else in your code changes.</p>
           <div class="code-tabs">
             <div class="tab-row">
+              <button class="tab" data-lang="curl">curl</button>
               <button class="tab" data-lang="python">Python</button>
               <button class="tab" data-lang="typescript">TypeScript</button>
-              <button class="tab" data-lang="curl">curl</button>
-            </div>
+              <button class="tab" data-lang="csharp">C#</button>
+              <button class="tab" data-lang="java">Java</button>
+            
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
+            <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer sk-guard-..." \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}'</pre></div>
             <div class="panel" data-lang="python"><pre>from openai import OpenAI
 
 client = OpenAI(
@@ -174,10 +182,24 @@ const client = new OpenAI({
   baseURL: "http://localhost:8787/v1",   // was api.openai.com
   apiKey: "sk-guard-...",                // from `fitguard init`
 });</pre></div>
-            <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
-  -H "Authorization: Bearer sk-guard-..." \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}'</pre></div>
+            <div class="panel" data-lang="csharp"><pre>// was: BaseAddress = new Uri("https://api.openai.com/v1/")
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-..."); // from `fitguard init`</pre></div>
+            <div class="panel" data-lang="java"><pre>// was: URI.create("https://api.openai.com/v1/chat/completions")
+HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-..."); // from `fitguard init`</pre></div>
+      <div class="panel" data-lang="go">
+<pre>// was: http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", ...)
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/chat/completions", body)
+req.Header.Set("Authorization", "Bearer sk-guard-...") // from `fitguard init`</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>// was: client.post("https://api.openai.com/v1/chat/completions")
+client.post("http://localhost:8787/v1/chat/completions")
+    .bearer_auth("sk-guard-...") // from `fitguard init`</pre>
+      </div>
           </div>
         </div>
       </div>
@@ -348,13 +370,17 @@ const client = new OpenAI({
         <button class="tab" data-lang="curl">curl</button>
         <button class="tab" data-lang="python">Python</button>
         <button class="tab" data-lang="ts">TypeScript</button>
-      </div>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl">
 <pre>curl http://localhost:8787/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-5-sonnet",
+    "model": "claude-sonnet-5",
     "messages": [{"role": "user", "content": "hello"}]
   }'</pre>
       </div>
@@ -363,7 +389,7 @@ const client = new OpenAI({
 
 client = OpenAI(base_url="http://localhost:8787/v1", api_key="sk-guard-...")
 client.chat.completions.create(
-    model="claude-5-sonnet",
+    model="claude-sonnet-5",
     messages=[{"role": "user", "content": "hello"}],
 )</pre>
       </div>
@@ -376,9 +402,61 @@ const client = new OpenAI({
 });
 
 await client.chat.completions.create({
-  model: "claude-5-sonnet",
+  model: "claude-sonnet-5",
   messages: [{ role: "user", content: "hello" }],
 });</pre>
+      </div>
+      <div class="panel" data-lang="csharp">
+<pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+
+var payload = new {
+    model = "claude-sonnet-5",
+    messages = new[] { new { role = "user", content = "hello" } }
+};
+await client.PostAsJsonAsync("chat/completions", payload);</pre>
+      </div>
+      <div class="panel" data-lang="java">
+<pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"claude-sonnet-5","messages":[{"role":"user","content":"hello"}]}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+client.send(request, HttpResponse.BodyHandlers.ofString());</pre>
+      </div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model":    "claude-sonnet-5",
+    "messages": []map[string]string{{"role": "user", "content": "hello"}},
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-...")
+req.Header.Set("Content-Type", "application/json")
+http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+client.post("http://localhost:8787/v1/chat/completions")
+    .bearer_auth("sk-guard-...")
+    .json(&serde_json::json!({
+        "model": "claude-sonnet-5",
+        "messages": [{"role": "user", "content": "hello"}]
+    }))
+    .send()?;</pre>
+      </div>
+      <div class="panel" data-lang=".NET">
+<pre>
+    
+</pre>
       </div>
     </div>
     <div class="cta-row" style="margin-top: 32px;">

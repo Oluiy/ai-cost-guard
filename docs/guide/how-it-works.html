@@ -235,7 +235,7 @@
     <p>
       <code class="inline">fallback:</code> is a flat list of model names tried in order after the requested model, and only when a
       request errors or the upstream returns <code class="inline">5xx</code>/<code class="inline">429</code>. Each fallback is routed
-      through the same rules above, so falling back to <code class="inline">claude-3-haiku</code> after a
+      through the same rules above, so falling back to <code class="inline">claude-haiku-4-5</code> after a
       <code class="inline">gpt-4o</code> failure hits your Anthropic provider.
     </p>
     <p>
@@ -246,8 +246,8 @@
     <h2 id="pricing">The pricing table</h2>
     <p>
       Cost is computed from a hardcoded USD-per-1K-token table covering OpenAI, Anthropic, Gemini, Groq, and Together models.
-      Lookup falls back to a prefix match, so <code class="inline">claude-3-5-sonnet-20241022</code> matches a
-      <code class="inline">claude-3-5-sonnet</code> entry, and finally to a conservative default for anything unrecognized &mdash;
+      Lookup falls back to a prefix match, so <code class="inline">claude-sonnet-5-20241022</code> matches a
+      <code class="inline">claude-sonnet-5</code> entry, and finally to a conservative default for anything unrecognized &mdash;
       an unknown model degrades to "probably overestimated" rather than silently free.
     </p>
     <div class="callout">

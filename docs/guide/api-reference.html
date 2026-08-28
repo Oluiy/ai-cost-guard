@@ -116,7 +116,9 @@
         <button class="tab" data-lang="typescript">TypeScript</button>
         <button class="tab" data-lang="csharp">C#</button>
         <button class="tab" data-lang="java">Java</button>
-      </div>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-a1b2c3..." \
   -H "Content-Type: application/json" \
@@ -151,33 +153,55 @@ const resp = await client.chat.completions.create({
   max_tokens: 100,
 });
 console.log(resp.choices[0].message.content);</pre></div>
-      <div class="panel" data-lang="csharp"><pre>using OpenAI;
-using OpenAI.Chat;
-using System.ClientModel;
+      <div class="panel" data-lang="csharp"><pre>using System.Net.Http.Json;
 
-var client = new ChatClient(
-    model: "gpt-4o",
-    credential: new ApiKeyCredential("sk-guard-a1b2c3..."),
-    options: new OpenAIClientOptions { Endpoint = new Uri("http://localhost:8787/v1") });
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
 
-ChatCompletion completion = client.CompleteChat("Say hello");
-Console.WriteLine(completion.Content[0].Text);</pre></div>
-      <div class="panel" data-lang="java"><pre>import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
-import com.openai.models.chat.completions.ChatCompletionCreateParams;
+var payload = new {
+    model = "gpt-4o",
+    messages = new[] { new { role = "user", content = "Say hello" } },
+    max_tokens = 100
+};
+var response = await client.PostAsJsonAsync("chat/completions", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"gpt-4o","messages":[{"role":"user","content":"Say hello"}],"max_tokens":100}
+    """;
 
-OpenAIClient client = OpenAIOkHttpClient.builder()
-    .baseUrl("http://localhost:8787/v1")
-    .apiKey("sk-guard-a1b2c3...")
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
     .build();
-
-var params = ChatCompletionCreateParams.builder()
-    .model("gpt-4o")
-    .addUserMessage("Say hello")
-    .maxTokens(100)
-    .build();
-
-System.out.println(client.chat().completions().create(params));</pre></div>
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model":      "gpt-4o",
+    "messages":   []map[string]string{{"role": "user", "content": "Say hello"}},
+    "max_tokens": 100,
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("http://localhost:8787/v1/chat/completions")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": "Say hello"}],
+        "max_tokens": 100
+    }))
+    .send()?;</pre>
+      </div>
     </div>
 
     <h3 id="response-headers">Response headers</h3>
@@ -193,6 +217,28 @@ System.out.println(client.chat().completions().create(params));</pre></div>
     <div class="callout">
       <strong>Streaming caveat.</strong> Streamed responses set <code class="inline">X-Cache</code> and <code class="inline">X-AI-Guard-Model-Used</code>, but never <code class="inline">X-AI-Guard-Warning</code>. HTTP headers are sent before the first byte of the body, and FitGuard doesn't know the finish reason until the stream ends. A truncated <em>streamed</em> answer is flagged in the log and the dashboard, not to the client.
     </div>
+
+    <h3 id="chat-response">Response</h3>
+    <p>Standard OpenAI <code class="inline">chat.completion</code> shape, regardless of which provider actually served the model. OpenAI/Groq/Together responses are already this shape and pass through unmodified; Anthropic and Gemini responses are translated into it.</p>
+    <pre>{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "created": 1735689600,
+  "model": "claude-sonnet-5",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "..." },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 34,
+    "total_tokens": 46
+  }
+}</pre>
+    <p>See <a href="#errors">Errors</a> below for the failure shape.</p>
 
     <h3 id="streaming">Streaming</h3>
     <p>Set <code class="inline">stream: true</code> and you get standard OpenAI SSE chunks terminated by <code class="inline">data: [DONE]</code>. Three things are worth knowing:</p>
@@ -232,7 +278,11 @@ System.out.println(client.chat().completions().create(params));</pre></div>
         <button class="tab" data-lang="curl">curl</button>
         <button class="tab" data-lang="python">Python</button>
         <button class="tab" data-lang="typescript">TypeScript</button>
-      </div>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/embeddings \
   -H "Authorization: Bearer sk-guard-a1b2c3..." \
   -H "Content-Type: application/json" \
@@ -247,7 +297,60 @@ print(len(resp.data[0].embedding))</pre></div>
   input: "hello world",
 });
 console.log(resp.data[0].embedding.length);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
+
+var payload = new { model = "text-embedding-3-small", input = "hello world" };
+var response = await client.PostAsJsonAsync("embeddings", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"text-embedding-3-small","input":"hello world"}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/embeddings"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model": "text-embedding-3-small",
+    "input": "hello world",
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/embeddings", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("http://localhost:8787/v1/embeddings")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({
+        "model": "text-embedding-3-small",
+        "input": "hello world"
+    }))
+    .send()?;</pre>
+      </div>
     </div>
+    <h3 id="embeddings-response">Response</h3>
+    <p>Standard OpenAI embeddings shape. OpenAI/Groq/Together pass through unmodified; Gemini is translated into it. Anthropic returns the standard error shape (see <a href="#errors">Errors</a>) with <code class="inline">upstream_error</code>, not a response like this.</p>
+    <pre>{
+  "object": "list",
+  "data": [
+    { "object": "embedding", "index": 0, "embedding": [0.0023, -0.009, ...] }
+  ],
+  "model": "text-embedding-3-small",
+  "usage": { "prompt_tokens": 2, "total_tokens": 2 }
+}</pre>
 
     <h2 id="healthz">GET /healthz</h2>
     <p>Unauthenticated liveness check. Point your load balancer, Kubernetes probe, or uptime monitor here.</p>

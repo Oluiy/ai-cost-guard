@@ -128,7 +128,7 @@ openai&gt;=1.0.0</pre>
 
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 resp = client.messages.create(
-    model="claude-3-5-sonnet",
+    model="claude-sonnet-5",
     max_tokens=1024,
     messages=[{"role": "user", "content": prompt}],
 )
@@ -141,7 +141,7 @@ client = OpenAI(
     api_key=os.environ["FITGUARD_KEY"],    # the sk-guard-... key from Step 2
 )
 resp = client.chat.completions.create(
-    model="claude-3-5-sonnet",             # unchanged: same Claude model
+    model="claude-sonnet-5",             # unchanged: same Claude model
     max_tokens=1024,
     messages=[{"role": "user", "content": prompt}],
 )
@@ -156,7 +156,7 @@ answer = resp.choices[0].message.content</pre>
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resp = await client.messages.create({
-  model: "claude-3-5-sonnet",
+  model: "claude-sonnet-5",
   max_tokens: 1024,
   messages: [{ role: "user", content: prompt }],
 });
@@ -169,7 +169,7 @@ const client = new OpenAI({
   apiKey: process.env.FITGUARD_KEY,  // the sk-guard-... key from Step 2
 });
 const resp = await client.chat.completions.create({
-  model: "claude-3-5-sonnet", // unchanged
+  model: "claude-sonnet-5", // unchanged
   max_tokens: 1024,
   messages: [{ role: "user", content: prompt }],
 });
@@ -186,7 +186,7 @@ client.DefaultRequestHeaders.Add("x-api-key", Environment.GetEnvironmentVariable
 client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
 var payload = new {
-    model = "claude-3-5-sonnet",
+    model = "claude-sonnet-5",
     max_tokens = 1024,
     messages = new[] { new { role = "user", content = prompt } }
 };
@@ -203,7 +203,7 @@ client.DefaultRequestHeaders.Authorization =
         "Bearer", Environment.GetEnvironmentVariable("FITGUARD_KEY"));
 
 var payload = new {
-    model = "claude-3-5-sonnet", // unchanged
+    model = "claude-sonnet-5", // unchanged
     messages = new[] { new { role = "user", content = prompt } }
 };
 var response = await client.PostAsJsonAsync("chat/completions", payload);
@@ -215,7 +215,7 @@ var body = await response.Content.ReadAsStringAsync();</pre>
         <p><strong>Before</strong> &mdash; direct to Anthropic:</p>
         <pre>HttpClient client = HttpClient.newHttpClient();
 String json = """
-    {"model":"claude-3-5-sonnet","max_tokens":1024,
+    {"model":"claude-sonnet-5","max_tokens":1024,
      "messages":[{"role":"user","content":"%s"}]}
     """.formatted(prompt);
 
@@ -230,7 +230,7 @@ HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHand
         <p><strong>After</strong> &mdash; through FitGuard:</p>
         <pre>HttpClient client = HttpClient.newHttpClient();
 String json = """
-    {"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"%s"}]}
+    {"model":"claude-sonnet-5","messages":[{"role":"user","content":"%s"}]}
     """.formatted(prompt); // model unchanged
 
 HttpRequest request = HttpRequest.newBuilder()
@@ -246,7 +246,7 @@ HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHand
         <p><strong>Add the dependency</strong>: none &mdash; <code class="inline">net/http</code> is standard library, no module needed either way.</p>
         <p><strong>Before</strong> &mdash; direct to Anthropic:</p>
         <pre>body, _ := json.Marshal(map[string]any{
-    "model":      "claude-3-5-sonnet",
+    "model":      "claude-sonnet-5",
     "max_tokens": 1024,
     "messages":   []map[string]string{{"role": "user", "content": prompt}},
 })
@@ -257,7 +257,7 @@ req.Header.Set("Content-Type", "application/json")
 resp, _ := http.DefaultClient.Do(req)</pre>
         <p><strong>After</strong> &mdash; through FitGuard:</p>
         <pre>body, _ := json.Marshal(map[string]any{
-    "model":    "claude-3-5-sonnet", // unchanged
+    "model":    "claude-sonnet-5", // unchanged
     "messages": []map[string]string{{"role": "user", "content": prompt}},
 })
 req, _ := http.NewRequest("POST", os.Getenv("FITGUARD_URL")+"/chat/completions", bytes.NewReader(body))
@@ -277,7 +277,7 @@ let resp = client.post("https://api.anthropic.com/v1/messages")
     .header("x-api-key", std::env::var("ANTHROPIC_API_KEY")?)
     .header("anthropic-version", "2023-06-01")
     .json(&amp;serde_json::json!({
-        "model": "claude-3-5-sonnet",
+        "model": "claude-sonnet-5",
         "max_tokens": 1024,
         "messages": [{"role": "user", "content": prompt}]
     }))
@@ -287,7 +287,7 @@ let resp = client.post("https://api.anthropic.com/v1/messages")
 let resp = client.post(format!("{}/chat/completions", std::env::var("FITGUARD_URL")?))
     .bearer_auth(std::env::var("FITGUARD_KEY")?)
     .json(&amp;serde_json::json!({
-        "model": "claude-3-5-sonnet", // unchanged
+        "model": "claude-sonnet-5", // unchanged
         "messages": [{"role": "user", "content": prompt}]
     }))
     .send()?;</pre>

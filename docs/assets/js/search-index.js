@@ -161,6 +161,12 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "chat completions endpoint messages model max_tokens tools request body",
   },
   {
+    title: "Chat completions response",
+    section: "Reference · API",
+    url: "guide/api-reference.html#chat-response",
+    keywords: "response shape response_model chat.completion choices message usage finish_reason",
+  },
+  {
     title: "Response headers",
     section: "Reference · API",
     url: "guide/api-reference.html#response-headers",

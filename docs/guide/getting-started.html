@@ -136,7 +136,11 @@ sh install.sh</pre>
         <button class="tab" data-lang="curl">curl</button>
         <button class="tab" data-lang="python">Python</button>
         <button class="tab" data-lang="ts">TypeScript</button>
-      </div>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+      
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
       <div class="panel" data-lang="curl">
 <pre>curl http://localhost:8787/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
@@ -168,6 +172,53 @@ await client.chat.completions.create({
   messages: [{ role: "user", content: "hello" }],
 });</pre>
       </div>
+      <div class="panel" data-lang="csharp">
+<pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-...");
+
+var payload = new {
+    model = "gpt-4o",
+    messages = new[] { new { role = "user", content = "hello" } }
+};
+await client.PostAsJsonAsync("chat/completions", payload);</pre>
+      </div>
+      <div class="panel" data-lang="java">
+<pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/chat/completions"))
+    .header("Authorization", "Bearer sk-guard-...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+client.send(request, HttpResponse.BodyHandlers.ofString());</pre>
+      </div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model":    "gpt-4o",
+    "messages": []map[string]string{{"role": "user", "content": "hello"}},
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/chat/completions", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("http://localhost:8787/v1/chat/completions")
+    .bearer_auth("sk-guard-...")
+    .json(&serde_json::json!({
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": "hello"}]
+    }))
+    .send()?;</pre>
+      </div>
     </div>
     <p>Anthropic and Groq models route automatically from the <code class="inline">model</code> field, no other change needed. Your real provider key never leaves <code class="inline">config.yaml</code>.</p>
 
@@ -186,7 +237,7 @@ await client.chat.completions.create({
 
 client = Anthropic(api_key="sk-ant-...")
 resp = client.messages.create(
-    model="claude-5-sonnet",
+    model="claude-sonnet-5",
     max_tokens=1024,
     system="You are a helpful assistant.",
     messages=[{"role": "user", "content": "hello"}],
@@ -198,7 +249,7 @@ print(resp.content[0].text)</pre>
 client = OpenAI(base_url="http://localhost:8787/v1",
     api_key="sk-guard-...")
 resp = client.chat.completions.create(
-    model="claude-5-sonnet",  # unchanged: the same Claude model
+    model="claude-sonnet-5",  # unchanged: the same Claude model
     max_tokens=1024,
     messages=[
         {

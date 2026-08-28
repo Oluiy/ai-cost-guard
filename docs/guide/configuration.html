@@ -178,7 +178,7 @@ dashboard:    # written by `fitguard init` / `reset-dashboard-password`
     <p>If <code class="inline">keys:</code> is empty, FitGuard runs in single-tenant mode: every request is unauthenticated and shares one <code class="inline">"default"</code> identity. Fine for a solo local setup, not once more than one caller can reach the port.</p>
 
     <h2 id="fallback">Fallback</h2>
-    <p>A flat list of model names, tried in order if the primary model's request errors, rate-limits, or 5xxs. Each one is routed the same way the primary model was, so a fallback to <code class="inline">claude-3-haiku</code> after a <code class="inline">gpt-4o</code> failure hits your <code class="inline">anthropic</code> provider entry, if you've configured one.</p>
+    <p>A flat list of model names, tried in order if the primary model's request errors, rate-limits, or 5xxs. Each one is routed the same way the primary model was, so a fallback to <code class="inline">claude-haiku-4-5</code> after a <code class="inline">gpt-4o</code> failure hits your <code class="inline">anthropic</code> provider entry, if you've configured one.</p>
     <p>Every entry is validated against <code class="inline">providers:</code> at load time (and again on any dashboard settings save): a model whose provider isn't configured is rejected outright, rather than silently failing the first time it's actually needed as a fallback. A custom or self-hosted model not in FitGuard's built-in price table still works if named <code class="inline">provider/model</code> (e.g. <code class="inline">together/my-model</code>), which ties it to a configured provider explicitly.</p>
 
     <h2 id="dashboard-auth">Dashboard login</h2>

@@ -1,0 +1,39 @@
+# docker compose up — fitguard plus an optional Redis for the cache/budget
+# backends. Redis isn't required (fitguard defaults to in-memory/local for
+# both), it's included here because it's the one thing worth having ready
+# before you need it: switching a live single-instance deployment to
+# `budget.backend: redis` later means a second migration, not just a
+# config edit, if Redis isn't already there to point at.
+services:
+  fitguard:
+    build: .
+    ports:
+      - "8787:8787"
+    volumes:
+      # Writable, not :ro — the dashboard's Settings page saves back to
+      # this file. See docs/guide/deployment-docker.html for why a
+      # read-only mount breaks that.
+      - ./config.yaml:/data/config.yaml
+      # Named volume, not a bind mount: fitguard.db lives here, and a
+      # named volume survives `docker compose down` (a bind mount would
+      # too, but only if you remember the host path never gets deleted;
+      # this removes that footgun entirely).
+      - fitguard-data:/data
+    environment:
+      # Referenced from config.yaml as ${OPENAI_API_KEY} — never write
+      # the real value into config.yaml itself. Put real secrets in a
+      # .env file (gitignored) next to this compose file, not here.
+      - OPENAI_API_KEY
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    # No exposed port to the host on purpose: only the fitguard service
+    # needs to reach it, over the compose-internal network as `redis:6379`.
+
+volumes:
+  fitguard-data:
+  redis-data:

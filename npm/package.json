@@ -1,6 +1,6 @@
 {
   "name": "fitguard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Self-hosted, OpenAI-compatible AI gateway that stops runaway LLM bills before they happen.",
   "keywords": [
     "ai",
@@ -19,6 +19,10 @@
     "type": "git",
     "url": "git+https://github.com/Oluiy/ai-cost-guard.git"
   },
+  "bugs": {
+    "url": "https://github.com/Oluiy/ai-cost-guard/issues"
+  },
+  "author": "Oluiy",
   "bin": {
     "fitguard": "bin/cli.js"
   },

@@ -103,11 +103,21 @@ func expandBracedEnvVars(s string) string {
 	})
 }
 
-// Load reads and parses a YAML config file at path.
+// Load reads and parses a YAML config. If FITGUARD_CONFIG is set, its
+// value is used as the config content directly instead of reading path —
+// this is what lets platforms that build from git with no local disk to
+// mount a file from (Render, Railway, Heroku) run fitguard: the whole
+// config.yaml goes into one environment variable instead.
 func Load(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading config %s: %w", path, err)
+	var data []byte
+	if env := os.Getenv("FITGUARD_CONFIG"); env != "" {
+		data = []byte(env)
+	} else {
+		var err error
+		data, err = os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading config %s: %w", path, err)
+		}
 	}
 
 	data = []byte(expandBracedEnvVars(string(data)))

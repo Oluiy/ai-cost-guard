@@ -19,9 +19,15 @@ type Price struct {
 }
 
 // Table maps model name -> pricing. Prices are USD per 1,000 tokens.
-// Source: published provider pricing pages, approximate as of 2025.
+// Source: each provider's own published pricing page, verified live as of
+// 2026-08-28 (see platform.claude.com/docs/en/about-claude/pricing,
+// developers.openai.com/api/docs/pricing, ai.google.dev/gemini-api/docs/pricing,
+// console.groq.com/docs/models, docs.together.ai/docs/serverless-models).
 var Table = map[string]Price{
 	// OpenAI
+	"gpt-5":         {InputPer1K: 0.00125, OutputPer1K: 0.010, Provider: "openai"},
+	"gpt-5-mini":    {InputPer1K: 0.00025, OutputPer1K: 0.002, Provider: "openai"},
+	"gpt-5-nano":    {InputPer1K: 0.00005, OutputPer1K: 0.0004, Provider: "openai"},
 	"gpt-4o":        {InputPer1K: 0.0025, OutputPer1K: 0.010, Provider: "openai"},
 	"gpt-4o-mini":   {InputPer1K: 0.00015, OutputPer1K: 0.0006, Provider: "openai"},
 	"gpt-4.1":       {InputPer1K: 0.002, OutputPer1K: 0.008, Provider: "openai"},
@@ -36,34 +42,35 @@ var Table = map[string]Price{
 	"o3-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
 	"o4-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
 
-	// Anthropic
-	"claude-3-7-sonnet": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
-	"claude-3-5-sonnet": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
-	"claude-3-5-haiku":  {InputPer1K: 0.0008, OutputPer1K: 0.004, Provider: "anthropic"},
-	"claude-3-opus":     {InputPer1K: 0.015, OutputPer1K: 0.075, Provider: "anthropic"},
-	"claude-3-sonnet":   {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
-	"claude-3-haiku":    {InputPer1K: 0.00025, OutputPer1K: 0.00125, Provider: "anthropic"},
+	// Anthropic — current generation. Claude 3.x (3-opus, 3-5-sonnet,
+	// 3-7-sonnet, etc.) is fully retired on the direct API as of this
+	// writing; a request using those names now fails upstream, which is
+	// the actual cause of "claude-3-5-sonnet always fails" reports.
+	"claude-sonnet-5":   {InputPer1K: 0.002, OutputPer1K: 0.010, Provider: "anthropic"},
+	"claude-opus-5":     {InputPer1K: 0.005, OutputPer1K: 0.025, Provider: "anthropic"},
+	"claude-fable-5":    {InputPer1K: 0.010, OutputPer1K: 0.050, Provider: "anthropic"},
+	"claude-haiku-4-5":  {InputPer1K: 0.001, OutputPer1K: 0.005, Provider: "anthropic"},
+	"claude-sonnet-4-5": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
+	"claude-opus-4-5":   {InputPer1K: 0.005, OutputPer1K: 0.025, Provider: "anthropic"},
 
 	// Google Gemini
+	"gemini-3.5-flash":      {InputPer1K: 0.0015, OutputPer1K: 0.009, Provider: "gemini"},
+	"gemini-3.5-flash-lite": {InputPer1K: 0.0003, OutputPer1K: 0.0025, Provider: "gemini"},
 	"gemini-2.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.010, Provider: "gemini"},
 	"gemini-2.5-flash":      {InputPer1K: 0.0003, OutputPer1K: 0.0025, Provider: "gemini"},
 	"gemini-2.5-flash-lite": {InputPer1K: 0.0001, OutputPer1K: 0.0004, Provider: "gemini"},
-	"gemini-2.0-flash":      {InputPer1K: 0.0001, OutputPer1K: 0.0004, Provider: "gemini"},
-	"gemini-1.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.005, Provider: "gemini"},
-	"gemini-1.5-flash":      {InputPer1K: 0.000075, OutputPer1K: 0.0003, Provider: "gemini"},
 	"gemini-embedding-001":  {InputPer1K: 0.00015, Provider: "gemini", Embedding: true},
 
-	// Groq (Llama / Mixtral hosted)
+	// Groq. gpt-oss-120b/20b are also hosted here, but deliberately not
+	// listed: a bare "openai/..." prefix in FitGuard's routing means
+	// "force-route to the openai provider" (see route.go), so adding
+	// that name here would make FitGuard send it to OpenAI, which
+	// doesn't serve it, instead of Groq.
 	"llama-3.1-8b-instant":    {InputPer1K: 0.00005, OutputPer1K: 0.00008, Provider: "groq"},
-	"llama-3.1-70b-versatile": {InputPer1K: 0.00059, OutputPer1K: 0.00079, Provider: "groq"},
 	"llama-3.3-70b-versatile": {InputPer1K: 0.00059, OutputPer1K: 0.00079, Provider: "groq"},
-	"mixtral-8x7b-32768":      {InputPer1K: 0.00024, OutputPer1K: 0.00024, Provider: "groq"},
-	"gemma2-9b-it":            {InputPer1K: 0.0002, OutputPer1K: 0.0002, Provider: "groq"},
 
 	// Together AI
-	"meta-llama/Llama-3-8b-chat-hf":        {InputPer1K: 0.0002, OutputPer1K: 0.0002, Provider: "together"},
-	"meta-llama/Llama-3-70b-chat-hf":       {InputPer1K: 0.0009, OutputPer1K: 0.0009, Provider: "together"},
-	"mistralai/Mixtral-8x7B-Instruct-v0.1": {InputPer1K: 0.0006, OutputPer1K: 0.0006, Provider: "together"},
+	"meta-llama/Llama-3.3-70B-Instruct-Turbo": {InputPer1K: 0.00104, OutputPer1K: 0.00104, Provider: "together"},
 
 	// OpenAI embeddings (input-only; OutputPer1K unused for these models)
 	"text-embedding-3-small": {InputPer1K: 0.00002, Provider: "openai", Embedding: true},

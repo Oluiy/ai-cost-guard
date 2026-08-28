@@ -48,7 +48,7 @@ func TestSettings_ApplyChangesWhatTheRequestPathReads(t *testing.T) {
 	_, err := s.Apply(Editable{
 		CacheEnabled:    false,
 		CacheTTLSeconds: 25200, // 7h, the scheduled-job case
-		Fallback:        []string{"claude-3-haiku"},
+		Fallback:        []string{"claude-haiku-4-5"},
 		Users:           map[string]float64{"alice": 12, "bob": 3},
 	})
 	if err != nil {
@@ -67,8 +67,8 @@ func TestSettings_ApplyChangesWhatTheRequestPathReads(t *testing.T) {
 	if b, ok := s.Budget("bob"); !ok || b.DailyLimitUSD != 3 {
 		t.Errorf("bob = %v, %v; want 3, true", b.DailyLimitUSD, ok)
 	}
-	if got := s.Fallback(); len(got) != 1 || got[0] != "claude-3-haiku" {
-		t.Errorf("Fallback = %v, want [claude-3-haiku]", got)
+	if got := s.Fallback(); len(got) != 1 || got[0] != "claude-haiku-4-5" {
+		t.Errorf("Fallback = %v, want [claude-haiku-4-5]", got)
 	}
 }
 
@@ -230,7 +230,7 @@ func TestSettings_ConcurrentReadsAndWritesAreRaceFree(t *testing.T) {
 		if _, err := s.Apply(Editable{
 			CacheEnabled:    i%2 == 0,
 			CacheTTLSeconds: ttl,
-			Fallback:        []string{"gpt-4o-mini", "claude-3-haiku"},
+			Fallback:        []string{"gpt-4o-mini", "claude-haiku-4-5"},
 			Users:           map[string]float64{"alice": float64(i)},
 		}); err != nil {
 			t.Fatalf("Apply: %v", err)

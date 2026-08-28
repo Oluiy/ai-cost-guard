@@ -9,8 +9,8 @@ func TestRouteProvider(t *testing.T) {
 		"o1-mini":                        "openai",
 		"o3-mini":                        "openai",
 		"text-embedding-3-small":         "openai", // no recognized prefix -> default
-		"claude-5-sonnet":                "anthropic",
-		"claude-3-haiku":                 "anthropic",
+		"claude-sonnet-5":                "anthropic",
+		"claude-haiku-4-5":               "anthropic",
 		"llama-3.1-8b-instant":           "groq",
 		"mixtral-8x7b-32768":             "groq",
 		"gemma2-9b-it":                   "groq",

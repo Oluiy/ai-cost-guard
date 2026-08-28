@@ -227,6 +227,21 @@ func TestLoad_ExpandsBracedEnvVars(t *testing.T) {
 	}
 }
 
+func TestLoad_UsesFITGUARD_CONFIGWithoutReadingPath(t *testing.T) {
+	t.Setenv("FITGUARD_CONFIG", "port: 9090\ndata_dir: /var/data\nproviders:\n  openai:\n    api_key: from-env-config\n")
+
+	cfg, err := Load(t.TempDir() + "/config.yaml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Port != 9090 || cfg.DataDir != "/var/data" {
+		t.Fatalf("got port=%d data_dir=%q from environment config", cfg.Port, cfg.DataDir)
+	}
+	if got := cfg.Providers["openai"].APIKey; got != "from-env-config" {
+		t.Fatalf("got api_key %q, want value from FITGUARD_CONFIG", got)
+	}
+}
+
 // A bcrypt hash (dashboard.users[].password_hash) is a bare string like
 // $2a$10$..., which happens to look like shell variable syntax. Load must
 // not mangle it: only the ${VAR} braced form is env-var expansion, bare

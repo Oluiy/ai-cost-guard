@@ -265,7 +265,7 @@ func RunInit(configPath string) error {
 
 	if len(cfg.Providers) > 1 {
 		pterm.Info.Println("You can configure automatic fallback models in config.yaml under `fallback:` " +
-			"(e.g. try gpt-4o-mini or claude-3-haiku if your primary model fails or rate-limits).")
+			"(e.g. try gpt-4o-mini or claude-haiku-4-5 if your primary model fails or rate-limits).")
 	}
 
 	pterm.Println()

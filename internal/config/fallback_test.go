@@ -17,7 +17,7 @@ func providers(names ...string) map[string]Provider {
 
 func TestValidateFallback_AcceptsModelsFromConfiguredProviders(t *testing.T) {
 	err := ValidateFallback(
-		[]string{"gpt-4o-mini", "claude-3-haiku", "gemini-2.5-flash"},
+		[]string{"gpt-4o-mini", "claude-haiku-4-5", "gemini-2.5-flash"},
 		providers("openai", "anthropic", "gemini"),
 	)
 	if err != nil {
@@ -28,7 +28,7 @@ func TestValidateFallback_AcceptsModelsFromConfiguredProviders(t *testing.T) {
 // The whole point: a fallback naming an unconfigured provider is skipped
 // silently at request time, so the chain quietly degrades to nothing.
 func TestValidateFallback_RejectsModelFromUnconfiguredProvider(t *testing.T) {
-	err := ValidateFallback([]string{"claude-3-haiku"}, providers("openai"))
+	err := ValidateFallback([]string{"claude-haiku-4-5"}, providers("openai"))
 	if err == nil {
 		t.Fatal("expected a model from an unconfigured provider to be rejected")
 	}
@@ -69,7 +69,7 @@ func TestValidateFallback_RejectsEmptyEntry(t *testing.T) {
 
 // Versioned/dated names must resolve to their base model's provider.
 func TestValidateFallback_ResolvesDatedModelNames(t *testing.T) {
-	if err := ValidateFallback([]string{"claude-3-5-sonnet-20241022"}, providers("anthropic")); err != nil {
+	if err := ValidateFallback([]string{"claude-haiku-4-5-20251001"}, providers("anthropic")); err != nil {
 		t.Fatalf("expected a dated model name to resolve: %v", err)
 	}
 }

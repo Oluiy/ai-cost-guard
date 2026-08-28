@@ -67,11 +67,11 @@ keys:
 
 # If the primary model's request fails or rate-limits, try these models
 # in order. Each one must be served by a provider configured above (e.g.
-# claude-3-haiku needs an `anthropic:` entry), or fitguard refuses to
+# claude-haiku-4-5 needs an `anthropic:` entry), or fitguard refuses to
 # start / refuses the dashboard settings write that introduced it.
 fallback:
   - gpt-4o-mini
-  - claude-3-haiku
+  - claude-haiku-4-5
 
 # The dashboard's login (one admin account). Don't hand-write this —
 # `fitguard init` sets it up interactively, and `fitguard

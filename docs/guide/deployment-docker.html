@@ -90,7 +90,130 @@
           <code class="inline">go build ./...</code> locally. Never put provider
           keys in the image or in Git.
         </div>
-        <h2 id="local">Run locally</h2>
+
+        <h2 id="dockerfile">The Dockerfile, annotated</h2>
+        <p>The actual file at the repo root, in full, not a summary. Every non-obvious line has a comment explaining why it's there, so you can adapt the same pattern to a different stack:</p>
+        <pre># Pinned to match go.mod's toolchain directive — Go's own Docker images
+# tag by exact version, so drifting this independently is how you get a
+# build that works locally and fails in CI on a stdlib difference.
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+
+# go.mod/go.sum copied and downloaded before the rest of the source, so
+# this layer only re-runs (and re-downloads every dependency) when a
+# dependency actually changes, not on every source edit.
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+# CGO_ENABLED=0: a static binary with no libc dependency, which is what
+# lets the next stage be `scratch` (nothing installed, not even glibc)
+# instead of needing a distro base image just to satisfy a dynamic link.
+# -ldflags "-s -w" strips debug symbols; the binary works identically,
+# just smaller — there's no in-container debugging happening in `scratch`.
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o /fitguard ./cmd/fitguard
+
+FROM scratch
+# scratch has no trust store of its own. fitguard's entire job is calling
+# OpenAI/Anthropic/Gemini/Groq/Together over HTTPS, so without this every
+# upstream request fails TLS verification (x509: certificate signed by
+# unknown authority) rather than the image just being minimal.
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /fitguard /fitguard
+EXPOSE 8787
+# Split so `docker run fitguard init` (or any other subcommand) still
+# works — ENTRYPOINT is the binary, CMD is only the *default* arguments,
+# overridden by anything passed after the image name.
+ENTRYPOINT ["/fitguard"]
+CMD ["run", "--config", "/data/config.yaml"]</pre>
+        <p>The pattern behind each decision, if you're writing your own for a different language: pin the exact toolchain version rather than a floating tag; copy dependency manifests before source so dependency layers cache independently of code changes; build a static/self-contained binary if your language supports it so the final stage can be minimal; keep <code class="inline">ENTRYPOINT</code> as just the binary so the image stays usable for one-off subcommands, not only the default server process.</p>
+
+        <h2 id="compose">docker-compose.yml</h2>
+        <p>Also at the repo root, for local development or a self-managed server that wants Redis alongside it without installing anything separately:</p>
+        <pre># docker compose up — fitguard plus an optional Redis for the cache/budget
+# backends. Redis isn't required (fitguard defaults to in-memory/local for
+# both), it's included here because it's the one thing worth having ready
+# before you need it: switching a live single-instance deployment to
+# `budget.backend: redis` later means a second migration, not just a
+# config edit, if Redis isn't already there to point at.
+services:
+  fitguard:
+    build: .
+    ports:
+      - "8787:8787"
+    volumes:
+      # Writable, not :ro — the dashboard's Settings page saves back to
+      # this file. See "Do not mount the config read-only" below.
+      - ./config.yaml:/data/config.yaml
+      # Named volume, not a bind mount: fitguard.db lives here, and a
+      # named volume survives `docker compose down` (a bind mount would
+      # too, but only if you remember the host path never gets deleted;
+      # this removes that footgun entirely).
+      - fitguard-data:/data
+    environment:
+      # Referenced from config.yaml as ${OPENAI_API_KEY} — never write
+      # the real value into config.yaml itself. Put real secrets in a
+      # .env file (gitignored) next to this compose file, not here.
+      - OPENAI_API_KEY
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    # No exposed port to the host on purpose: only the fitguard service
+    # needs to reach it, over the compose-internal network as `redis:6379`.
+
+volumes:
+  fitguard-data:
+  redis-data:</pre>
+        <pre>echo "OPENAI_API_KEY=sk-..." &gt; .env   # gitignored — never commit this
+docker compose up
+curl -fsS http://localhost:8787/healthz</pre>
+        <p>To actually use Redis instead of just having it running, point <code class="inline">config.yaml</code> at the compose service by name, not <code class="inline">localhost</code> (containers on the same compose network reach each other by service name):</p>
+        <pre>budget:
+  backend: redis
+  redis_url: redis://redis:6379/0
+
+cache:
+  backend: redis
+  redis_url: redis://redis:6379/0</pre>
+
+        <h2 id="alongside">Already have a Dockerfile for your own app?</h2>
+        <p>
+          FitGuard is a separate service, not something you add into your app's existing image. If your app already has
+          its own <code class="inline">Dockerfile</code> &mdash; Python, .NET, whatever &mdash; it stays exactly as it
+          is. There's no version of this where you add a Go stage to it.
+        </p>
+        <p>Two ways to run them together, depending on where your app deploys:</p>
+        <p><strong>Same compose file, two independent services</strong> (needs FitGuard's repo checked out alongside your app's):</p>
+        <pre>services:
+  your-app:
+    build: .                        # your existing Dockerfile, unchanged
+    environment:
+      - FITGUARD_URL=http://fitguard:8787/v1
+      - FITGUARD_KEY=sk-guard-...
+    depends_on:
+      - fitguard
+
+  fitguard:
+    build: ../ai-cost-guard         # FitGuard's own repo, its own Dockerfile
+    volumes:
+      - ./fitguard-config.yaml:/data/config.yaml
+      - fitguard-data:/data
+
+volumes:
+  fitguard-data:</pre>
+        <p>Your app reaches it at <code class="inline">http://fitguard:8787/v1</code> (compose's internal DNS). This is the usual code change from <a href="../guide/getting-started-example.html">the migration guide</a>, just pointed at another container instead of <code class="inline">localhost</code>.</p>
+        <p><strong>Separate services on your platform</strong> (Render, Railway, and most PaaS support more than one service per project): add FitGuard as a second, independent service: its own repo connection, its own Dockerfile (the one from FitGuard's repo, not yours), then set the URL that service gets as <code class="inline">FITGUARD_URL</code> on your existing app's service. No compose file involved.</p>
+        <div class="callout">
+          FitGuard doesn't publish a ready-built image to Docker Hub or GHCR yet, so <code class="inline">build:</code>
+          pointing at its Dockerfile, or a second platform service built from its repo, are the two real options today
+          &mdash; not <code class="inline">image: fitguard:latest</code>.
+        </div>
+
+        <h2 id="local">Run locally (without compose)</h2>
         <pre>
 docker build -t fitguard .
 docker run --rm -p 8787:8787 \
@@ -154,7 +277,10 @@ curl -fsS http://localhost:8787/healthz</pre
       </article>
       <aside class="guide-toc">
         <div class="label">On this page</div>
-        <a href="#local">Run locally</a
+        <a href="#dockerfile">The Dockerfile, annotated</a
+        ><a href="#compose">docker-compose.yml</a
+        ><a href="#alongside">Alongside your own Dockerfile</a
+        ><a href="#local">Run locally</a
         ><a href="#production">Production checklist</a>
       </aside>
     </div>

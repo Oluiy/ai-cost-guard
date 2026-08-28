@@ -9,6 +9,7 @@
   initActiveNav();
   initSearch();
   initCodeTabs();
+  initCommentHighlight();
   initCopyButtons();
 
   // ---------- Theme ----------
@@ -182,6 +183,28 @@
         ? saved
         : tabs[0] && tabs[0].dataset.lang;
       if (initial) activate(initial);
+    });
+  }
+
+  // ---------- Comment dimming in code blocks ----------
+  // No syntax highlighter on this site (no build step, no dependency) —
+  // this is the one piece worth having anyway: a full-line comment
+  // (starts with # or //, after leading whitespace) read as identical to
+  // real code otherwise, which is exactly backwards for annotated
+  // examples where the comment is doing half the explaining.
+  function initCommentHighlight() {
+    document.querySelectorAll(".code-tabs pre, .guide-content pre").forEach(function (pre) {
+      var lines = pre.textContent.split("\n");
+      pre.innerHTML = lines
+        .map(function (line) {
+          var trimmed = line.replace(/^[ \t]*/, "");
+          var indent = line.slice(0, line.length - trimmed.length);
+          if (trimmed.indexOf("#") === 0 || trimmed.indexOf("//") === 0) {
+            return indent + '<span class="pre-comment">' + escapeHtml(trimmed) + "</span>";
+          }
+          return escapeHtml(line);
+        })
+        .join("\n");
     });
   }
 

@@ -1029,6 +1029,11 @@ table.compare tr.highlight td {
   position: relative;
 }
 
+.pre-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 .guide-content table {
   width: 100%;
   border-collapse: collapse;

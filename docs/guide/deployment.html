@@ -92,14 +92,14 @@
         <tr><td><code class="inline">Dockerfile</code></td><td>Yes</td><td>&mdash;</td></tr>
         <tr><td><code class="inline">config.example.yaml</code></td><td>Yes</td><td>The checked-in template, no real values</td></tr>
         <tr><td><code class="inline">config.yaml</code> (or any name you give your real config)</td><td><strong>No, never</strong></td><td>Your own machine only, or the <code class="inline">FITGUARD_CONFIG</code> env var on platforms with no persistent disk</td></tr>
-        <tr><td><code class="inline">fitguard.db</code></td><td><strong>No, never</strong></td><td>Runtime data &mdash; regenerated automatically, already gitignored</td></tr>
+        <tr><td><code class="inline">fitguard.db</code></td><td><strong>No, never</strong></td><td>Runtime data, regenerated automatically and already gitignored</td></tr>
       </tbody>
     </table>
     <div class="callout">
       If you see a filename like <code class="inline">config.production.yaml</code> anywhere in these docs, that's just an
-      example name for "your real config, for production" &mdash; not something FitGuard looks for specifically. Call it
+      example name for "your real config, for production." It is not something FitGuard looks for specifically. Call it
       whatever you want. It's never committed either way; it either stays on your laptop to be copied up by hand (VPS) or
-      its contents go straight into an environment variable (Render/Railway/Heroku) &mdash; see below.
+      its contents go straight into an environment variable (Render/Railway/Heroku), covered below.
     </div>
 
     <h2 id="config">Generate your config locally first</h2>
@@ -143,10 +143,10 @@ docker run -p 8787:8787 \
     <h2 id="platforms">Choose a deployment path</h2>
     <p>Start locally, then choose one short guide. FitGuard's production decisions are simple: keep secrets out of Git, expose the platform's port, protect the dashboard, and decide where <code class="inline">fitguard.db</code> should live.</p>
     <ul>
-      <li><a href="./deployment-docker.html"><strong>Docker</strong></a> &mdash; local containers and a persistent named volume.</li>
-      <li><a href="./deployment-paas.html"><strong>Render, Heroku, and Railway</strong></a> &mdash; hosted container deployment, environment configuration, Redis, and platform storage.</li>
-      <li><a href="./deployment-vps.html"><strong>VPS</strong></a> &mdash; one production server on DigitalOcean, Microsoft Azure, or AWS with systemd and HTTPS.</li>
-      <li><a href="./deployment-operations.html"><strong>Persistence and operations</strong></a> &mdash; SQLite history, Redis state, backups, proxies, TLS, and scaling.</li>
+      <li><a href="./deployment-docker.html"><strong>Docker</strong></a>: local containers and a persistent named volume.</li>
+      <li><a href="./deployment-paas.html"><strong>Render, Heroku, and Railway</strong></a>: hosted container deployment, environment configuration, Redis, and platform storage.</li>
+      <li><a href="./deployment-vps.html"><strong>VPS</strong></a>: one production server on DigitalOcean, Microsoft Azure, or AWS with systemd and HTTPS.</li>
+      <li><a href="./deployment-operations.html"><strong>Persistence and operations</strong></a>: SQLite history, Redis state, backups, proxies, TLS, and scaling.</li>
     </ul>
 
     <h2 id="subdomain">Running it on its own domain</h2>

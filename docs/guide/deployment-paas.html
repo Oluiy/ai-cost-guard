@@ -81,7 +81,7 @@
       <article class="guide-content">
         <h1>Render, Heroku, and Railway</h1>
         <p class="dek">
-          Docker is not required on any of these three &mdash; each also has a
+          Docker is not required on any of these three. Each also has a
           native runtime path that builds straight from your repo's Go source,
           no <code class="inline">Dockerfile</code> involved. Pick whichever
           your platform dashboard offers; both end up running the same binary
@@ -92,13 +92,13 @@
           <li>
             Connect this repository. Choose Docker (uses the root
             <code class="inline">Dockerfile</code>) or a native/Go runtime if
-            your platform offers one &mdash; see each platform's section below
+            your platform offers one; see each platform's section below
             for the exact build/start commands either way.
           </li>
           <li>
             Set <code class="inline">FITGUARD_CONFIG</code> to the complete
-            production YAML, pasted as one multi-line environment variable
-            &mdash; see <a href="./deployment.html#what-goes-where">What goes
+            production YAML, pasted as one multi-line environment variable.
+            See <a href="./deployment.html#what-goes-where">What goes
             where</a> if you haven't yet. Reference secrets as
             <code class="inline">${OPENAI_API_KEY}</code> inside it, then add
             those secrets separately as their own env vars in the platform
@@ -128,10 +128,19 @@
 Start Command:  ./fitguard run</pre>
         <p>
           Render compiles the binary itself from this repo's <code class="inline">go.mod</code>
-          during the build step &mdash; there's no <code class="inline">curl</code>/install step to write, the same way
+          during the build step. There's no <code class="inline">curl</code>/install step to write, the same way
           <code class="inline">pip install -r requirements.txt</code> needs no separate download step for a Python
           service. Config still comes from <code class="inline">FITGUARD_CONFIG</code>, same as the Docker path.
         </p>
+        <div class="callout">
+          <strong>This Build/Start Command pair is for FitGuard's own service:</strong> a second, independent
+          Web Service on Render, separate from any app you already have running there. If you already have a service
+          on Render (Python, Node, whatever), leave its Build/Start Command exactly as it is; don't merge the two.
+          Add FitGuard as its own service using this repo, get the URL Render gives it, and set that as
+          <code class="inline">FITGUARD_URL</code> on your existing service's environment variables. See
+          <a href="./deployment-docker.html#alongside">using FitGuard alongside an existing Dockerfile</a> for the
+          same idea applied to Docker.
+        </div>
         <p>
           For SQLite history (either path), attach a paid persistent disk under
           <strong>Disks</strong> and mount it at
@@ -178,7 +187,7 @@ heroku container:release web -a fitguard-prod</pre
           Create a service from this GitHub repository. Railway detects the root
           <code class="inline">Dockerfile</code> and uses it automatically; delete or rename it in a
           throwaway clone first if you'd rather Railway's own Nixpacks builder detect and build the Go
-          project directly (via <code class="inline">go.mod</code>) with no Dockerfile at all &mdash; both
+          project directly (via <code class="inline">go.mod</code>) with no Dockerfile at all; both
           produce the same running binary. Add
           <code class="inline">FITGUARD_CONFIG</code> and secrets under
           Variables either way. Generate a public domain and set the service health check

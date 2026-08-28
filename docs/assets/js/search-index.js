@@ -235,6 +235,24 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "docker container image volume build run compose",
   },
   {
+    title: "The Dockerfile, annotated",
+    section: "Operate · Deployment",
+    url: "guide/deployment-docker.html#dockerfile",
+    keywords: "dockerfile multi-stage scratch alpine cgo static binary annotated example",
+  },
+  {
+    title: "docker-compose.yml",
+    section: "Operate · Deployment",
+    url: "guide/deployment-docker.html#compose",
+    keywords: "docker compose redis volumes .env local development",
+  },
+  {
+    title: "Already have a Dockerfile for your own app?",
+    section: "Operate · Deployment",
+    url: "guide/deployment-docker.html#alongside",
+    keywords: "existing dockerfile python dotnet node java two services separate container multi-service render railway",
+  },
+  {
     title: "VPS deployment",
     section: "Operate · Deployment",
     url: "guide/deployment-vps.html",

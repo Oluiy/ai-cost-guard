@@ -197,21 +197,24 @@
 
     <h3>Cost estimation is a heuristic</h3>
     <p>
-      Not exact token counting. It can reserve more than a request actually costs. Multimodal content is under-counted &mdash;
-      only text parts are sized, so images don't contribute to the estimate.
+      Not exact token counting &mdash; it's a pre-flight ceiling used to reserve budget before the upstream call, not the
+      actual token count. It can reserve more than a request ends up costing; that's intentional, since the real
+      completion size isn't known until the response comes back. Text is sized at ~4 chars/token. Images contribute a
+      flat, deliberately generous per-image estimate (pixel dimensions aren't decoded), so a multimodal request no
+      longer reserves as if its images were free.
     </p>
 
     <h3>The pricing table drifts</h3>
-    <p>It's a manually maintained snapshot of public pricing. Verify it before trusting it for anything billing-critical. Embedding models are priced input-only.</p>
+    <p>
+      It's a manually maintained snapshot of public pricing, so it can go stale when a provider changes prices. Correct
+      a stale entry, or add a model the table doesn't know about yet, with a <code class="inline">pricing:</code> block
+      in <code class="inline">config.yaml</code> &mdash; no fitguard release needed. See
+      <a href="./configuration.html">configuration</a>. Embedding models are still priced input-only (there's no
+      completion side to an embedding request).
+    </p>
 
     <h3>The dashboard has one account, not roles</h3>
     <p>No read-only or viewer accounts yet. Anyone with that one password sees and does everything the dashboard exposes.</p>
-
-    <h3>Anthropic tool-calling edge cases</h3>
-    <ul>
-      <li><strong>Tool-call arguments stream batched, not incrementally.</strong> Anthropic's delta events are accumulated and relayed as one complete <code class="inline">tool_calls</code> delta when the block closes.</li>
-      <li><strong><code class="inline">tool_choice: "none"</code> has no exact equivalent</strong> and is translated as a best-effort <code class="inline">"auto"</code>, so it doesn't actually prevent tool use.</li>
-    </ul>
 
     <h3>No Assistants or Responses API</h3>
     <p><code class="inline">/v1/chat/completions</code> and <code class="inline">/v1/embeddings</code> only.</p>

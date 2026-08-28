@@ -78,6 +78,33 @@ var Table = map[string]Price{
 	"text-embedding-ada-002": {InputPer1K: 0.0001, Provider: "openai", Embedding: true},
 }
 
+// ApplyOverrides merges operator-supplied pricing corrections into Table,
+// keyed by model name (see config.Config.Pricing — this is the fix for
+// the built-in table drifting from real provider pricing). For a model
+// already in Table, Provider/Embedding are carried over from the
+// existing entry unless the override sets them, so a routine price
+// correction only needs InputPer1K/OutputPer1K. For a model not already
+// in Table, the override's Provider is used as-is (required for the new
+// model to route/validate correctly).
+func ApplyOverrides(overrides map[string]Price) {
+	for name, o := range overrides {
+		existing, known := Table[name]
+		if !known {
+			Table[name] = o
+			continue
+		}
+		existing.InputPer1K = o.InputPer1K
+		existing.OutputPer1K = o.OutputPer1K
+		if o.Provider != "" {
+			existing.Provider = o.Provider
+		}
+		if o.Embedding {
+			existing.Embedding = o.Embedding
+		}
+		Table[name] = existing
+	}
+}
+
 // defaultPrice is used for unknown models so cost tracking degrades
 // gracefully instead of silently reporting $0.
 var defaultPrice = Price{InputPer1K: 0.002, OutputPer1K: 0.006}

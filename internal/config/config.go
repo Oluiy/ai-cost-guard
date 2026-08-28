@@ -31,6 +31,25 @@ type Config struct {
 	// X-Forwarded-For/-Proto. Empty (default) uses the real peer address;
 	// set it when running behind nginx/Caddy/a load balancer.
 	TrustedProxies []string `yaml:"trusted_proxies"`
+	// Pricing corrects or extends internal/cost's built-in price table,
+	// keyed by model name. The built-in table is a manually maintained
+	// snapshot of each provider's published pricing and drifts whenever a
+	// provider changes prices; this is the fix for that drift — an
+	// operator can correct a stale price (or add a model the table
+	// doesn't know about yet) here, without waiting on a fitguard release.
+	Pricing map[string]PricingOverride `yaml:"pricing"`
+}
+
+// PricingOverride replaces (for a model already in the built-in table) or
+// defines (for one that isn't) a single model's pricing.
+type PricingOverride struct {
+	InputPer1K  float64 `yaml:"input_per_1k"`
+	OutputPer1K float64 `yaml:"output_per_1k"`
+	// Provider and Embedding are only required when adding a model the
+	// built-in table doesn't already have; correcting an existing
+	// entry's price only needs the two fields above.
+	Provider  string `yaml:"provider,omitempty"`
+	Embedding bool   `yaml:"embedding,omitempty"`
 }
 
 // Provider holds credentials/config for an upstream LLM provider.

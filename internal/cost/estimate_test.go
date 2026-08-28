@@ -25,8 +25,29 @@ func TestEstimatePromptTokens_MultimodalContentParts(t *testing.T) {
 			},
 		},
 	}
-	if got := EstimatePromptTokens(payload); got != 2 {
-		t.Fatalf("got %d, want 2 (image parts should be ignored, not error)", got)
+	// 8 chars -> 2 text tokens, plus a flat per-image ceiling: an image
+	// part must contribute to the estimate, not be silently undercounted
+	// to zero.
+	want := 2 + imageTokenCeiling
+	if got := EstimatePromptTokens(payload); got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
+}
+
+func TestEstimatePromptTokens_MultipleImagesEachCounted(t *testing.T) {
+	payload := map[string]any{
+		"messages": []any{
+			map[string]any{
+				"role": "user",
+				"content": []any{
+					map[string]any{"type": "image_url", "image_url": map[string]any{"url": "https://example.com/a.png"}},
+					map[string]any{"type": "image_url", "image_url": map[string]any{"url": "https://example.com/b.png"}},
+				},
+			},
+		},
+	}
+	if got, want := EstimatePromptTokens(payload), 2*imageTokenCeiling; got != want {
+		t.Fatalf("got %d, want %d", got, want)
 	}
 }
 

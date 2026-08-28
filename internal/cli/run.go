@@ -17,6 +17,7 @@ import (
 	"github.com/Oluiy/ai-cost-guard/internal/budget"
 	"github.com/Oluiy/ai-cost-guard/internal/cache"
 	"github.com/Oluiy/ai-cost-guard/internal/config"
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 	"github.com/Oluiy/ai-cost-guard/internal/dashboard"
 	"github.com/Oluiy/ai-cost-guard/internal/logging"
 	"github.com/Oluiy/ai-cost-guard/internal/proxy"
@@ -33,6 +34,18 @@ func RunServer(configPath string) error {
 
 	for _, w := range cfg.Warnings() {
 		pterm.Warning.Println(w)
+	}
+
+	if len(cfg.Pricing) > 0 {
+		overrides := make(map[string]cost.Price, len(cfg.Pricing))
+		for model, o := range cfg.Pricing {
+			overrides[model] = cost.Price{
+				InputPer1K: o.InputPer1K, OutputPer1K: o.OutputPer1K,
+				Provider: o.Provider, Embedding: o.Embedding,
+			}
+		}
+		cost.ApplyOverrides(overrides)
+		pterm.Info.Printfln("pricing: %d model price override(s) applied from config", len(cfg.Pricing))
 	}
 
 	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {

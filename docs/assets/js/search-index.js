@@ -107,6 +107,12 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "fail_closed fail closed unlimited budget typo user_id missing entry refuse deny unmetered",
   },
   {
+    title: "Pricing overrides",
+    section: "Reference · Configuration",
+    url: "guide/configuration.html#pricing",
+    keywords: "pricing input_per_1k output_per_1k price table drift override correct stale cost billing",
+  },
+  {
     title: "Dashboard login",
     section: "Reference · Configuration",
     url: "guide/configuration.html#dashboard-auth",

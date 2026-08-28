@@ -73,6 +73,20 @@ fallback:
   - gpt-4o-mini
   - claude-haiku-4-5
 
+# internal/cost's built-in price table is a manually maintained snapshot
+# of each provider's published pricing, so it drifts when a provider
+# changes prices. Correct a stale entry, or add a model the table doesn't
+# know about yet, here — no fitguard release needed. Optional; omit
+# entirely if the built-in table is accurate for the models you use.
+# pricing:
+#   gpt-4o:
+#     input_per_1k: 0.0025
+#     output_per_1k: 0.010
+#   some-brand-new-model:
+#     input_per_1k: 0.001
+#     output_per_1k: 0.003
+#     provider: openai   # required when the model isn't already known
+
 # The dashboard's login (one admin account). Don't hand-write this —
 # `fitguard init` sets it up interactively, and `fitguard
 # reset-dashboard-password` changes it later (also works if you skipped

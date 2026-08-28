@@ -181,6 +181,27 @@ dashboard:    # written by `fitguard init` / `reset-dashboard-password`
     <p>A flat list of model names, tried in order if the primary model's request errors, rate-limits, or 5xxs. Each one is routed the same way the primary model was, so a fallback to <code class="inline">claude-haiku-4-5</code> after a <code class="inline">gpt-4o</code> failure hits your <code class="inline">anthropic</code> provider entry, if you've configured one.</p>
     <p>Every entry is validated against <code class="inline">providers:</code> at load time (and again on any dashboard settings save): a model whose provider isn't configured is rejected outright, rather than silently failing the first time it's actually needed as a fallback. A custom or self-hosted model not in FitGuard's built-in price table still works if named <code class="inline">provider/model</code> (e.g. <code class="inline">together/my-model</code>), which ties it to a configured provider explicitly.</p>
 
+    <h2 id="pricing">Pricing overrides</h2>
+    <p>FitGuard's built-in price table (<a href="./how-it-works.html#pricing">how it works</a>) is a manually maintained snapshot of each provider's published pricing, so it can go stale. Correct a drifted price, or register a model the table doesn't know about yet, with a <code class="inline">pricing:</code> block &mdash; no release needed:</p>
+    <pre><code>pricing:
+  gpt-4o:
+    input_per_1k: 0.0025
+    output_per_1k: 0.010
+  some-brand-new-model:
+    input_per_1k: 0.001
+    output_per_1k: 0.003
+    provider: openai   # required only when the model isn't already known
+</code></pre>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">pricing.&lt;model&gt;.input_per_1k</code> / <code class="inline">output_per_1k</code></td><td>USD per 1,000 tokens. Always required</td></tr>
+        <tr><td><code class="inline">pricing.&lt;model&gt;.provider</code></td><td>Only needed when adding a model not already in the built-in table; correcting an existing entry doesn't need it</td></tr>
+        <tr><td><code class="inline">pricing.&lt;model&gt;.embedding</code></td><td>Set <code class="inline">true</code> for a new embedding-only model</td></tr>
+      </tbody>
+    </table>
+    <p>Applied once at startup, logged as <code class="inline">pricing: N model price override(s) applied from config</code>.</p>
+
     <h2 id="dashboard-auth">Dashboard login</h2>
     <p>Separate from <code class="inline">keys:</code> above &mdash; this gates the human-facing <code class="inline">/dashboard</code> page, not API callers. Set by <code class="inline">fitguard init</code> or <code class="inline">fitguard reset-dashboard-password</code>, never by hand.</p>
     <table>
@@ -211,6 +232,7 @@ dashboard:    # written by `fitguard init` / `reset-dashboard-password`
     <a href="#fail-closed">Failing closed</a>
     <a href="#users">Users and keys</a>
     <a href="#fallback">Fallback</a>
+    <a href="#pricing">Pricing overrides</a>
     <a href="#dashboard-auth">Dashboard login</a>
   </aside>
 </div>

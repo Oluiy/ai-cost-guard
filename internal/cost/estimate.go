@@ -4,9 +4,18 @@ package cost
 // budget pre-checks when a request doesn't set max_tokens.
 const DefaultMaxTokensEstimate = 4096
 
+// imageTokenCeiling is a deliberately generous flat per-image worst-case
+// token estimate. Real image token cost depends on pixel dimensions,
+// which this estimator doesn't decode (that would mean base64-decoding
+// and parsing image headers on every request just to reserve budget).
+// Providers' actual image costs run roughly 85-2000+ tokens depending on
+// resolution/detail; this errs high on purpose so a reservation stays a
+// ceiling instead of silently treating every image as free.
+const imageTokenCeiling = 1600
+
 // EstimatePromptTokens roughly sizes a chat request's prompt from its
-// message text (~4 chars/token). It only counts text content; image/audio
-// parts in multimodal messages are not sized and are undercounted.
+// message text (~4 chars/token) plus a flat per-image ceiling
+// (imageTokenCeiling) for any image_url parts in multimodal messages.
 func EstimatePromptTokens(payload map[string]any) int {
 	messages, _ := payload["messages"].([]any)
 	total := 0
@@ -26,6 +35,9 @@ func EstimatePromptTokens(payload map[string]any) int {
 				}
 				if text, ok := partMap["text"].(string); ok {
 					total += len(text) / 4
+				}
+				if partMap["type"] == "image_url" {
+					total += imageTokenCeiling
 				}
 			}
 		}

@@ -157,7 +157,7 @@
     <table>
       <thead><tr><th>Component</th><th>How</th></tr></thead>
       <tbody>
-        <tr><td>Prompt size</td><td>Sum of message text length &divide; 4, the standard rough chars-per-token heuristic</td></tr>
+        <tr><td>Prompt size</td><td>Text: sum of message text length &divide; 4, the standard rough chars-per-token heuristic. Images: a flat, deliberately generous per-image estimate (pixel dimensions aren't decoded)</td></tr>
         <tr><td>Completion size</td><td>The request's <code class="inline">max_tokens</code>, or a 4096-token ceiling if unset</td></tr>
         <tr><td>Cost</td><td>Both run through the same price table used for real billing</td></tr>
       </tbody>
@@ -168,7 +168,7 @@
       before the call goes out. The reservation is released as soon as the request finishes, and the real cost is what gets logged.
     </p>
     <div class="callout">
-      <strong>Known gap:</strong> only text is sized. Image and audio parts of a multimodal message aren't counted, so multimodal requests are under-estimated. See <a href="./troubleshooting.html#limitations">limitations</a>.
+      <strong>Known gap:</strong> audio parts of a multimodal message aren't sized (images are, via the flat per-image estimate above). See <a href="./troubleshooting.html#limitations">limitations</a>.
     </div>
 
     <h3 id="budget-backends">local vs. redis</h3>
@@ -251,7 +251,7 @@
       an unknown model degrades to "probably overestimated" rather than silently free.
     </p>
     <div class="callout">
-      <strong>This table is a manually maintained snapshot and it will drift.</strong> Verify against current provider pricing before relying on it for anything billing-critical.
+      <strong>This table is a manually maintained snapshot and it will drift.</strong> Correct a stale price, or add a model the table doesn't have, with a <code class="inline">pricing:</code> block in <code class="inline">config.yaml</code> &mdash; see <a href="./configuration.html">configuration</a>. No fitguard release needed.
     </div>
 
     <div class="page-nav">

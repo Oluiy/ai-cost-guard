@@ -209,19 +209,37 @@ func buildAnthropicRequest(rawBody []byte, model string, stream bool) (anthropic
 	}
 	aReq.System = strings.Join(systemParts, "\n\n")
 
-	for _, t := range oaiReq.Tools {
-		if t.Type != "function" {
-			continue
+	// OpenAI's tool_choice: "none" means "the model must not call a tool."
+	// Anthropic has no equivalent field: it decides whether to call a tool
+	// based solely on whether any `tools` were sent. So the exact
+	// translation is to omit `tools` (and `tool_choice`) entirely, not to
+	// send tools with a hopeful "auto"/"any" — that leaves the model free
+	// to call one anyway.
+	if !toolChoiceIsNone(oaiReq.ToolChoice) {
+		for _, t := range oaiReq.Tools {
+			if t.Type != "function" {
+				continue
+			}
+			aReq.Tools = append(aReq.Tools, anthropicTool{
+				Name: t.Function.Name, Description: t.Function.Description, InputSchema: t.Function.Parameters,
+			})
 		}
-		aReq.Tools = append(aReq.Tools, anthropicTool{
-			Name: t.Function.Name, Description: t.Function.Description, InputSchema: t.Function.Parameters,
-		})
-	}
-	if oaiReq.ToolChoice != nil {
-		aReq.ToolChoice = translateToolChoice(*oaiReq.ToolChoice)
+		if oaiReq.ToolChoice != nil {
+			aReq.ToolChoice = translateToolChoice(*oaiReq.ToolChoice)
+		}
 	}
 
 	return aReq, nil
+}
+
+// toolChoiceIsNone reports whether an OpenAI tool_choice value is the
+// literal string "none".
+func toolChoiceIsNone(raw *json.RawMessage) bool {
+	if raw == nil {
+		return false
+	}
+	var s string
+	return json.Unmarshal(*raw, &s) == nil && s == "none"
 }
 
 // parseImageSource turns an OpenAI image_url.url into an Anthropic image
@@ -236,7 +254,8 @@ func parseImageSource(url string) *anthropicImageSource {
 }
 
 // translateToolChoice maps OpenAI's tool_choice values to Anthropic's.
-// "none" has no exact equivalent and is translated as best-effort "auto".
+// Callers must handle "none" separately (see toolChoiceIsNone) before
+// reaching here — it isn't a valid input to this function.
 func translateToolChoice(raw json.RawMessage) any {
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
@@ -428,9 +447,13 @@ type anthropicStreamEvent struct {
 }
 
 // streamToolCallState accumulates one tool_use block's partial_json
-// deltas, emitted as a single complete tool_calls chunk when it closes.
+// deltas. seq is the tool call's position among tool calls only (0, 1, 2,
+// ...) — the OpenAI tool_calls[].index a client keys its reconstruction
+// on — which is not the same as Anthropic's content block index, since
+// text blocks can appear between tool_use blocks.
 type streamToolCallState struct {
 	id, name string
+	seq      int
 	args     strings.Builder
 }
 
@@ -512,8 +535,18 @@ func (s *anthropicStreamSession) Relay(w *bufio.Writer) (string, []map[string]an
 
 		case "content_block_start":
 			if evt.ContentBlock.Type == "tool_use" {
-				toolBlocks[evt.Index] = &streamToolCallState{id: evt.ContentBlock.ID, name: evt.ContentBlock.Name}
+				st := &streamToolCallState{id: evt.ContentBlock.ID, name: evt.ContentBlock.Name, seq: len(toolCallOrder)}
+				toolBlocks[evt.Index] = st
 				toolCallOrder = append(toolCallOrder, evt.Index)
+				// First chunk for this tool call: id/type/name, same as a
+				// real OpenAI stream's opening tool_calls delta.
+				chunk := openAIChunk(id, s.model, created, map[string]any{"tool_calls": []map[string]any{{
+					"index": st.seq, "id": st.id, "type": "function",
+					"function": map[string]any{"name": st.name, "arguments": ""},
+				}}}, nil)
+				if err := writeSSEChunk(w, chunk); err != nil {
+					return text.String(), finalizeAnthropicToolCalls(toolCallOrder, toolBlocks), usage, finishReason, err
+				}
 			}
 
 		case "content_block_delta":
@@ -527,14 +560,21 @@ func (s *anthropicStreamSession) Relay(w *bufio.Writer) (string, []map[string]an
 			case "input_json_delta":
 				if st, ok := toolBlocks[evt.Index]; ok {
 					st.args.WriteString(evt.Delta.PartialJSON)
-				}
-			}
-
-		case "content_block_stop":
-			if st, ok := toolBlocks[evt.Index]; ok {
-				chunk := openAIChunk(id, s.model, created, map[string]any{"tool_calls": []map[string]any{toolCallDelta(st)}}, nil)
-				if err := writeSSEChunk(w, chunk); err != nil {
-					return text.String(), finalizeAnthropicToolCalls(toolCallOrder, toolBlocks), usage, finishReason, err
+					// Relayed as-is, incrementally: a client concatenates
+					// `arguments` fragments across chunks and only parses
+					// the joined result, same as it already does for a
+					// native OpenAI tool-call stream. No need to wait for
+					// the block to close, and no need for each fragment to
+					// be valid JSON on its own.
+					if evt.Delta.PartialJSON != "" {
+						chunk := openAIChunk(id, s.model, created, map[string]any{"tool_calls": []map[string]any{{
+							"index":    st.seq,
+							"function": map[string]any{"arguments": evt.Delta.PartialJSON},
+						}}}, nil)
+						if err := writeSSEChunk(w, chunk); err != nil {
+							return text.String(), finalizeAnthropicToolCalls(toolCallOrder, toolBlocks), usage, finishReason, err
+						}
+					}
 				}
 			}
 
@@ -560,24 +600,6 @@ func (s *anthropicStreamSession) Relay(w *bufio.Writer) (string, []map[string]an
 	}
 
 	return text.String(), finalizeAnthropicToolCalls(toolCallOrder, toolBlocks), usage, finishReason, nil
-}
-
-// toolCallDelta builds the OpenAI-shaped tool_calls delta entry emitted
-// to the client when an Anthropic tool_use content block finishes.
-func toolCallDelta(st *streamToolCallState) map[string]any {
-	args := st.args.String()
-	if !json.Valid([]byte(args)) {
-		args = "{}"
-	}
-	return map[string]any{
-		"index": 0,
-		"id":    st.id,
-		"type":  "function",
-		"function": map[string]any{
-			"name":      st.name,
-			"arguments": args,
-		},
-	}
 }
 
 // finalizeAnthropicToolCalls converts accumulated per-index tool_use

@@ -352,6 +352,243 @@ let resp = client.post("http://localhost:8787/v1/embeddings")
   "usage": { "prompt_tokens": 2, "total_tokens": 2 }
 }</pre>
 
+    <h2 id="images">POST /v1/images/generations</h2>
+    <p>OpenAI-compatible. Routed and budget-checked like chat completions, with two deliberate differences: <strong>no cache</strong> (image generation isn't deterministic, so caching a prompt would return the same stale image forever) and <strong>no fallback</strong> (same reasoning as embeddings — a silent model swap changes the actual image, not just how it's produced).</p>
+    <div class="callout">
+      <strong>Not every provider supports this.</strong> OpenAI, Gemini, and Together do. Anthropic and Groq don't and return a clear <code class="inline">upstream_error</code> naming a provider that does. See <a href="./providers.html">Providers</a>.
+    </div>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button>
+      </div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/images/generations \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-image-1", "prompt": "a red panda reading a book", "n": 1}'</pre></div>
+      <div class="panel" data-lang="python"><pre>resp = client.images.generate(
+    model="gpt-image-1",
+    prompt="a red panda reading a book",
+    n=1,
+)
+print(resp.data[0].b64_json[:32], "...")</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const resp = await client.images.generate({
+  model: "gpt-image-1",
+  prompt: "a red panda reading a book",
+  n: 1,
+});
+console.log(resp.data[0].b64_json?.slice(0, 32), "...");</pre></div>
+      <div class="panel" data-lang="csharp"><pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
+
+var payload = new { model = "gpt-image-1", prompt = "a red panda reading a book", n = 1 };
+var response = await client.PostAsJsonAsync("images/generations", payload);
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"gpt-image-1","prompt":"a red panda reading a book","n":1}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/images/generations"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model":  "gpt-image-1",
+    "prompt": "a red panda reading a book",
+    "n":      1,
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/images/generations", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("http://localhost:8787/v1/images/generations")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({
+        "model": "gpt-image-1",
+        "prompt": "a red panda reading a book",
+        "n": 1
+    }))
+    .send()?;</pre>
+      </div>
+    </div>
+    <p>Response: standard OpenAI shape, <code class="inline">{"data": [{"b64_json": "..."}]}</code>.</p>
+
+    <h2 id="audio">Audio</h2>
+    <p>Two OpenAI-compatible endpoints, both routed and budget-checked like chat completions, with the same no-cache/no-fallback reasoning as images above.</p>
+    <div class="callout">
+      <strong>Support varies by provider.</strong> OpenAI and Together support both. Gemini supports speech only (no transcription endpoint yet). Groq supports transcription only (its only TTS model is preview/evaluation-only, deliberately not wired in). Anthropic supports neither. See <a href="./providers.html">Providers</a>.
+    </div>
+
+    <h3 id="audio-speech">POST /v1/audio/speech</h3>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button>
+      </div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/audio/speech \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "tts-1", "input": "Hello from FitGuard", "voice": "alloy"}' \
+  --output speech.mp3</pre></div>
+      <div class="panel" data-lang="python"><pre>resp = client.audio.speech.create(
+    model="tts-1",
+    voice="alloy",
+    input="Hello from FitGuard",
+)
+resp.stream_to_file("speech.mp3")</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const resp = await client.audio.speech.create({
+  model: "tts-1",
+  voice: "alloy",
+  input: "Hello from FitGuard",
+});
+const buffer = Buffer.from(await resp.arrayBuffer());
+await fs.promises.writeFile("speech.mp3", buffer);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>using System.Net.Http.Json;
+
+var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
+
+var payload = new { model = "tts-1", voice = "alloy", input = "Hello from FitGuard" };
+var response = await client.PostAsJsonAsync("audio/speech", payload);
+await File.WriteAllBytesAsync("speech.mp3", await response.Content.ReadAsByteArrayAsync());</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpClient client = HttpClient.newHttpClient();
+String json = """
+    {"model":"tts-1","voice":"alloy","input":"Hello from FitGuard"}
+    """;
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/audio/speech"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+HttpResponse&lt;byte[]&gt; response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+Files.write(Path.of("speech.mp3"), response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>body, _ := json.Marshal(map[string]any{
+    "model": "tts-1",
+    "voice": "alloy",
+    "input": "Hello from FitGuard",
+})
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/audio/speech", bytes.NewReader(body))
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.post("http://localhost:8787/v1/audio/speech")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({
+        "model": "tts-1",
+        "voice": "alloy",
+        "input": "Hello from FitGuard"
+    }))
+    .send()?;</pre>
+      </div>
+    </div>
+    <p>Response: raw audio bytes (<code class="inline">audio/mpeg</code>), not JSON.</p>
+
+    <h3 id="audio-transcriptions">POST /v1/audio/transcriptions</h3>
+    <p><code class="inline">multipart/form-data</code>, not JSON — the one endpoint on this page that isn't a plain JSON body.</p>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button>
+      </div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/audio/transcriptions \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -F file=@meeting.mp3 \
+  -F model=whisper-1</pre></div>
+      <div class="panel" data-lang="python"><pre>with open("meeting.mp3", "rb") as f:
+    resp = client.audio.transcriptions.create(model="whisper-1", file=f)
+print(resp.text)</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const resp = await client.audio.transcriptions.create({
+  model: "whisper-1",
+  file: fs.createReadStream("meeting.mp3"),
+});
+console.log(resp.text);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>using var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
+
+using var form = new MultipartFormDataContent();
+form.Add(new StreamContent(File.OpenRead("meeting.mp3")), "file", "meeting.mp3");
+form.Add(new StringContent("whisper-1"), "model");
+
+var response = await client.PostAsync("audio/transcriptions", form);
+Console.WriteLine(await response.Content.ReadAsStringAsync());</pre></div>
+      <div class="panel" data-lang="java"><pre>String boundary = "----FitGuardBoundary";
+Path file = Path.of("meeting.mp3");
+String body =
+    "--" + boundary + "\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n" +
+    "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"meeting.mp3\"\r\n\r\n";
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/audio/transcriptions"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+    .POST(HttpRequest.BodyPublishers.ofByteArray(
+        buildMultipartBody(body, file, boundary))) // your own multipart helper
+    .build();
+HttpResponse&lt;String&gt; response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>var buf bytes.Buffer
+mw := multipart.NewWriter(&buf)
+mw.WriteField("model", "whisper-1")
+part, _ := mw.CreateFormFile("file", "meeting.mp3")
+f, _ := os.Open("meeting.mp3")
+io.Copy(part, f)
+mw.Close()
+
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/audio/transcriptions", &buf)
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", mw.FormDataContentType())
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let form = reqwest::blocking::multipart::Form::new()
+    .text("model", "whisper-1")
+    .file("file", "meeting.mp3")?;
+let resp = client.post("http://localhost:8787/v1/audio/transcriptions")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .multipart(form)
+    .send()?;</pre>
+      </div>
+    </div>
+    <p>Response: standard OpenAI shape, <code class="inline">{"text": "..."}</code>.</p>
+
     <h2 id="healthz">GET /healthz</h2>
     <p>Unauthenticated liveness check. Point your load balancer, Kubernetes probe, or uptime monitor here.</p>
     <pre>$ curl http://localhost:8787/healthz
@@ -451,6 +688,8 @@ curl -b cookies.txt \
     <a href="#streaming">Streaming</a>
     <a href="#errors">Errors</a>
     <a href="#embeddings">Embeddings</a>
+    <a href="#images">Images</a>
+    <a href="#audio">Audio</a>
     <a href="#healthz">Health check</a>
     <a href="#dashboard-api">Dashboard API</a>
     <a href="#settings-api">Live settings</a>

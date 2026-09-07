@@ -28,9 +28,7 @@
   --warn: #9a6700;
   --fail: #cf222e;
 
-  /* Translucent, so the sticky header frosts whatever scrolls under it.
-     A variable rather than a literal because light mode needs its own,
-     and a hardcoded value here is invisible to the theme override. */
+  /* to ensure that the sticky header is visible over content that scrolls under it */
   --header-bg: rgba(255, 255, 255, 0.85);
   --illustration: #9dabbd;
   --grid-opacity: 0.55;
@@ -161,6 +159,7 @@ code.inline,
   padding: 0.1em 0.4em;
   font-size: 0.87em;
   color: var(--accent-strong);
+  white-space: nowrap;
 }
 
 kbd {

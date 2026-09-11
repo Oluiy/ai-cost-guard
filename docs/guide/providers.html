@@ -88,6 +88,7 @@
 
     <h2 id="openai">OpenAI</h2>
     <p>Model names pass through unchanged: <code class="inline">gpt-4o</code>, <code class="inline">gpt-4o-mini</code>, <code class="inline">o1</code>, and so on. Vision and tool calling work exactly as documented in OpenAI's own API reference, since no translation is needed.</p>
+    <p><strong>Full support:</strong> images (<a href="./api-reference.html#images">/v1/images/generations</a>), speech, and transcription (<a href="./api-reference.html#audio">/v1/audio</a>) all work.</p>
     <div class="code-tabs">
       <div class="tab-row">
         <button class="tab" data-lang="curl">curl</button>
@@ -235,6 +236,7 @@ let resp = client.post("https://your-fitguard-host/v1/chat/completions")
       FitGuard translates the request into Anthropic's Messages API and translates the response back into the OpenAI shape your
       client already expects, so the client code below is identical to the OpenAI examples except for the model name.
     </p>
+    <p><strong>No image generation or audio support.</strong> Anthropic has no API for either — <code class="inline">/v1/images/generations</code> and <code class="inline">/v1/audio/*</code> both return a clear error for any Anthropic model. Route those requests to openai/gemini/together instead.</p>
     <div class="callout">
       If your app currently calls Claude with Anthropic's own SDK (<code class="inline">anthropic.Anthropic(...)</code>, <code class="inline">.messages.create(...)</code>), see
       <a href="./getting-started.html#anthropic-sdk">Already using Anthropic's own SDK?</a> in the getting started guide.
@@ -365,6 +367,7 @@ let resp = client.post("https://your-fitguard-host/v1/chat/completions")
 
     <h2 id="gemini">Gemini</h2>
     <p>Use Gemini model names: <code class="inline">gemini-2.5-pro</code>, <code class="inline">gemini-2.5-flash</code>, <code class="inline">gemini-1.5-pro</code>, and so on. FitGuard translates the request into Gemini's <code class="inline">generateContent</code> format and translates the response back, the same way it does for Anthropic.</p>
+    <p><strong>Images and speech, not transcription.</strong> <code class="inline">/v1/images/generations</code> and <code class="inline">/v1/audio/speech</code> work; <code class="inline">/v1/audio/transcriptions</code> isn't wired yet — Gemini has no confirmed dedicated endpoint for it (audio is understood as chat input today, not exposed this way). Route transcription requests to openai/groq/together.</p>
     <div class="code-tabs">
       <div class="tab-row">
         <button class="tab" data-lang="curl">curl</button>
@@ -491,6 +494,7 @@ let resp = client.post("https://your-fitguard-host/v1/chat/completions")
 
     <h2 id="groq">Groq</h2>
     <p>Use Groq's hosted model names: <code class="inline">llama-3.3-70b-versatile</code>, <code class="inline">llama-3.1-8b-instant</code>, <code class="inline">mixtral-8x7b-32768</code>, and so on. Groq's API is already OpenAI-compatible, so requests pass through with no translation.</p>
+    <p><strong>Transcription only.</strong> <code class="inline">/v1/audio/transcriptions</code> works (<code class="inline">whisper-large-v3</code>, <code class="inline">whisper-large-v3-turbo</code> — fast, cheap, GA). Groq has no image generation API, and its only TTS offering (Orpheus) is explicitly preview/evaluation-only per Groq's own docs, so it's deliberately not wired into <code class="inline">/v1/audio/speech</code>.</p>
     <pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \
@@ -501,6 +505,7 @@ let resp = client.post("https://your-fitguard-host/v1/chat/completions")
 
     <h2 id="together">Together AI</h2>
     <p>Use Together's model names, which are namespaced by publisher, e.g. <code class="inline">meta-llama/Llama-3-70b-chat-hf</code>. Together's API is also OpenAI-compatible. A model name containing a <code class="inline">/</code> that isn't a recognized provider prefix (<code class="inline">openai/</code>, <code class="inline">anthropic/</code>, etc.) routes to Together by default, since that's the convention its own model names use.</p>
+    <p><strong>Full support:</strong> images (FLUX, Stable Diffusion), speech, and transcription all work. One naming exception: Together's own Whisper offering is exposed here as <code class="inline">together/whisper-large-v3</code>, not Together's own catalog id — that id happens to start with <code class="inline">openai/</code>, which FitGuard's routing would otherwise misread as "send this to the openai provider."</p>
     <pre>curl https://your-fitguard-host/v1/chat/completions \
   -H "Authorization: Bearer sk-guard-..." \
   -H "Content-Type: application/json" \

@@ -96,8 +96,16 @@
             for the exact build/start commands either way.
           </li>
           <li>
+            Generate that YAML first, on your own machine:
+            <code class="inline">fitguard init --config config.production.yaml</code>.
+            It's interactive (masked password, provider keys, budgets) — there's
+            no non-interactive/scripted form of it, so this step can't run as
+            part of a platform's build/deploy hook.
+          </li>
+          <li>
             Set <code class="inline">FITGUARD_CONFIG</code> to the complete
-            production YAML, pasted as one multi-line environment variable.
+            production YAML just generated, pasted as one multi-line environment
+            variable.
             See <a href="./deployment.html#what-goes-where">What goes
             where</a> if you haven't yet. Reference secrets as
             <code class="inline">${OPENAI_API_KEY}</code> inside it, then add
@@ -160,6 +168,8 @@ Start Command:  ./fitguard run</pre>
           Heroku's container path (below) is the one documented here in full; a classic Go buildpack path also exists on
           Heroku if you'd rather not use Docker, but isn't covered step-by-step in this guide.
         </p>
+        <p>Generate that config file first — <code class="inline">fitguard init</code> is interactive (masked password, provider keys, budgets) and has no non-interactive/scripted form, so it runs on your own machine, not on Heroku:</p>
+        <pre>fitguard init --config config.production.yaml</pre>
         <pre>
 heroku login
 heroku create fitguard-prod --stack container

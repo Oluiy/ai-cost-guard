@@ -126,6 +126,44 @@ providers:
       Only the braced <code class="inline">${VAR}</code> form is expanded. A bare <code class="inline">$VAR</code> is left alone on purpose, so bcrypt hashes like <code class="inline">$2a$10$...</code> in your dashboard config don't get mangled.
     </div>
 
+    <h2 id="promoting">Already running in dev? Here's what to actually do</h2>
+    <p>
+      Most people land here already working: <code class="inline">fitguard run</code> is running locally, with real
+      provider keys and a dashboard login. Three simple questions to answer before you go to production:
+    </p>
+    <p><strong>1. Reuse dev's <code class="inline">config.yaml</code>, or generate a new one?</strong>
+      Generate a new one. Run <code class="inline">fitguard init</code> again for production. That way dev and
+      production have their own dashboard password and their own virtual keys. If your dev laptop is ever
+      compromised, production is unaffected, and the reverse is also true.
+    </p>
+    <p>
+      Skip this only if a client app already has a dev-issued virtual key hardcoded in it, and you want to switch
+      that app to production with no client-side changes. In that case, reusing the file is fine: the file's
+      content isn't secret by itself (real values come from <code class="inline">${ENV_VAR}</code>, described above).
+      Only the actual secrets you set on the production target need protecting.
+    </p>
+    <p><strong>2. How do you get the config file there safely?</strong> It depends on where you're deploying:</p>
+    <table>
+      <thead><tr><th>Target</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>VPS</td><td><code class="inline">scp</code> straight over SSH (already encrypted in transit), then <code class="inline">install -m 600</code> so it's owner-only on disk. See <a href="./deployment-vps.html">VPS</a>.</td></tr>
+        <tr><td>Render / Railway / Heroku</td><td>Paste it as the <code class="inline">FITGUARD_CONFIG</code> env var, through the platform's own secret store (<code class="inline">heroku config:set</code>, Render's env var UI). Not as a file, and never committed. See <a href="./deployment-paas.html">PaaS</a>.</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Whichever method you use, never send the file over git, Slack, or email. Those channels aren't safe for
+      secrets, even though this particular config has none embedded in it directly: it still lists provider names,
+      user IDs, and budgets.
+    </p>
+    <p><strong>3. What about your dev request history?</strong> That's a separate question, and it's VPS-only.
+      History lives in <code class="inline">fitguard.db</code> (a SQLite file), not in <code class="inline">config.yaml</code>,
+      and moving it means copying that file directly onto the server's disk over SSH: see
+      <a href="./deployment-operations.html#migration">Move local data to production</a>. That only works for a VPS,
+      where you control the filesystem directly. Render, Railway, and Heroku don't give you that kind of file access,
+      so this doesn't apply there. Most people just leave dev history behind anyway, and let production's dashboard
+      start clean.
+    </p>
+
     <h2 id="docker">Docker</h2>
     <p>The included Dockerfile builds a static <code class="inline">CGO_ENABLED=0</code> binary and copies it, plus a CA certificate bundle, into a <code class="inline">scratch</code> image. The default command reads <code class="inline">/data/config.yaml</code>, so mount your config and data there.</p>
     <pre>docker build -t fitguard .
@@ -264,6 +302,7 @@ docker run -p 8787:8787 \
     <div class="label">On this page</div>
     <a href="#what-goes-where">What goes where</a>
     <a href="#config">Generate your config</a>
+    <a href="#promoting">Promoting from dev</a>
     <a href="#docker">Docker</a>
     <a href="#platforms">Choose a deployment path</a>
     <a href="#subdomain">Its own domain</a>

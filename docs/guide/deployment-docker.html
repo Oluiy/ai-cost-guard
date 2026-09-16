@@ -168,8 +168,18 @@ services:
 volumes:
   fitguard-data:
   redis-data:</pre>
+        <div class="callout">
+          <strong>Create <code class="inline">config.yaml</code> before the first <code class="inline">docker compose up</code>, not after.</strong>
+          The compose file bind-mounts <code class="inline">./config.yaml</code> into the container. If that path doesn't exist on the host yet, Docker
+          silently creates a <em>directory</em> there instead of failing — fitguard then can't read it and exits with a confusing
+          <code class="inline">read /data/config.yaml: is a directory</code> error that gives no hint what actually went wrong. <code class="inline">touch config.yaml</code>
+          first so Docker mounts an empty file, not a directory.
+        </div>
         <pre>echo "OPENAI_API_KEY=sk-..." &gt; .env   # gitignored — never commit this
-docker compose up
+touch config.yaml                        # see the callout above — must exist before compose touches it
+docker compose build
+docker compose run --rm fitguard init --config /data/config.yaml   # interactive; writes into the file just created
+docker compose up -d
 curl -fsS http://localhost:8787/healthz</pre>
         <p>To actually use Redis instead of just having it running, point <code class="inline">config.yaml</code> at the compose service by name, not <code class="inline">localhost</code> (containers on the same compose network reach each other by service name):</p>
         <pre>budget:

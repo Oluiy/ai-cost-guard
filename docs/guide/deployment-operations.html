@@ -60,7 +60,7 @@ cache:
   enabled: true
   backend: redis
   redis_url: ${REDIS_URL}</pre><p>Use this when the host provides a persistent disk mounted at <code class="inline">/var/data</code> and a managed Redis URL. On a VPS, use a path such as <code class="inline">/var/lib/fitguard</code> instead.</p>
-<h2 id="migration">Move local data to production</h2><p>Stop local FitGuard before copying SQLite so the file is consistent. Back up the original file, copy it to the production data directory, set matching ownership, then start FitGuard and check the dashboard. Do not copy a database into an active multi-instance deployment. For a host without persistent storage, start fresh and keep history locally or export it before migrating.</p><pre>cp ./fitguard.db ./fitguard.db.backup
+<h2 id="migration">Move local data to production</h2><p><strong>VPS only.</strong> This copies a file directly onto the server's disk over SSH, so it only works when you control that filesystem yourself. Render, Railway, and Heroku don't give you that kind of access, so this doesn't apply to them; most people just start production's history clean instead.</p><p>Stop local FitGuard before copying SQLite so the file is consistent. Back up the original file, copy it to the production data directory, set matching ownership, then start FitGuard and check the dashboard. Do not copy a database into an active multi-instance deployment. For a host without persistent storage, start fresh and keep history locally or export it before migrating.</p><pre>cp ./fitguard.db ./fitguard.db.backup
 scp ./fitguard.db ubuntu@&lt;server&gt;:/tmp/
 ssh ubuntu@&lt;server&gt; 'sudo install -o fitguard -g fitguard -m 600 /tmp/fitguard.db /var/lib/fitguard/fitguard.db'
 # verify after restart:

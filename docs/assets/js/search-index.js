@@ -197,6 +197,30 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "embeddings vector embed text-embedding input",
   },
   {
+    title: "POST /v1/images/generations",
+    section: "Reference · API",
+    url: "guide/api-reference.html#images",
+    keywords: "image generation dall-e gpt-image flux imagen prompt n size b64_json url",
+  },
+  {
+    title: "Audio",
+    section: "Reference · API",
+    url: "guide/api-reference.html#audio",
+    keywords: "audio speech transcription tts whisper voice",
+  },
+  {
+    title: "POST /v1/audio/speech",
+    section: "Reference · API",
+    url: "guide/api-reference.html#audio-speech",
+    keywords: "text to speech tts voice input model audio speech",
+  },
+  {
+    title: "POST /v1/audio/transcriptions",
+    section: "Reference · API",
+    url: "guide/api-reference.html#audio-transcriptions",
+    keywords: "speech to text transcription whisper file multipart audio",
+  },
+  {
     title: "GET /healthz",
     section: "Reference · API",
     url: "guide/api-reference.html#healthz",

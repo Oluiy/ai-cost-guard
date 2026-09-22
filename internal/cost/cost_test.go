@@ -39,3 +39,47 @@ func TestApplyOverrides_AddsUnknownModel(t *testing.T) {
 		t.Fatalf("got provider %q, want openai", got.Provider)
 	}
 }
+
+func TestCalculateImageCost(t *testing.T) {
+	if got, want := CalculateImageCost("gpt-image-1", 3), 3*Table["gpt-image-1"].PerImage; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestCalculateAudioSpeechCost(t *testing.T) {
+	got := CalculateAudioSpeechCost("tts-1", 2000)
+	want := 2.0 * Table["tts-1"].Per1KCharsAudio
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestCalculateAudioTranscriptionCost(t *testing.T) {
+	got := CalculateAudioTranscriptionCost("whisper-1", 120) // 2 minutes
+	want := 2.0 * Table["whisper-1"].PerMinuteAudio
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// TestChatModelsFor_ExcludesImageAndAudioModels is the fix for
+// isChatModel: an image/audio/embedding model has no real "chat fallback"
+// meaning and must never show up in the fallback picker alongside actual
+// chat models.
+func TestChatModelsFor_ExcludesImageAndAudioModels(t *testing.T) {
+	models := ChatModelsFor([]string{"openai"})
+	for _, m := range models {
+		if m == "gpt-image-1" || m == "tts-1" || m == "whisper-1" {
+			t.Errorf("ChatModelsFor included non-chat model %q", m)
+		}
+	}
+	found := false
+	for _, m := range models {
+		if m == "gpt-4o" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("ChatModelsFor should still include real chat models like gpt-4o")
+	}
+}

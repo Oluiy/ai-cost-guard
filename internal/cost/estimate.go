@@ -89,3 +89,41 @@ func EstimateEmbeddingTokens(payload map[string]any) int {
 func EstimateEmbeddingCost(model string, payload map[string]any) float64 {
 	return Calculate(model, EstimateEmbeddingTokens(payload), 0)
 }
+
+// EstimateImageCost returns the cost of an /v1/images/generations request.
+// Exact, not a ceiling: "n" (image count) is a known request field, so
+// there's nothing to estimate the way max_tokens is unknowable up front.
+func EstimateImageCost(model string, payload map[string]any) float64 {
+	n := 1
+	if v, ok := payload["n"].(float64); ok && v > 0 {
+		n = int(v)
+	}
+	return CalculateImageCost(model, n)
+}
+
+// EstimateAudioSpeechCost returns the cost of an /v1/audio/speech request.
+// Exact, not a ceiling: the input text is fully known up front, same as
+// an embeddings request.
+func EstimateAudioSpeechCost(model string, payload map[string]any) float64 {
+	text, _ := payload["input"].(string)
+	return CalculateAudioSpeechCost(model, len(text))
+}
+
+// minAudioBytesPerSecond is a deliberately low assumption (8kbps mono
+// speech, near the bottom of any real codec's bitrate) so dividing a file's
+// byte size by it produces a ceiling on its duration, not an underestimate
+// — same "err high on purpose" philosophy as imageTokenCeiling above, used
+// here because an upload's actual duration isn't knowable without decoding
+// the audio file, which this estimator deliberately avoids doing per
+// request just to reserve budget.
+const minAudioBytesPerSecond = 1000
+
+// EstimateAudioTranscriptionCost returns a worst-case cost ceiling for an
+// /v1/audio/transcriptions request, from the uploaded file's byte size —
+// the one thing known before the provider call. Reconcile against the
+// provider's actual reported duration for the real cost afterward, the
+// same way every other endpoint reconciles its estimated vs. actual cost.
+func EstimateAudioTranscriptionCost(model string, fileSizeBytes int64) float64 {
+	durationSeconds := float64(fileSizeBytes) / minAudioBytesPerSecond
+	return CalculateAudioTranscriptionCost(model, durationSeconds)
+}

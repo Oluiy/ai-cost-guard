@@ -91,6 +91,39 @@ func TestEstimateEmbeddingTokens_BatchArrayInput(t *testing.T) {
 	}
 }
 
+func TestEstimateImageCost_DefaultsToOneImage(t *testing.T) {
+	got := EstimateImageCost("gpt-image-1", map[string]any{})
+	want := CalculateImageCost("gpt-image-1", 1)
+	if got != want {
+		t.Fatalf("got %v, want %v (n should default to 1 when unset)", got, want)
+	}
+}
+
+func TestEstimateImageCost_UsesRequestedN(t *testing.T) {
+	got := EstimateImageCost("gpt-image-1", map[string]any{"n": float64(4)})
+	want := CalculateImageCost("gpt-image-1", 4)
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestEstimateAudioSpeechCost_ExactFromInputLength(t *testing.T) {
+	payload := map[string]any{"input": "12345678"} // 8 chars
+	got := EstimateAudioSpeechCost("tts-1", payload)
+	want := CalculateAudioSpeechCost("tts-1", 8)
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestEstimateAudioTranscriptionCost_ScalesWithFileSize(t *testing.T) {
+	small := EstimateAudioTranscriptionCost("whisper-1", 10_000)
+	large := EstimateAudioTranscriptionCost("whisper-1", 1_000_000)
+	if small >= large {
+		t.Fatal("expected a larger file to estimate a higher cost ceiling")
+	}
+}
+
 func TestEstimateEmbeddingCost_NoCompletionComponent(t *testing.T) {
 	// Embeddings have no completion side; cost should equal input-only
 	// pricing regardless of what OutputPer1K would otherwise contribute.

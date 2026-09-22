@@ -104,6 +104,11 @@ func RunServer(configPath string) error {
 	app := fiber.New(fiber.Config{
 		AppName:               "fitguard",
 		DisableStartupMessage: true,
+		// Fiber's 4MB default rejects ordinary audio uploads (a 3-minute
+		// mp3 is ~5-12MB) with a 413 before they reach the handler. 25MB
+		// matches the upload cap OpenAI and Groq enforce on
+		// /audio/transcriptions, so FitGuard is never the tighter limit.
+		BodyLimit: 25 * 1024 * 1024,
 		// Only honor X-Forwarded-For/-Proto from an explicitly trusted
 		// proxy; otherwise a caller could spoof its own address and
 		// defeat the login rate limiter.
@@ -129,6 +134,9 @@ func RunServer(configPath string) error {
 	})
 	app.Post("/v1/chat/completions", handler.ChatCompletions)
 	app.Post("/v1/embeddings", handler.Embeddings)
+	app.Post("/v1/images/generations", handler.ImageGenerations)
+	app.Post("/v1/audio/speech", handler.AudioSpeech)
+	app.Post("/v1/audio/transcriptions", handler.AudioTranscriptions)
 	dashboard.New(store, cfg.Dashboard).WithSettings(settings).Register(app)
 
 	printBanner(cfg)

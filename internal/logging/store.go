@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -23,6 +24,23 @@ func toDBTime(t time.Time) string {
 
 func fromDBTime(s string) (time.Time, error) {
 	return time.ParseInLocation(timeLayout, s, time.UTC)
+}
+
+// modelInClause builds an "AND model IN (?,?,...)" fragment plus its args,
+// or ("", nil) when providerModels is empty. Shared by every query below
+// that accepts a provider filter (see requestFilterWhere's doc comment
+// for why this is expressed as a model set rather than a provider column).
+func modelInClause(providerModels []string) (string, []any) {
+	if len(providerModels) == 0 {
+		return "", nil
+	}
+	placeholders := strings.Repeat("?,", len(providerModels))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, len(providerModels))
+	for i, m := range providerModels {
+		args[i] = m
+	}
+	return ` AND model IN (` + placeholders + `)`, args
 }
 
 // Record is one logged proxy request.
@@ -141,13 +159,19 @@ type Summary struct {
 
 // SummarySince returns per-user summaries for activity since the given
 // time. If userID is non-empty, results are scoped to that one user.
-func (s *Store) SummarySince(ctx context.Context, since time.Time, userID string) ([]Summary, error) {
+// providerModels is optional (see requestFilterWhere) and variadic so
+// existing callers are unaffected.
+func (s *Store) SummarySince(ctx context.Context, since time.Time, userID string, providerModels ...string) ([]Summary, error) {
 	query := `SELECT user_id, SUM(cost_usd), COUNT(*), SUM(cache_hit)
 		 FROM requests WHERE timestamp >= ?`
 	args := []any{toDBTime(since)}
 	if userID != "" {
 		query += ` AND user_id = ?`
 		args = append(args, userID)
+	}
+	if clause, clauseArgs := modelInClause(providerModels); clause != "" {
+		query += clause
+		args = append(args, clauseArgs...)
 	}
 	query += ` GROUP BY user_id ORDER BY SUM(cost_usd) DESC`
 
@@ -215,7 +239,9 @@ const (
 // TimeSeriesSince returns spend buckets from since to now at the given
 // granularity, including empty buckets (cost 0) so charts don't have gaps.
 // If userID is non-empty, results are scoped to that one user.
-func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time, granularity Granularity, userID string) ([]HourBucket, error) {
+// providerModels is optional (see requestFilterWhere) and variadic so
+// existing callers are unaffected.
+func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time, granularity Granularity, userID string, providerModels ...string) ([]HourBucket, error) {
 	format := "%Y-%m-%dT%H:00:00Z"
 	step := time.Hour
 	if granularity == GranularityDay {
@@ -229,6 +255,10 @@ func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time, granularit
 	if userID != "" {
 		query += ` AND user_id = ?`
 		args = append(args, userID)
+	}
+	if clause, clauseArgs := modelInClause(providerModels); clause != "" {
+		query += clause
+		args = append(args, clauseArgs...)
 	}
 	query += ` GROUP BY bucket ORDER BY bucket ASC`
 
@@ -275,8 +305,10 @@ func (s *Store) TimeSeriesSince(ctx context.Context, since time.Time, granularit
 }
 
 // TopExpensive returns the most expensive recent requests. If userID is
-// non-empty, results are scoped to that one user.
-func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, userID string) ([]Record, error) {
+// non-empty, results are scoped to that one user. providerModels is
+// optional (see requestFilterWhere) and variadic so existing callers are
+// unaffected.
+func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, userID string, providerModels ...string) ([]Record, error) {
 	query := `SELECT id, timestamp, user_id, model, prompt_tokens, completion_tokens,
 			cost_usd, latency_ms, cache_hit, finish_reason, status_code
 		 FROM requests WHERE timestamp >= ?`
@@ -284,6 +316,10 @@ func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, us
 	if userID != "" {
 		query += ` AND user_id = ?`
 		args = append(args, userID)
+	}
+	if clause, clauseArgs := modelInClause(providerModels); clause != "" {
+		query += clause
+		args = append(args, clauseArgs...)
 	}
 	query += ` ORDER BY cost_usd DESC LIMIT ?`
 	args = append(args, limit)
@@ -316,7 +352,12 @@ func (s *Store) TopExpensive(ctx context.Context, since time.Time, limit int, us
 
 // requestFilterWhere builds the shared WHERE clause for ListRequests and
 // PeriodSummary. until is optional; zero value means no upper bound.
-func requestFilterWhere(since, until time.Time, userID, model, status string) (string, []any) {
+// providerModels, when non-empty, additionally restricts to that exact
+// set of model names — how a "provider" filter is expressed at this
+// layer, since requests aren't tagged with a provider column: the
+// dashboard resolves a provider name to the set of logged model names
+// that route to it (see cost.ProviderFor) and passes that set down here.
+func requestFilterWhere(since, until time.Time, userID, model, status string, providerModels []string) (string, []any) {
 	where := ` WHERE timestamp >= ?`
 	args := []any{toDBTime(since)}
 	if !until.IsZero() {
@@ -331,6 +372,10 @@ func requestFilterWhere(since, until time.Time, userID, model, status string) (s
 		where += ` AND model = ?`
 		args = append(args, model)
 	}
+	if clause, clauseArgs := modelInClause(providerModels); clause != "" {
+		where += clause
+		args = append(args, clauseArgs...)
+	}
 	switch status {
 	case "success":
 		where += ` AND status_code < 400`
@@ -343,9 +388,10 @@ func requestFilterWhere(since, until time.Time, userID, model, status string) (s
 // ListRequests returns a page of request records plus the total count
 // matching the same filters. userID/model are optional. status is ""
 // (no filter), "success" (status_code < 400), or "error" (>= 400).
-// sortBy is "time" (default) or "cost".
-func (s *Store) ListRequests(ctx context.Context, since, until time.Time, userID, model, status, sortBy string, limit, offset int) ([]Record, int64, error) {
-	where, args := requestFilterWhere(since, until, userID, model, status)
+// sortBy is "time" (default) or "cost". providerModels is optional (see
+// requestFilterWhere) and variadic so existing callers are unaffected.
+func (s *Store) ListRequests(ctx context.Context, since, until time.Time, userID, model, status, sortBy string, limit, offset int, providerModels ...string) ([]Record, int64, error) {
+	where, args := requestFilterWhere(since, until, userID, model, status, providerModels)
 
 	var total int64
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM requests`+where, args...).Scan(&total); err != nil {
@@ -397,10 +443,10 @@ type PeriodSummary struct {
 }
 
 // PeriodSummary computes totals for [since, until] (until optional, zero
-// value = through now), scoped by the same userID/model/status filters
-// ListRequests uses.
-func (s *Store) PeriodSummary(ctx context.Context, since, until time.Time, userID, model, status string) (PeriodSummary, error) {
-	where, args := requestFilterWhere(since, until, userID, model, status)
+// value = through now), scoped by the same userID/model/status/
+// providerModels filters ListRequests uses.
+func (s *Store) PeriodSummary(ctx context.Context, since, until time.Time, userID, model, status string, providerModels ...string) (PeriodSummary, error) {
+	where, args := requestFilterWhere(since, until, userID, model, status, providerModels)
 
 	var out PeriodSummary
 	err := s.db.QueryRowContext(ctx,

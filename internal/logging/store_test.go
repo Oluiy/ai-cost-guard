@@ -212,6 +212,50 @@ func TestListRequestsOrderFilterAndPagination(t *testing.T) {
 	}
 }
 
+// TestListRequestsProviderModelsFilter is the fix for filtering cost by
+// provider: since requests have no provider column, the dashboard
+// resolves a provider to its set of model names and passes that set here
+// as providerModels — this confirms the resulting "model IN (...)"
+// filter behaves like the existing single-model filter, but over a set.
+func TestListRequestsProviderModelsFilter(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer store.Close()
+
+	now := time.Now().UTC()
+	store.Insert(ctx, Record{Timestamp: now, UserID: "alice", Model: "gpt-4o", CostUSD: 1})
+	store.Insert(ctx, Record{Timestamp: now, UserID: "alice", Model: "gpt-4o-mini", CostUSD: 2})
+	store.Insert(ctx, Record{Timestamp: now, UserID: "alice", Model: "claude-sonnet-5", CostUSD: 4})
+
+	records, total, err := store.ListRequests(ctx, now.Add(-time.Hour), time.Time{}, "", "", "", "time", 10, 0, "gpt-4o", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("ListRequests with providerModels failed: %v", err)
+	}
+	if total != 2 || len(records) != 2 {
+		t.Fatalf("expected 2 records matching the provider's model set, got total=%d len=%d", total, len(records))
+	}
+
+	summary, err := store.PeriodSummary(ctx, now.Add(-time.Hour), time.Time{}, "", "", "", "gpt-4o", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("PeriodSummary with providerModels failed: %v", err)
+	}
+	if summary.TotalCostUSD != 3 || summary.Requests != 2 {
+		t.Fatalf("got %+v, want TotalCostUSD=3 Requests=2", summary)
+	}
+
+	// No providerModels at all: unfiltered, same as every existing caller.
+	records, total, err = store.ListRequests(ctx, now.Add(-time.Hour), time.Time{}, "", "", "", "time", 10, 0)
+	if err != nil {
+		t.Fatalf("ListRequests without providerModels failed: %v", err)
+	}
+	if total != 3 || len(records) != 3 {
+		t.Fatalf("expected all 3 records unfiltered, got total=%d len=%d", total, len(records))
+	}
+}
+
 func TestListRequestsStatusFilter(t *testing.T) {
 	ctx := context.Background()
 	store, err := Open(filepath.Join(t.TempDir(), "test.db"))

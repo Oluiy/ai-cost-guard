@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
 // requestsPage is the JSON shape served by /dashboard/api/requests.
@@ -20,6 +22,7 @@ type requestsPage struct {
 	Limit        int              `json:"limit"`
 	Offset       int              `json:"offset"`
 	AllModels    []string         `json:"all_models"`
+	AllProviders []string         `json:"all_providers"`
 	Range        string           `json:"range"`
 }
 
@@ -42,7 +45,7 @@ const (
 )
 
 // Requests serves a paginated, filterable page of the full request log,
-// newest first. Filters: ?range=, ?user=, ?model=,
+// newest first. Filters: ?range=, ?user=, ?model=, ?provider=,
 // ?status=success|error, ?limit=/?offset=. ?from=&to= (YYYY-MM-DD)
 // override ?range= with an explicit date range.
 func (h *Handler) Requests(c *fiber.Ctx) error {
@@ -51,6 +54,7 @@ func (h *Handler) Requests(c *fiber.Ctx) error {
 
 	userFilter := c.Query("user")
 	modelFilter := c.Query("model")
+	providerFilter := c.Query("provider")
 	statusFilter := c.Query("status")
 	sortBy := c.Query("sort")
 
@@ -71,15 +75,24 @@ func (h *Handler) Requests(c *fiber.Ctx) error {
 		since, _, normalizedRange = rangeWindow(c.Query("range"))
 	}
 
-	records, total, err := h.Store.ListRequests(ctx, since, until, userFilter, modelFilter, statusFilter, sortBy, limit, offset)
+	providerModels, err := h.modelsForProvider(ctx, providerFilter)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	periodSummary, err := h.Store.PeriodSummary(ctx, since, until, userFilter, modelFilter, statusFilter)
+
+	records, total, err := h.Store.ListRequests(ctx, since, until, userFilter, modelFilter, statusFilter, sortBy, limit, offset, providerModels...)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	periodSummary, err := h.Store.PeriodSummary(ctx, since, until, userFilter, modelFilter, statusFilter, providerModels...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	allModels, err := h.Store.DistinctModels(ctx, since)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	allProviders, err := h.distinctProviders(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -95,7 +108,7 @@ func (h *Handler) Requests(c *fiber.Ctx) error {
 
 	return c.JSON(requestsPage{
 		Requests: rows, Total: total, TotalCostUSD: periodSummary.TotalCostUSD, Limit: limit, Offset: offset,
-		AllModels: allModels, Range: normalizedRange,
+		AllModels: allModels, AllProviders: allProviders, Range: normalizedRange,
 	})
 }
 
@@ -125,7 +138,7 @@ type reportSummary struct {
 
 // Report generates a summary, and with ?format=csv a downloadable export,
 // for an explicit ?from=&to= date range (YYYY-MM-DD, inclusive), scoped
-// by the same filters as Requests.
+// by the same filters as Requests (including ?provider=).
 func (h *Handler) Report(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), snapshotQueryTimeout)
 	defer cancel()
@@ -138,9 +151,15 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 	}
 	userFilter := c.Query("user")
 	modelFilter := c.Query("model")
+	providerFilter := c.Query("provider")
 	statusFilter := c.Query("status")
 
-	summary, err := h.Store.PeriodSummary(ctx, since, until, userFilter, modelFilter, statusFilter)
+	providerModels, err := h.modelsForProvider(ctx, providerFilter)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	summary, err := h.Store.PeriodSummary(ctx, since, until, userFilter, modelFilter, statusFilter, providerModels...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -157,7 +176,7 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 		})
 	}
 
-	records, _, err := h.Store.ListRequests(ctx, since, until, userFilter, modelFilter, statusFilter, "time", reportMaxRows, 0)
+	records, _, err := h.Store.ListRequests(ctx, since, until, userFilter, modelFilter, statusFilter, "time", reportMaxRows, 0, providerModels...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -167,10 +186,11 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 	buf.WriteString(fmt.Sprintf("# Requests: %d, Total spend: $%.4f, Cache hit rate: %.1f%%\n",
 		summary.Requests, summary.TotalCostUSD, cacheHitRate*100))
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"timestamp", "user_id", "model", "status_code", "cache_hit", "prompt_tokens", "completion_tokens", "latency_ms", "cost_usd"})
+	_ = w.Write([]string{"timestamp", "user_id", "model", "provider", "status_code", "cache_hit", "prompt_tokens", "completion_tokens", "latency_ms", "cost_usd"})
 	for _, r := range records {
+		provider, _ := cost.ProviderFor(r.Model)
 		_ = w.Write([]string{
-			r.Timestamp.Format(time.RFC3339), csvSafe(r.UserID), csvSafe(r.Model), strconv.Itoa(r.StatusCode), strconv.FormatBool(r.CacheHit),
+			r.Timestamp.Format(time.RFC3339), csvSafe(r.UserID), csvSafe(r.Model), csvSafe(provider), strconv.Itoa(r.StatusCode), strconv.FormatBool(r.CacheHit),
 			strconv.Itoa(r.PromptTokens), strconv.Itoa(r.CompletionTokens), strconv.FormatInt(r.LatencyMS, 10),
 			strconv.FormatFloat(r.CostUSD, 'f', -1, 64),
 		})

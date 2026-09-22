@@ -5,24 +5,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
 
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 	"github.com/Oluiy/ai-cost-guard/internal/logging"
 )
 
 // snapshot is the JSON shape served by both /dashboard/api/data and the SSE feed.
 type snapshot struct {
-	GeneratedAt string          `json:"generated_at"`
-	Range       string          `json:"range"`
-	User        string          `json:"user"`
-	AllUsers    []string        `json:"all_users"`
-	Today       todaySummary    `json:"today"`
-	Users       []userRow       `json:"users"`
-	Top         []requestRow    `json:"top"`
-	Timeseries  []timeseriesRow `json:"timeseries"`
+	GeneratedAt  string          `json:"generated_at"`
+	Range        string          `json:"range"`
+	User         string          `json:"user"`
+	AllUsers     []string        `json:"all_users"`
+	Provider     string          `json:"provider"`
+	AllProviders []string        `json:"all_providers"`
+	Today        todaySummary    `json:"today"`
+	Users        []userRow       `json:"users"`
+	Top          []requestRow    `json:"top"`
+	Timeseries   []timeseriesRow `json:"timeseries"`
 }
 
 type todaySummary struct {
@@ -88,25 +92,80 @@ func customDateRange(fromStr, toStr string) (since, until time.Time, ok bool) {
 	return from, to.Add(24*time.Hour - time.Millisecond), true
 }
 
-func (h *Handler) buildSnapshot(ctx context.Context, rng, userFilter string) (snapshot, error) {
+// modelsForProvider resolves a provider name (e.g. "anthropic") to the
+// set of logged model names that route to it. Requests aren't tagged
+// with a provider column (see requestFilterWhere's doc comment in
+// internal/logging) — this is how a "provider" filter gets expressed at
+// the query layer: as the set of model names it actually resolves to,
+// over a fixed 30-day lookback independent of whatever range is
+// currently selected (same reasoning as allUsers below).
+func (h *Handler) modelsForProvider(ctx context.Context, provider string) ([]string, error) {
+	if provider == "" {
+		return nil, nil
+	}
+	allModels, err := h.Store.DistinctModels(ctx, time.Now().UTC().Add(-30*24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	var matched []string
+	for _, m := range allModels {
+		if p, ok := cost.ProviderFor(m); ok && p == provider {
+			matched = append(matched, m)
+		}
+	}
+	return matched, nil
+}
+
+// distinctProviders is every provider actually represented in the
+// logged requests, for the filter dropdown — same "fixed window,
+// unfiltered" principle as allUsers/allModels.
+func (h *Handler) distinctProviders(ctx context.Context) ([]string, error) {
+	allModels, err := h.Store.DistinctModels(ctx, time.Now().UTC().Add(-30*24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, m := range allModels {
+		if p, ok := cost.ProviderFor(m); ok {
+			seen[p] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for p := range seen {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func (h *Handler) buildSnapshot(ctx context.Context, rng, userFilter, providerFilter string) (snapshot, error) {
 	since, granularity, normalizedRange := rangeWindow(rng)
 	now := time.Now().UTC()
 
-	summaries, err := h.Store.SummarySince(ctx, since, userFilter)
+	providerModels, err := h.modelsForProvider(ctx, providerFilter)
 	if err != nil {
 		return snapshot{}, err
 	}
-	top, err := h.Store.TopExpensive(ctx, since, 10, userFilter)
+
+	summaries, err := h.Store.SummarySince(ctx, since, userFilter, providerModels...)
 	if err != nil {
 		return snapshot{}, err
 	}
-	buckets, err := h.Store.TimeSeriesSince(ctx, since, granularity, userFilter)
+	top, err := h.Store.TopExpensive(ctx, since, 10, userFilter, providerModels...)
+	if err != nil {
+		return snapshot{}, err
+	}
+	buckets, err := h.Store.TimeSeriesSince(ctx, since, granularity, userFilter, providerModels...)
 	if err != nil {
 		return snapshot{}, err
 	}
 	// Drawn from a fixed window, unfiltered, so switching range/user
 	// never makes an option vanish from its own dropdown.
 	allUsers, err := h.Store.DistinctUsers(ctx, now.Add(-30*24*time.Hour))
+	if err != nil {
+		return snapshot{}, err
+	}
+	allProviders, err := h.distinctProviders(ctx)
 	if err != nil {
 		return snapshot{}, err
 	}
@@ -142,23 +201,25 @@ func (h *Handler) buildSnapshot(ctx context.Context, rng, userFilter string) (sn
 	}
 
 	return snapshot{
-		GeneratedAt: now.Format(time.RFC3339),
-		Range:       normalizedRange,
-		User:        userFilter,
-		AllUsers:    allUsers,
-		Today:       today,
-		Users:       users,
-		Top:         topRows,
-		Timeseries:  tsRows,
+		GeneratedAt:  now.Format(time.RFC3339),
+		Range:        normalizedRange,
+		User:         userFilter,
+		AllUsers:     allUsers,
+		Provider:     providerFilter,
+		AllProviders: allProviders,
+		Today:        today,
+		Users:        users,
+		Top:          topRows,
+		Timeseries:   tsRows,
 	}, nil
 }
 
-// Data serves a single JSON snapshot. Accepts ?range=today|7d|30d and
-// ?user=<id> to scope it, both optional.
+// Data serves a single JSON snapshot. Accepts ?range=today|7d|30d,
+// ?user=<id>, and ?provider=<name> to scope it, all optional.
 func (h *Handler) Data(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), snapshotQueryTimeout)
 	defer cancel()
-	snap, err := h.buildSnapshot(ctx, c.Query("range"), c.Query("user"))
+	snap, err := h.buildSnapshot(ctx, c.Query("range"), c.Query("user"), c.Query("provider"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -166,11 +227,12 @@ func (h *Handler) Data(c *fiber.Ctx) error {
 }
 
 // Events streams the same snapshot as Server-Sent Events every few
-// seconds. The range/user filter is fixed at connect time; changing it
-// means reconnecting.
+// seconds. The range/user/provider filter is fixed at connect time;
+// changing it means reconnecting.
 func (h *Handler) Events(c *fiber.Ctx) error {
 	rng := c.Query("range")
 	userFilter := c.Query("user")
+	providerFilter := c.Query("provider")
 
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
@@ -181,7 +243,7 @@ func (h *Handler) Events(c *fiber.Ctx) error {
 		defer ticker.Stop()
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), snapshotQueryTimeout)
-			snap, err := h.buildSnapshot(ctx, rng, userFilter)
+			snap, err := h.buildSnapshot(ctx, rng, userFilter, providerFilter)
 			cancel()
 			if err == nil {
 				b, _ := json.Marshal(snap)

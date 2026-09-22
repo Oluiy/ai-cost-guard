@@ -78,6 +78,7 @@
       defaults = {
         range: saved.range || "today",
         user: saved.user || "",
+        provider: saved.provider || "",
         view: saved.view === "requests" ? "requests" : "overview",
         model: "",
         status: "",
@@ -86,7 +87,7 @@
         reportTo: "",
       };
     } catch (e) {
-      defaults = { range: "today", user: "", view: "overview", model: "", status: "", sort: "time", reportFrom: "", reportTo: "" };
+      defaults = { range: "today", user: "", provider: "", view: "overview", model: "", status: "", sort: "time", reportFrom: "", reportTo: "" };
     }
     // A URL carrying its own filters (a shared/bookmarked link) takes
     // priority over whatever's saved in this browser's local storage —
@@ -100,6 +101,7 @@
     if (params.has("view")) filters.view = params.get("view") === "requests" ? "requests" : "overview";
     if (params.has("range")) filters.range = params.get("range");
     if (params.has("user")) filters.user = params.get("user");
+    if (params.has("provider")) filters.provider = params.get("provider");
     if (params.has("model")) filters.model = params.get("model");
     if (params.has("status")) filters.status = params.get("status");
     if (params.has("sort")) filters.sort = params.get("sort");
@@ -123,6 +125,7 @@
       params.set("range", state.range);
     }
     if (state.user) params.set("user", state.user);
+    if (state.provider) params.set("provider", state.provider);
     if (state.model) params.set("model", state.model);
     if (state.status) params.set("status", state.status);
     if (state.sort && state.sort !== "time") params.set("sort", state.sort);
@@ -131,7 +134,7 @@
   }
 
   function saveFilters() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ range: state.range, user: state.user, view: state.view }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ range: state.range, user: state.user, provider: state.provider, view: state.view }));
     syncURL();
   }
 
@@ -153,6 +156,13 @@
     var userPicker = document.getElementById("user-picker");
     userPicker.addEventListener("change", function () {
       state.user = userPicker.value;
+      saveFilters();
+      refresh();
+    });
+
+    var providerPicker = document.getElementById("provider-picker");
+    providerPicker.addEventListener("change", function () {
+      state.provider = providerPicker.value;
       saveFilters();
       refresh();
     });
@@ -198,6 +208,26 @@
     }
   }
 
+  // Same pattern as syncUserOptions: populate from the snapshot's
+  // all_providers list without discarding the current selection if it's
+  // still valid.
+  function syncProviderOptions(allProviders) {
+    var picker = document.getElementById("provider-picker");
+    var current = state.provider;
+    picker.innerHTML = '<option value="">All providers</option>';
+    (allProviders || []).forEach(function (p) {
+      var opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      picker.appendChild(opt);
+    });
+    picker.value = allProviders && allProviders.indexOf(current) !== -1 ? current : "";
+    if (picker.value !== current) {
+      state.provider = picker.value;
+      saveFilters();
+    }
+  }
+
   function syncModelOptions(allModels) {
     var picker = document.getElementById("model-picker");
     var current = state.model;
@@ -233,6 +263,7 @@
     var params = new URLSearchParams();
     if (state.range) params.set("range", state.range);
     if (state.user) params.set("user", state.user);
+    if (state.provider) params.set("provider", state.provider);
     var s = params.toString();
     return s ? "?" + s : "";
   }
@@ -555,6 +586,7 @@
 
   function render(snap) {
     syncUserOptions(snap.all_users);
+    syncProviderOptions(snap.all_providers);
     updateSectionTitles(RANGE_LABELS[snap.range] || "today", snap.user);
     renderTiles(snap.today);
     renderChart(snap.timeseries || []);
@@ -579,6 +611,7 @@
       params.set("range", state.range);
     }
     if (state.user) params.set("user", state.user);
+    if (state.provider) params.set("provider", state.provider);
     if (state.model) params.set("model", state.model);
     if (state.status) params.set("status", state.status);
     if (state.sort) params.set("sort", state.sort);
@@ -595,6 +628,7 @@
       .then(function (page) {
         if (!page) return;
         syncModelOptions(page.all_models);
+        syncProviderOptions(page.all_providers);
         renderRequests(page.requests || [], reset);
         requestsTotal = page.total || 0;
         requestsOffset += (page.requests || []).length;
@@ -682,6 +716,7 @@
     params.set("from", document.getElementById("report-from").value);
     params.set("to", document.getElementById("report-to").value);
     if (state.user) params.set("user", state.user);
+    if (state.provider) params.set("provider", state.provider);
     if (state.model) params.set("model", state.model);
     if (state.status) params.set("status", state.status);
     return params.toString();

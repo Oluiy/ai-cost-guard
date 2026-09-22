@@ -134,6 +134,18 @@ func Load(path string) (*Config, error) {
 	} else {
 		var err error
 		data, err = os.ReadFile(path)
+		if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
+			// The #1 first-run Docker footgun: a bind mount whose host-side
+			// source doesn't exist yet doesn't fail, it silently creates a
+			// directory there (`docker compose up` before `touch
+			// config.yaml`/`fitguard init` has ever written the file) — and
+			// os.ReadFile's own error for that ("is a directory") gives no
+			// hint why, so this is worth naming outright rather than
+			// making every first-time Docker user rediscover it.
+			return nil, fmt.Errorf("%s is a directory, not a file — if you're running in Docker, this "+
+				"usually means the config bind-mount's host file didn't exist before the container first "+
+				"started, so Docker created a directory there instead; see docs/guide/deployment-docker.html", path)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("reading config %s: %w", path, err)
 		}

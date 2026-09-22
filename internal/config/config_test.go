@@ -227,6 +227,26 @@ func TestLoad_ExpandsBracedEnvVars(t *testing.T) {
 	}
 }
 
+// TestLoad_DirectoryAtConfigPathGivesActionableError is the fix for the
+// #1 first-run Docker footgun: `docker compose up` before config.yaml
+// exists on the host makes Docker silently bind-mount a directory there
+// instead of failing, and the raw os.ReadFile error ("is a directory")
+// gives no hint why — this confirms Load names the actual cause instead.
+func TestLoad_DirectoryAtConfigPathGivesActionableError(t *testing.T) {
+	dir := t.TempDir() + "/config.yaml"
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("expected an error when the config path is a directory")
+	}
+	if !strings.Contains(err.Error(), "is a directory") || !strings.Contains(err.Error(), "Docker") {
+		t.Fatalf("got %q, want an error naming the directory-at-config-path cause", err.Error())
+	}
+}
+
 func TestLoad_UsesFITGUARD_CONFIGWithoutReadingPath(t *testing.T) {
 	t.Setenv("FITGUARD_CONFIG", "port: 9090\ndata_dir: /var/data\nproviders:\n  openai:\n    api_key: from-env-config\n")
 

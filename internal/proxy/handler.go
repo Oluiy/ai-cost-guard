@@ -60,17 +60,17 @@ func New(cfg *config.Config, settings *config.Settings, c cache.Cache, enforcer 
 			if baseURL == "" {
 				baseURL = "https://api.groq.com/openai/v1"
 			}
-			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey)
+			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey, "groq")
 		case "together":
 			if baseURL == "" {
 				baseURL = "https://api.together.xyz/v1"
 			}
-			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey)
+			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey, "together")
 		default: // "openai" and any custom OpenAI-compatible provider
 			if baseURL == "" {
 				baseURL = "https://api.openai.com/v1"
 			}
-			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey)
+			providers[name] = NewOpenAICompatProvider(baseURL, p.APIKey, "openai")
 		}
 	}
 	return &Handler{Cfg: cfg, Settings: settings, Cache: c, Budget: enforcer, Store: store, Providers: providers}

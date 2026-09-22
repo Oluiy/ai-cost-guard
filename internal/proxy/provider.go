@@ -5,6 +5,7 @@ package proxy
 import (
 	"bufio"
 	"context"
+	"io"
 )
 
 // Usage is normalized token usage for a single completion.
@@ -30,6 +31,25 @@ type Provider interface {
 	// response plus usage. Providers with no embeddings API return an
 	// error rather than a silent no-op.
 	Embeddings(ctx context.Context, model string, rawBody []byte) (respBody []byte, usage Usage, statusCode int, err error)
+
+	// ImageGeneration sends rawBody (an OpenAI-shaped /v1/images/generations
+	// request) upstream and returns an OpenAI-shaped response
+	// (`{"data":[{"b64_json"|"url": ...}]}`) plus the number of images
+	// actually generated (for cost calculation). Providers with no image
+	// generation API return an error rather than a silent no-op.
+	ImageGeneration(ctx context.Context, model string, rawBody []byte) (respBody []byte, n int, statusCode int, err error)
+
+	// AudioSpeech sends rawBody (an OpenAI-shaped /v1/audio/speech request)
+	// upstream and returns the raw audio bytes plus the input character
+	// count (for cost calculation). Providers with no TTS API return an
+	// error rather than a silent no-op.
+	AudioSpeech(ctx context.Context, model string, rawBody []byte) (respBody []byte, charCount int, statusCode int, err error)
+
+	// AudioTranscription sends a multipart audio file upstream and returns
+	// an OpenAI-shaped transcription response plus the audio duration in
+	// seconds (for cost calculation; 0 if the provider doesn't report it).
+	// Providers with no STT API return an error rather than a silent no-op.
+	AudioTranscription(ctx context.Context, model string, audio io.Reader, filename string, formFields map[string]string) (respBody []byte, durationSeconds float64, statusCode int, err error)
 }
 
 // StreamSession is an established, successful streaming connection to a

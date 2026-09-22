@@ -190,6 +190,33 @@ func TestSplitGeminiParts_NoCandidates(t *testing.T) {
 	}
 }
 
+// TestFirstMediaOfType is the fix for the Interactions API's May 2026
+// schema migration: responses are a "steps" array (each with a "type"
+// discriminator and its own "content" blocks), not the flat
+// "outputs"/"output_image" shape this replaced — confirmed against
+// Google's own breaking-changes doc. This checks the parser finds media
+// by content type regardless of which step it's nested under, and
+// correctly reports "not found" rather than panicking on empty input.
+func TestFirstMediaOfType(t *testing.T) {
+	steps := []geminiInteractionStep{
+		{Type: "user_input", Content: []geminiInteractionMedia{{Type: "text", Data: ""}}},
+		{Type: "model_output", Content: []geminiInteractionMedia{
+			{Type: "text", Data: ""},
+			{Type: "image", Data: "ZmFrZS1pbWFnZQ==", MimeType: "image/png"},
+		}},
+	}
+	media := firstMediaOfType(steps, "image")
+	if media == nil || media.Data != "ZmFrZS1pbWFnZQ==" {
+		t.Fatalf("got %+v, want the image content block", media)
+	}
+	if firstMediaOfType(steps, "audio") != nil {
+		t.Error("expected no audio block to be found in these steps")
+	}
+	if firstMediaOfType(nil, "image") != nil {
+		t.Error("expected nil steps to return nil, not panic")
+	}
+}
+
 func TestMapGeminiFinishReason(t *testing.T) {
 	cases := map[string]string{
 		"STOP":                "stop",

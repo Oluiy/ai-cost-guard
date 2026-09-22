@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -597,4 +599,194 @@ func (s *geminiStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 		return text.String(), finalizeToolCalls(toolCallOrder, toolCalls), usage, finishReason, err
 	}
 	return text.String(), finalizeToolCalls(toolCallOrder, toolCalls), usage, finishReason, nil
+}
+
+// --- Images and audio, via Gemini's unified /interactions endpoint ---
+//
+// Distinct from generateContent (used by ChatCompletion/Embeddings above):
+// image and speech generation live behind this newer surface. Schema
+// confirmed against Google's own current docs (ai.google.dev/api/interactions-api
+// and .../docs/interactions-breaking-changes-may-2026, checked 2026-09):
+// requests need the "Api-Revision: 2026-05-20" header and a "response_format"
+// discriminator; responses are a "steps" array (the May 2026 schema — the
+// prior flat "outputs"/"output_image" shape this replaced is gone as of
+// that migration). Still not exercised against a live API key — the shapes
+// below are correct per the docs, not proven by a real response yet.
+
+const geminiAPIRevision = "2026-05-20"
+
+type geminiInteractionRequest struct {
+	Model            string                   `json:"model"`
+	Input            string                   `json:"input"`
+	ResponseFormat   *geminiResponseFormat    `json:"response_format,omitempty"`
+	GenerationConfig *geminiInteractionGenCfg `json:"generation_config,omitempty"`
+}
+
+type geminiResponseFormat struct {
+	Type string `json:"type"` // "image" or "audio"
+}
+
+type geminiInteractionGenCfg struct {
+	SpeechConfig []geminiSpeechVoice `json:"speech_config,omitempty"`
+}
+
+type geminiSpeechVoice struct {
+	Voice string `json:"voice"`
+}
+
+type geminiInteractionResponse struct {
+	Steps []geminiInteractionStep `json:"steps"`
+}
+
+type geminiInteractionStep struct {
+	Type    string                   `json:"type"` // "user_input", "model_output", ...
+	Content []geminiInteractionMedia `json:"content"`
+}
+
+type geminiInteractionMedia struct {
+	Type     string `json:"type"`           // "text", "image", "audio"
+	Data     string `json:"data,omitempty"` // base64, for image/audio
+	MimeType string `json:"mime_type,omitempty"`
+}
+
+// firstMediaOfType scans every step's content (not just "model_output"
+// steps specifically — the docs don't guarantee media never appears
+// elsewhere, and matching on content type directly is more robust than
+// assuming step-type placement) for the first block of the given type.
+func firstMediaOfType(steps []geminiInteractionStep, mediaType string) *geminiInteractionMedia {
+	for _, step := range steps {
+		for _, c := range step.Content {
+			if c.Type == mediaType && c.Data != "" {
+				return &c
+			}
+		}
+	}
+	return nil
+}
+
+func (p *GeminiProvider) ImageGeneration(ctx context.Context, model string, rawBody []byte) ([]byte, int, int, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(rawBody, &payload); err != nil {
+		return nil, 0, 0, fmt.Errorf("parsing request: %w", err)
+	}
+	prompt, _ := payload["prompt"].(string)
+	if prompt == "" {
+		return nil, 0, 0, fmt.Errorf(`"prompt" is required`)
+	}
+
+	iReq := geminiInteractionRequest{
+		Model:          model,
+		Input:          prompt,
+		ResponseFormat: &geminiResponseFormat{Type: "image"},
+	}
+	body, err := json.Marshal(iReq)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	respBody, statusCode, err := p.postInteraction(ctx, body)
+	if err != nil {
+		return respBody, 0, statusCode, err
+	}
+
+	var parsed geminiInteractionResponse
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return nil, 0, statusCode, fmt.Errorf("parsing gemini image response: %w", err)
+	}
+	media := firstMediaOfType(parsed.Steps, "image")
+	if media == nil {
+		return nil, 0, statusCode, fmt.Errorf("gemini response had no image output")
+	}
+
+	openaiShaped := map[string]any{
+		"created": time.Now().Unix(),
+		"data":    []map[string]any{{"b64_json": media.Data}},
+	}
+	outBody, err := json.Marshal(openaiShaped)
+	if err != nil {
+		return nil, 0, statusCode, err
+	}
+	return outBody, 1, statusCode, nil
+}
+
+func (p *GeminiProvider) AudioSpeech(ctx context.Context, model string, rawBody []byte) ([]byte, int, int, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(rawBody, &payload); err != nil {
+		return nil, 0, 0, fmt.Errorf("parsing request: %w", err)
+	}
+	input, _ := payload["input"].(string)
+	if input == "" {
+		return nil, 0, 0, fmt.Errorf(`"input" is required`)
+	}
+	voice, _ := payload["voice"].(string)
+	if voice == "" {
+		voice = "Kore" // Gemini's documented default voice
+	}
+
+	iReq := geminiInteractionRequest{
+		Model:            model,
+		Input:            input,
+		ResponseFormat:   &geminiResponseFormat{Type: "audio"},
+		GenerationConfig: &geminiInteractionGenCfg{SpeechConfig: []geminiSpeechVoice{{Voice: voice}}},
+	}
+	body, err := json.Marshal(iReq)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	respBody, statusCode, err := p.postInteraction(ctx, body)
+	if err != nil {
+		return nil, 0, statusCode, err
+	}
+
+	var parsed geminiInteractionResponse
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return nil, 0, statusCode, fmt.Errorf("parsing gemini speech response: %w", err)
+	}
+	media := firstMediaOfType(parsed.Steps, "audio")
+	if media == nil {
+		return nil, 0, statusCode, fmt.Errorf("gemini response had no audio output")
+	}
+	audioBytes, err := base64.StdEncoding.DecodeString(media.Data)
+	if err != nil {
+		return nil, 0, statusCode, fmt.Errorf("decoding gemini audio response: %w", err)
+	}
+	return audioBytes, len(input), statusCode, nil
+}
+
+// postInteraction is like post, but targets /interactions and sets the
+// Api-Revision header the new (May 2026) schema requires — generateContent
+// (used by ChatCompletion/Embeddings) doesn't need it, so this doesn't
+// touch the shared post() helper those use.
+func (p *GeminiProvider) postInteraction(ctx context.Context, body []byte) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.BaseURL+"/interactions", bytes.NewReader(body))
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", p.APIKey)
+	req.Header.Set("Api-Revision", geminiAPIRevision)
+
+	resp, err := p.Client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := readUpstreamBody(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	if resp.StatusCode >= 400 {
+		return respBody, resp.StatusCode, fmt.Errorf("upstream returned status %d", resp.StatusCode)
+	}
+	return respBody, resp.StatusCode, nil
+}
+
+// AudioTranscription: Gemini understands audio as multimodal chat input
+// (generateContent), but has no dedicated /v1/audio/transcriptions-shaped
+// endpoint confirmed at time of writing — left unsupported rather than
+// guessed at. Route transcription requests to openai/groq/together.
+func (p *GeminiProvider) AudioTranscription(ctx context.Context, model string, audio io.Reader, filename string, formFields map[string]string) ([]byte, float64, int, error) {
+	return nil, 0, 0, fmt.Errorf("gemini transcription is not supported by this gateway yet; route audio/transcriptions requests to an openai/groq/together model instead")
 }

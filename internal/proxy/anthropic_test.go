@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -276,6 +277,26 @@ func TestRelay_ToolCallArgumentsStreamIncrementally(t *testing.T) {
 
 func event(eventType, data string) string {
 	return "event: " + eventType + "\ndata: " + data + "\n\n"
+}
+
+// TestAnthropicProvider_MediaEndpointsAllError confirms Anthropic's three
+// new Provider methods are deliberate, permanent "not supported" errors —
+// Anthropic has no image generation or audio API of any kind, unlike
+// Embeddings (also unsupported, but only because Anthropic just doesn't
+// happen to offer it — same shape either way).
+func TestAnthropicProvider_MediaEndpointsAllError(t *testing.T) {
+	p := NewAnthropicProvider("https://api.anthropic.com/v1", "test-key")
+	ctx := context.Background()
+
+	if _, _, _, err := p.ImageGeneration(ctx, "claude-sonnet-5", nil); err == nil {
+		t.Error("expected ImageGeneration to error, anthropic has no image API")
+	}
+	if _, _, _, err := p.AudioSpeech(ctx, "claude-sonnet-5", nil); err == nil {
+		t.Error("expected AudioSpeech to error, anthropic has no TTS API")
+	}
+	if _, _, _, err := p.AudioTranscription(ctx, "claude-sonnet-5", strings.NewReader(""), "a.mp3", nil); err == nil {
+		t.Error("expected AudioTranscription to error, anthropic has no STT API")
+	}
 }
 
 func TestMapAnthropicStopReason(t *testing.T) {

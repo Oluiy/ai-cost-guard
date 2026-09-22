@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -32,65 +33,65 @@ func NewAnthropicProvider(baseURL, apiKey string) *AnthropicProvider {
 // an array of parts, which is why it's json.RawMessage here rather than a
 // fixed field) ---
 
-type openAIChatRequest struct {
-	Model       string           `json:"model"`
-	Messages    []openAIMessage  `json:"messages"`
-	Temperature *float64         `json:"temperature,omitempty"`
-	MaxTokens   *int             `json:"max_tokens,omitempty"`
-	Tools       []openAITool     `json:"tools,omitempty"`
-	ToolChoice  *json.RawMessage `json:"tool_choice,omitempty"`
-}
+// type openAIChatRequest struct {
+// 	Model       string           `json:"model"`
+// 	Messages    []openAIMessage  `json:"messages"`
+// 	Temperature *float64         `json:"temperature,omitempty"`
+// 	MaxTokens   *int             `json:"max_tokens,omitempty"`
+// 	Tools       []openAITool     `json:"tools,omitempty"`
+// 	ToolChoice  *json.RawMessage `json:"tool_choice,omitempty"`
+// }
 
-type openAIMessage struct {
-	Role       string           `json:"role"`
-	Content    *json.RawMessage `json:"content,omitempty"`
-	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string           `json:"tool_call_id,omitempty"`
-}
+// type openAIMessage struct {
+// 	Role       string           `json:"role"`
+// 	Content    *json.RawMessage `json:"content,omitempty"`
+// 	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
+// 	ToolCallID string           `json:"tool_call_id,omitempty"`
+// }
 
-type openAIContentPart struct {
-	Type     string `json:"type"` // "text" or "image_url"
-	Text     string `json:"text,omitempty"`
-	ImageURL *struct {
-		URL string `json:"url"`
-	} `json:"image_url,omitempty"`
-}
+// type openAIContentPart struct {
+// 	Type     string `json:"type"` // "text" or "image_url"
+// 	Text     string `json:"text,omitempty"`
+// 	ImageURL *struct {
+// 		URL string `json:"url"`
+// 	} `json:"image_url,omitempty"`
+// }
 
-type openAIToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
-}
+// type openAIToolCall struct {
+// 	ID       string `json:"id"`
+// 	Type     string `json:"type"`
+// 	Function struct {
+// 		Name      string `json:"name"`
+// 		Arguments string `json:"arguments"`
+// 	} `json:"function"`
+// }
 
-type openAITool struct {
-	Type     string `json:"type"`
-	Function struct {
-		Name        string          `json:"name"`
-		Description string          `json:"description,omitempty"`
-		Parameters  json.RawMessage `json:"parameters,omitempty"`
-	} `json:"function"`
-}
+// type openAITool struct {
+// 	Type     string `json:"type"`
+// 	Function struct {
+// 		Name        string          `json:"name"`
+// 		Description string          `json:"description,omitempty"`
+// 		Parameters  json.RawMessage `json:"parameters,omitempty"`
+// 	} `json:"function"`
+// }
 
-// parseOpenAIContent returns a message's content as plain text if it's a
-// JSON string, or as content parts if it's an array (the multimodal
-// shape). Exactly one of the two return values is populated.
-func parseOpenAIContent(raw *json.RawMessage) (text string, parts []openAIContentPart) {
-	if raw == nil {
-		return "", nil
-	}
-	var s string
-	if err := json.Unmarshal(*raw, &s); err == nil {
-		return s, nil
-	}
-	var arr []openAIContentPart
-	if err := json.Unmarshal(*raw, &arr); err == nil {
-		return "", arr
-	}
-	return "", nil
-}
+// // parseOpenAIContent returns a message's content as plain text if it's a
+// // JSON string, or as content parts if it's an array (the multimodal
+// // shape). Exactly one of the two return values is populated.
+// func parseOpenAIContent(raw *json.RawMessage) (text string, parts []openAIContentPart) {
+// 	if raw == nil {
+// 		return "", nil
+// 	}
+// 	var s string
+// 	if err := json.Unmarshal(*raw, &s); err == nil {
+// 		return s, nil
+// 	}
+// 	var arr []openAIContentPart
+// 	if err := json.Unmarshal(*raw, &arr); err == nil {
+// 		return "", arr
+// 	}
+// 	return "", nil
+// }
 
 // --- Anthropic-side request shapes ---
 
@@ -303,6 +304,20 @@ type anthropicResponseBlock struct {
 // loudly rather than returning an empty success.
 func (p *AnthropicProvider) Embeddings(ctx context.Context, model string, rawBody []byte) ([]byte, Usage, int, error) {
 	return nil, Usage{}, 0, fmt.Errorf("anthropic has no embeddings API; route embeddings requests to an openai/groq/together model instead")
+}
+
+// Anthropic has no image generation or audio API of any kind — these are
+// deliberate, permanent "not supported" responses, not placeholders.
+func (p *AnthropicProvider) ImageGeneration(ctx context.Context, model string, rawBody []byte) ([]byte, int, int, error) {
+	return nil, 0, 0, fmt.Errorf("anthropic has no image generation API; route image requests to an openai/gemini/together model instead")
+}
+
+func (p *AnthropicProvider) AudioSpeech(ctx context.Context, model string, rawBody []byte) ([]byte, int, int, error) {
+	return nil, 0, 0, fmt.Errorf("anthropic has no text-to-speech API; route audio/speech requests to an openai/gemini/together model instead")
+}
+
+func (p *AnthropicProvider) AudioTranscription(ctx context.Context, model string, audio io.Reader, filename string, formFields map[string]string) ([]byte, float64, int, error) {
+	return nil, 0, 0, fmt.Errorf("anthropic has no speech-to-text API; route audio/transcriptions requests to an openai/groq/together model instead")
 }
 
 func (p *AnthropicProvider) ChatCompletion(ctx context.Context, model string, rawBody []byte) ([]byte, Usage, string, int, error) {

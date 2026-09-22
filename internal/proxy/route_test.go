@@ -21,6 +21,18 @@ func TestRouteProvider(t *testing.T) {
 		"openai/some-model":              "openai",
 		"together/some-model":            "together",
 		"meta-llama/Llama-3-70b-chat-hf": "together", // unrecognized prefix before "/" -> together
+
+		// Images/audio
+		"dall-e-3":                  "openai",
+		"gpt-image-1":               "openai",
+		"tts-1":                     "openai",
+		"tts-1-hd":                  "openai",
+		"whisper-1":                 "openai",
+		"whisper-large-v3":          "groq",
+		"whisper-large-v3-turbo":    "groq",
+		"together/whisper-large-v3": "together", // explicit prefix wins over the bare-name groq default
+		"flux-schnell":              "together",
+		"stable-diffusion-xl":       "together",
 	}
 	for model, want := range cases {
 		if got := RouteProvider(model); got != want {

@@ -22,10 +22,10 @@ func main() {
 		Version: version,
 		Long: "fitguard is a self-hostable, OpenAI-compatible proxy that sits between your app and " +
 			"OpenAI/Anthropic/Gemini/Groq/Together, adding response caching, per-user daily budgets, " +
-			"automatic fallback, and cost logging. Point your OpenAI SDK's baseURL at fitguard " +
+			"automatic fallback, and cost logging. \n Point your OpenAI SDK's baseURL at fitguard " +
 			"instead of the provider directly; nothing else about your client code changes.\n\n" +
 			"Run `fitguard init` first to generate a config.yaml, then `fitguard run` to start it.\n\n" +
-			"Full documentation: https://ai-cost-guard-ruddy.vercel.app/",
+			"Full documentation: https://ai-cost-guard-ruddy.vercel.app",
 		// Runtime failures (bad config, port in use, provider unreachable)
 		// aren't usage mistakes — don't dump command help/usage for them.
 		// Errors are printed once, below, with consistent styling.

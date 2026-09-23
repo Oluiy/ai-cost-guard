@@ -118,6 +118,7 @@ gateway. Both are covered in [**Getting started**](https://ai-cost-guard-ruddy.v
 | **Streaming** | `stream: true` fully supported, including through caching and fallback. |
 | **Embeddings** | `/v1/embeddings`, cached and budget-checked the same way as chat completions. |
 | **Vision & tool calling** | Translated for Anthropic; OpenAI-compatible providers pass them through natively. |
+| **Images & audio** | `/v1/images/generations`, `/v1/audio/speech`, `/v1/audio/transcriptions` — wired wherever the underlying provider actually supports them (see [Providers](https://ai-cost-guard-ruddy.vercel.app/guide/providers.html) for exactly which ones). |
 
 How each of these actually works, mechanism by mechanism, is in
 [**How it works**](https://ai-cost-guard-ruddy.vercel.app/guide/how-it-works.html).

@@ -113,11 +113,13 @@ gateway. Both are covered in [**Getting started**](https://ai-cost-guard-ruddy.v
 | **Per-user budgets** | Worst-case cost is reserved *before* calling upstream, so concurrent requests can't jointly overspend. Over budget → `429`. |
 | **finish_reason guard** | Flags truncated responses (`finish_reason: "length"`) — the #1 signal of a runaway loop. |
 | **Auto fallback** | Errors or rate-limits retry against your configured `fallback` list, before anything reaches the client. |
-| **Cost logging** | Every request logged to SQLite: user, model, tokens, cost, latency, cache hit. No prompt content stored. |
+| **Cost logging** | Every request logged to SQLite or Postgres: user, model, tokens, cost, latency, cache hit. No prompt content stored. |
 | **Live dashboard** | Spend, cache hit rate, top expensive requests, updating live over SSE. Login-protected. |
 | **Streaming** | `stream: true` fully supported, including through caching and fallback. |
 | **Embeddings** | `/v1/embeddings`, cached and budget-checked the same way as chat completions. |
 | **Vision & tool calling** | Translated for Anthropic; OpenAI-compatible providers pass them through natively. |
+| **Responses & Batch APIs** | `/v1/responses` and Files + Batches for OpenAI and Groq. Batches are owner-scoped per key, gated by budget at creation, and costed at half rate when they finish. |
+| **Model discovery** | `GET /v1/models`, so tools that fill a model picker from it (LibreChat, Open WebUI, Cursor) work. Lists only models of providers you've configured. |
 | **Images & audio** | `/v1/images/generations`, `/v1/audio/speech`, `/v1/audio/transcriptions` — wired wherever the underlying provider actually supports them (see [Providers](https://ai-cost-guard-ruddy.vercel.app/guide/providers.html) for exactly which ones). |
 
 How each of these actually works, mechanism by mechanism, is in
@@ -155,10 +157,13 @@ you deploy beyond your own machine (`budget.fail_closed`,
 
 ## Docker
 
+A multi-arch image (amd64 and arm64) is published to GHCR on every release, built from the same binary as the release archives. Nothing to compile:
+
 ```bash
-docker build -t fitguard .
-docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml fitguard
+docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml ghcr.io/oluiy/fitguard
 ```
+
+Pin a version (`ghcr.io/oluiy/fitguard:0.1.3`) for production. To deploy to Render, Fly.io or Railway from this image, see [Deployment](https://ai-cost-guard-ruddy.vercel.app/guide/deployment-paas.html); the repo includes a `render.yaml` Blueprint and a `fly.toml`. To build from source instead: `docker build -t fitguard .`
 
 ## Development
 

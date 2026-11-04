@@ -212,6 +212,18 @@
       <strong>This is exact-match caching, not semantic caching.</strong> A hit means "this precise request was made before, within the TTL." It does not mean "something similar was asked." Rephrase a prompt by one character and it's a miss.
     </div>
 
+    <div class="callout">
+      <strong>Requests that run a tool on the provider's side are never cached.</strong> A request using web search, code execution, or similar (a <code class="inline">tools</code> entry whose type isn't <code class="inline">function</code>, <code class="inline">web_search_options</code>, a search-preview or <code class="inline">compound</code> model) goes to the provider every time. Serving a cached answer would hand back old search results as if they were current. Ordinary function calling, where your own code runs the function, is cached like any other request.
+    </div>
+
+    <h3 id="cost-detail">What a logged cost includes</h3>
+    <p>
+      Every request's cost is itemised and stored with it: uncached input, cached input, cache writes, and output are each priced at their own rate, and the dashboard shows that breakdown when you click a request. Providers report cached tokens differently (OpenAI and Gemini include them in the prompt count; Anthropic reports them separately), and Gemini bills thinking tokens as output, so FitGuard normalises all three before pricing. A model with no verified cached rate in the price table bills those tokens at the full input rate, which can overstate a cost but never hide one.
+    </p>
+    <div class="callout">
+      <strong>Known gap: server-side tool fees.</strong> Providers charge for web search and code execution per use, not per token. FitGuard counts these when the provider reports them, flags the request, and shows a warning, but doesn't price them yet, so a flagged request's cost is a minimum. Anthropic and Gemini tools are not forwarded at all today, only function calls.
+    </div>
+
     <h2 id="routing">Model routing</h2>
     <p>The provider is chosen from the <code class="inline">model</code> name:</p>
     <table>

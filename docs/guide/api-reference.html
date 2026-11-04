@@ -352,6 +352,191 @@ let resp = client.post("http://localhost:8787/v1/embeddings")
   "usage": { "prompt_tokens": 2, "total_tokens": 2 }
 }</pre>
 
+    <h2 id="models">GET /v1/models</h2>
+    <p>
+      Lists the models FitGuard can serve, in the OpenAI shape. This is what tools like LibreChat, Open WebUI, Cursor and
+      Continue call to fill their model picker, and what <code class="inline">client.models.list()</code> returns in the
+      official SDKs. It needs the same key as every other endpoint.
+    </p>
+    <ul>
+      <li><strong>Only configured providers.</strong> A model whose provider has no API key in your config isn't listed, so a picker never offers a choice that can only fail. <code class="inline">owned_by</code> names the provider.</li>
+      <li><strong>Every kind of model is listed</strong>: chat, embedding, image, speech and transcription.</li>
+      <li><strong>It's the priced catalogue, not a whitelist.</strong> A model that isn't listed still works if its provider serves it (it's costed at a conservative default rate), so a brand-new model name works before FitGuard's price table learns it.</li>
+      <li><code class="inline">GET /v1/models/{model}</code> returns one entry, or a <code class="inline">404</code> in the OpenAI error shape. Ids containing slashes, like <code class="inline">meta-llama/Llama-3.3-70B-Instruct-Turbo</code>, work unencoded.</li>
+    </ul>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/models \
+  -H "Authorization: Bearer sk-guard-a1b2c3..."</pre></div>
+      <div class="panel" data-lang="python"><pre>for m in client.models.list():
+    print(m.id, m.owned_by)</pre></div>
+      <div class="panel" data-lang="typescript"><pre>for await (const m of client.models.list()) {
+  console.log(m.id, m.owned_by);
+}</pre></div>
+      <div class="panel" data-lang="csharp"><pre>var client = new HttpClient { BaseAddress = new Uri("http://localhost:8787/v1/") };
+client.DefaultRequestHeaders.Authorization =
+    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "sk-guard-a1b2c3...");
+
+var body = await client.GetStringAsync("models");
+Console.WriteLine(body);</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/models"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .GET()
+    .build();
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>req, _ := http.NewRequest("GET", "http://localhost:8787/v1/models", nil)
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let client = reqwest::blocking::Client::new();
+let resp = client.get("http://localhost:8787/v1/models")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .send()?;</pre>
+      </div>
+    </div>
+    <h3 id="models-response">Response</h3>
+    <pre>{
+  "object": "list",
+  "data": [
+    { "id": "claude-sonnet-5", "object": "model", "created": 0, "owned_by": "anthropic" },
+    { "id": "gpt-4o", "object": "model", "created": 0, "owned_by": "openai" }
+  ]
+}</pre>
+    <p><code class="inline">created</code> is always <code class="inline">0</code>: the OpenAI SDK's types require the field, but FitGuard has no release date for a model.</p>
+
+    <h2 id="responses">POST /v1/responses</h2>
+    <p>
+      The OpenAI Responses API, passed through for <strong>OpenAI and Groq models</strong>. Streaming works (the event stream is relayed untouched and the final
+      <code class="inline">response.completed</code> event supplies the usage). Anthropic, Gemini and Together models get a
+      <code class="inline">400</code> pointing at <code class="inline">/v1/chat/completions</code>.
+    </p>
+    <ul>
+      <li><strong>Priced like chat</strong>: input, cached input and output tokens (reasoning tokens are output), itemised in the dashboard. The budget is reserved from the input size and <code class="inline">max_output_tokens</code> first.</li>
+      <li><strong>No <code class="inline">fallback:</code></strong>. A response carries server-side state (ids, conversations) that another provider cannot continue.</li>
+      <li><strong>Cached only when it is a pure function of the request.</strong> Anything with <code class="inline">previous_response_id</code>, <code class="inline">conversation</code> or a built-in tool (web search, file search, code interpreter, MCP) skips the response cache. Built-in tool runs are counted and flagged, not priced, same as on chat.</li>
+      <li><strong><code class="inline">background: true</code> is refused</strong> with a <code class="inline">400</code>: it returns before any usage exists, so it could not be priced or budgeted.</li>
+      <li>Retrieving, cancelling or deleting a response by id is not proxied.</li>
+    </ul>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
+      <div class="panel" data-lang="curl"><pre>curl http://localhost:8787/v1/responses \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "input": "Say hello in one word."}'</pre></div>
+      <div class="panel" data-lang="python"><pre>r = client.responses.create(model="gpt-4o", input="Say hello in one word.")
+print(r.output_text)</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const r = await client.responses.create({ model: "gpt-4o", input: "Say hello in one word." });
+console.log(r.output_text);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>var json = "{\"model\":\"gpt-4o\",\"input\":\"Say hello in one word.\"}";
+var res = await client.PostAsync("responses", new StringContent(json, Encoding.UTF8, "application/json"));
+Console.WriteLine(await res.Content.ReadAsStringAsync());</pre></div>
+      <div class="panel" data-lang="java"><pre>HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/responses"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString("{\"model\":\"gpt-4o\",\"input\":\"Say hello in one word.\"}"))
+    .build();
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>body := strings.NewReader(`{"model":"gpt-4o","input":"Say hello in one word."}`)
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/responses", body)
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>let resp = reqwest::blocking::Client::new()
+    .post("http://localhost:8787/v1/responses")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({"model": "gpt-4o", "input": "Say hello in one word."}))
+    .send()?;</pre>
+      </div>
+    </div>
+    <h2 id="batches">Files and Batches</h2>
+    <p>
+      <code class="inline">POST /v1/files</code>, <code class="inline">POST /v1/batches</code>, <code class="inline">GET /v1/batches/{id}</code>,
+      <code class="inline">POST /v1/batches/{id}/cancel</code> and <code class="inline">GET /v1/files/{id}[/content]</code>, for
+      <strong>OpenAI and Groq</strong>. Batch work is billed at half the synchronous rate and finishes within the completion window.
+    </p>
+    <ul>
+      <li><strong>You only see your own.</strong> The upstream account is shared by every FitGuard key, so files and batches are recorded against the key that created them. An id that is not yours answers <code class="inline">404</code>, including a batch's output file until you own the batch.</li>
+      <li><strong>Priced at upload, gated at creation.</strong> Only <code class="inline">purpose=batch</code> files are accepted. FitGuard reads the JSONL, prices the worst case at the batch discount, and refuses to start a batch that would not fit today's budget (<code class="inline">429</code>). Every line must target one provider and one of <code class="inline">/v1/chat/completions</code>, <code class="inline">/v1/embeddings</code>, <code class="inline">/v1/responses</code>.</li>
+      <li><strong>Cost is logged when the batch finishes.</strong> FitGuard polls unfinished batches (and also checks when you fetch one), reads the output file, and logs one row per model with the real usage at half price, kind <code class="inline">batch</code>. It counts against the day it settles, not the day it was submitted. Failed lines add nothing.</li>
+      <li><strong>Limits:</strong> input files are capped at 25 MB (the gateway's request limit), listing batches is not supported (<code class="inline">501</code>, the upstream list is account-wide), and Anthropic's and Together's batch APIs are not supported.</li>
+    </ul>
+    <div class="code-tabs">
+      <div class="tab-row">
+        <button class="tab" data-lang="curl">curl</button>
+        <button class="tab" data-lang="python">Python</button>
+        <button class="tab" data-lang="typescript">TypeScript</button>
+        <button class="tab" data-lang="csharp">C#</button>
+        <button class="tab" data-lang="java">Java</button>
+        <button class="tab" data-lang="go">Go</button>
+        <button class="tab" data-lang="rust">Rust</button></div>
+      <div class="panel" data-lang="curl"><pre># 1. upload the JSONL input (purpose must be "batch")
+curl http://localhost:8787/v1/files \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -F purpose=batch -F file=@requests.jsonl
+
+# 2. start the batch with the returned file id
+curl http://localhost:8787/v1/batches \
+  -H "Authorization: Bearer sk-guard-a1b2c3..." \
+  -H "Content-Type: application/json" \
+  -d '{"input_file_id": "file-abc", "endpoint": "/v1/chat/completions", "completion_window": "24h"}'</pre></div>
+      <div class="panel" data-lang="python"><pre>f = client.files.create(file=open("requests.jsonl", "rb"), purpose="batch")
+b = client.batches.create(input_file_id=f.id, endpoint="/v1/chat/completions", completion_window="24h")
+print(client.batches.retrieve(b.id).status)</pre></div>
+      <div class="panel" data-lang="typescript"><pre>const f = await client.files.create({ file: fs.createReadStream("requests.jsonl"), purpose: "batch" });
+const b = await client.batches.create({ input_file_id: f.id, endpoint: "/v1/chat/completions", completion_window: "24h" });
+console.log((await client.batches.retrieve(b.id)).status);</pre></div>
+      <div class="panel" data-lang="csharp"><pre>var form = new MultipartFormDataContent { { new StringContent("batch"), "purpose" },
+    { new ByteArrayContent(File.ReadAllBytes("requests.jsonl")), "file", "requests.jsonl" } };
+var upload = await client.PostAsync("files", form);
+Console.WriteLine(await upload.Content.ReadAsStringAsync()); // then POST batches with the returned id</pre></div>
+      <div class="panel" data-lang="java"><pre>// Upload with a multipart/form-data POST to /v1/files (purpose=batch), then:
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8787/v1/batches"))
+    .header("Authorization", "Bearer sk-guard-a1b2c3...")
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString("{\"input_file_id\":\"file-abc\",\"endpoint\":\"/v1/chat/completions\",\"completion_window\":\"24h\"}"))
+    .build();
+HttpResponse&lt;String&gt; response = client.send(request, HttpResponse.BodyHandlers.ofString());</pre></div>
+      <div class="panel" data-lang="go">
+<pre>// Upload with a multipart/form-data POST to /v1/files (purpose=batch), then:
+body := strings.NewReader(`{"input_file_id":"file-abc","endpoint":"/v1/chat/completions","completion_window":"24h"}`)
+req, _ := http.NewRequest("POST", "http://localhost:8787/v1/batches", body)
+req.Header.Set("Authorization", "Bearer sk-guard-a1b2c3...")
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)</pre>
+      </div>
+      <div class="panel" data-lang="rust">
+<pre>// Upload with a multipart/form-data POST to /v1/files (purpose=batch), then:
+let resp = reqwest::blocking::Client::new()
+    .post("http://localhost:8787/v1/batches")
+    .bearer_auth("sk-guard-a1b2c3...")
+    .json(&serde_json::json!({"input_file_id": "file-abc", "endpoint": "/v1/chat/completions", "completion_window": "24h"}))
+    .send()?;</pre>
+      </div>
+    </div>
     <h2 id="images">POST /v1/images/generations</h2>
     <p>OpenAI-compatible. Routed and budget-checked like chat completions, with two deliberate differences: <strong>no cache</strong> (image generation isn't deterministic, so caching a prompt would return the same stale image forever) and <strong>no fallback</strong> (same reasoning as embeddings — a silent model swap changes the actual image, not just how it's produced).</p>
     <div class="callout">
@@ -434,7 +619,7 @@ let resp = client.post("http://localhost:8787/v1/images/generations")
     <h2 id="audio">Audio</h2>
     <p>Two OpenAI-compatible endpoints, both routed and budget-checked like chat completions, with the same no-cache/no-fallback reasoning as images above.</p>
     <div class="callout">
-      <strong>Support varies by provider.</strong> OpenAI and Together support both. Gemini supports speech only (no transcription endpoint yet). Groq supports transcription only (its only TTS model is preview/evaluation-only, deliberately not wired in). Anthropic supports neither. See <a href="./providers.html">Providers</a>.
+      <strong>Support varies by provider.</strong> OpenAI and Together support both. Gemini supports speech only (no transcription endpoint yet). Groq supports transcription (GA) and speech (Orpheus, preview-only, 200 characters per request); it has no image generation. Anthropic supports neither. See <a href="./providers.html">Providers</a>.
     </div>
 
     <h3 id="audio-speech">POST /v1/audio/speech</h3>
@@ -688,6 +873,7 @@ curl -b cookies.txt \
     <a href="#streaming">Streaming</a>
     <a href="#errors">Errors</a>
     <a href="#embeddings">Embeddings</a>
+    <a href="#models">Models</a>
     <a href="#images">Images</a>
     <a href="#audio">Audio</a>
     <a href="#healthz">Health check</a>

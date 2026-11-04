@@ -84,6 +84,19 @@
           included image is already configured to run FitGuard from
           <code class="inline">/data/config.yaml</code>.
         </p>
+        <h2 id="published">Run the published image</h2>
+        <p>
+          Every release publishes a multi-arch image (amd64 and arm64) to GHCR, built from the same binary as the
+          GitHub release archives. There's nothing to compile:
+        </p>
+        <pre>docker run -p 8787:8787 -v $(pwd)/config.yaml:/data/config.yaml ghcr.io/oluiy/fitguard:latest</pre>
+        <p>
+          Pin a version tag (<code class="inline">ghcr.io/oluiy/fitguard:0.1.3</code>) for production so a release
+          never changes under you. The image runs from <code class="inline">/data</code>, so a volume mounted there
+          holds both <code class="inline">config.yaml</code> and <code class="inline">fitguard.db</code>. Everything
+          below that builds from the repo's <code class="inline">Dockerfile</code> is the from-source alternative,
+          useful if you've modified FitGuard.
+        </p>
         <div class="callout">
           <strong>Before you start:</strong> run
           <code class="inline">go test ./...</code> and
@@ -138,7 +151,9 @@ CMD ["run", "--config", "/data/config.yaml"]</pre>
 # config edit, if Redis isn't already there to point at.
 services:
   fitguard:
-    build: .
+    image: ghcr.io/oluiy/fitguard:latest
+    # To build from this checkout instead (e.g. you've modified FitGuard),
+    # replace the line above with `build: .`
     ports:
       - "8787:8787"
     volumes:
@@ -177,7 +192,6 @@ volumes:
         </div>
         <pre>echo "OPENAI_API_KEY=sk-..." &gt; .env   # gitignored — never commit this
 touch config.yaml                        # see the callout above — must exist before compose touches it
-docker compose build
 docker compose run --rm fitguard init --config /data/config.yaml   # interactive; writes into the file just created
 docker compose up -d
 curl -fsS http://localhost:8787/healthz</pre>

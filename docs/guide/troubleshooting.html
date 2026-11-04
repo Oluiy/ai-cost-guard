@@ -107,6 +107,21 @@
       <code class="inline">keys:</code> exactly &mdash; a trailing newline from a copy-paste is the usual culprit.
     </p>
 
+    <h3><code class="inline">502</code> saying a provider "rejected the API key" or "returned HTTP &hellip;"</h3>
+    <p>
+      The request reached FitGuard and passed your budget, but the provider refused it. The message names the provider and
+      the HTTP status it answered with, and a <code class="inline">401</code> or <code class="inline">403</code> means the
+      <code class="inline">api_key</code> for that provider in your FitGuard config is wrong, revoked, or missing a permission.
+      Check that the environment variable it references (for example <code class="inline">${OPENAI_API_KEY}</code>) is actually
+      set where FitGuard runs.
+    </p>
+    <p>
+      The provider's own explanation is deliberately <strong>not</strong> in the response, since it can echo parts of your
+      credentials. It's in FitGuard's server log, on the same line as the status, with anything key-shaped masked. That's where
+      to look for causes the status can't tell you, such as a model that needs its terms accepted in the provider's console
+      (a <code class="inline">400</code> from some newer models).
+    </p>
+
     <h3><code class="inline">429</code> immediately, even on a fresh budget</h3>
     <p>
       The worst-case estimate for this one request exceeds the user's entire <code class="inline">daily_limit_usd</code>.

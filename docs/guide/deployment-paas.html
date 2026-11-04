@@ -90,10 +90,12 @@
         <h2 id="shared">Shared setup</h2>
         <ol>
           <li>
-            Connect this repository. Choose Docker (uses the root
-            <code class="inline">Dockerfile</code>) or a native/Go runtime if
-            your platform offers one; see each platform's section below
-            for the exact build/start commands either way.
+            Deploy the published image, <code class="inline">ghcr.io/oluiy/fitguard</code>
+            (multi-arch, built from the same binary as each GitHub release). There is
+            nothing to compile on the platform: no Go toolchain, no Build Command, no
+            build minutes. Pin a version tag such as
+            <code class="inline">ghcr.io/oluiy/fitguard:0.1.3</code> for production, or
+            use <code class="inline">:latest</code> to follow releases.
           </li>
           <li>
             Generate that YAML first, on your own machine:
@@ -119,44 +121,89 @@
           </li>
           <li>Use one instance first. Add Redis before adding replicas.</li>
         </ol>
+        <h2 id="postgres">Postgres instead of a disk</h2>
+        <p>
+          A platform without a persistent disk (Heroku, Render free, any
+          autoscaled setup) can keep everything in Postgres instead: request
+          history, and also the settings you change in the dashboard (budgets,
+          keys, the dashboard login). Add this to the YAML and set
+          <code class="inline">DATABASE_URL</code> as a platform secret:
+        </p>
+        <pre>storage:
+  backend: postgres
+  postgres_url: ${DATABASE_URL}</pre>
+        <p>
+          On first boot the settings in your YAML are copied into the database
+          once; after that the database wins, so a redeploy from the same YAML
+          does not undo dashboard edits. Several instances share the same
+          settings and pick up each other's changes within about 30 seconds.
+          Reset a forgotten dashboard password with
+          <code class="inline">fitguard reset-dashboard-password</code> run
+          anywhere that has the same YAML and <code class="inline">DATABASE_URL</code>.
+          With the default SQLite backend you can get the same behaviour with
+          <code class="inline">storage: {state: database}</code>.
+        </p>
+        <p>
+          Already have history in SQLite? Copy it across once, before the first
+          start on Postgres:
+          <code class="inline">fitguard import-history --from ./data/fitguard.db --config config.production.yaml</code>.
+          Every row keeps its original timestamp, the SQLite file is only read,
+          and it refuses to run into a database that already has history so a
+          second run can't double-count it.
+        </p>
         <h2 id="render">Render</h2>
         <p>
-          <strong>Docker path:</strong> create a <strong>Web Service</strong>
-          from GitHub, choose Docker, and add environment variables under
-          Advanced. Render forwards traffic to the port in
-          <code class="inline">PORT</code> and provides HTTPS on its
-          <code class="inline">onrender.com</code> domain.
+          The repo's <code class="inline">render.yaml</code> is a Blueprint that deploys the image with a
+          health check and a persistent disk already set up. After running
+          <code class="inline">fitguard init</code> on your machine (set
+          <code class="inline">port: ${PORT}</code> and <code class="inline">data_dir: /data</code> in the
+          generated file), go to <strong>New &rarr; Blueprint</strong> in the Render dashboard and pick this
+          repository. Render asks for <code class="inline">FITGUARD_CONFIG</code> (paste the whole file) and your
+          provider keys once, and keeps them out of git.
         </p>
         <p>
-          <strong>Native path</strong> (no Dockerfile, if your Render plan
-          offers a Go environment): same Web Service flow, but choose
-          <strong>Go</strong> instead of Docker, and set:
-        </p>
-        <pre>Build Command:  go build -o fitguard ./cmd/fitguard
-Start Command:  ./fitguard run</pre>
-        <p>
-          Render compiles the binary itself from this repo's <code class="inline">go.mod</code>
-          during the build step. There's no <code class="inline">curl</code>/install step to write, the same way
-          <code class="inline">pip install -r requirements.txt</code> needs no separate download step for a Python
-          service. Config still comes from <code class="inline">FITGUARD_CONFIG</code>, same as the Docker path.
+          To set it up by hand instead: <strong>New &rarr; Web Service &rarr; Existing Image</strong>, enter
+          <code class="inline">ghcr.io/oluiy/fitguard:latest</code>, add the same environment variables, set the
+          health check path to <code class="inline">/healthz</code>, and add a disk mounted at
+          <code class="inline">/data</code>.
         </p>
         <div class="callout">
-          <strong>This Build/Start Command pair is for FitGuard's own service:</strong> a second, independent
-          Web Service on Render, separate from any app you already have running there. If you already have a service
-          on Render (Python, Node, whatever), leave its Build/Start Command exactly as it is; don't merge the two.
-          Add FitGuard as its own service using this repo, get the URL Render gives it, and set that as
-          <code class="inline">FITGUARD_URL</code> on your existing service's environment variables. See
-          <a href="./deployment-docker.html#alongside">using FitGuard alongside an existing Dockerfile</a> for the
-          same idea applied to Docker.
+          <strong>A disk needs a paid plan.</strong> Render's free tier has no persistent disks, so request
+          history can't survive there, and free services spin down after 15 minutes idle and take about a minute
+          to wake. For a proxy in front of every AI call, that cold start lands on a user. The Blueprint uses
+          <code class="inline">starter</code>. A disk is single-instance and disables zero-downtime deploys, so
+          don't scale this service horizontally with it attached.
+        </div>
+        <div class="callout">
+          <strong>This is FitGuard's own service</strong>, separate from any app you already run on Render. Leave
+          your existing service's build and start commands exactly as they are. Add FitGuard as its own service,
+          take the URL Render gives it, and set that as <code class="inline">FITGUARD_URL</code> on your existing
+          service. See <a href="./deployment-docker.html#alongside">using FitGuard alongside an existing
+          Dockerfile</a> for the same idea.
         </div>
         <p>
-          For SQLite history (either path), attach a paid persistent disk under
-          <strong>Disks</strong> and mount it at
-          <code class="inline">/var/data</code>. Set
-          <code class="inline">data_dir: /var/data</code>. A disk is
-          single-instance and disables zero-downtime deploys, so do not scale
-          this service horizontally with the disk attached.
+          Building from source still works (choose the Go environment with
+          <code class="inline">go build -o fitguard ./cmd/fitguard</code> and start command
+          <code class="inline">./fitguard run</code>), but the image is simpler and is the tested path.
         </p>
+
+        <h2 id="fly">Fly.io</h2>
+        <p>
+          The cheapest durable option here: the smallest always-on machine is about $2.19 a month and a volume is
+          $0.15 per GB, so roughly $2.30 all in. The repo's <code class="inline">fly.toml</code> already points at
+          the image, mounts a volume at <code class="inline">/data</code>, and keeps the machine running (a stopped
+          machine would cold-start on a user request).
+        </p>
+        <pre>fitguard init --config config.production.yaml   # set data_dir: /data and port: 8787
+fly launch --no-deploy --copy-config --name your-app-name
+fly volumes create fitguard_data --size 1 --region iad
+fly secrets set FITGUARD_CONFIG="$(cat config.production.yaml)" OPENAI_API_KEY=sk-...
+fly deploy</pre>
+        <p>
+          Fly's managed Postgres starts at $38 a month, which is why a volume is the better fit while FitGuard
+          stores history in SQLite. A volume attaches to one machine, so keep it at one.
+        </p>
+
         <h2 id="heroku">Heroku</h2>
         <p>
           Heroku dyno filesystems are ephemeral, so do not use Heroku for
@@ -194,21 +241,17 @@ heroku container:release web -a fitguard-prod</pre
         </p>
         <h2 id="railway">Railway</h2>
         <p>
-          Create a service from this GitHub repository. Railway detects the root
-          <code class="inline">Dockerfile</code> and uses it automatically; delete or rename it in a
-          throwaway clone first if you'd rather Railway's own Nixpacks builder detect and build the Go
-          project directly (via <code class="inline">go.mod</code>) with no Dockerfile at all; both
-          produce the same running binary. Add
-          <code class="inline">FITGUARD_CONFIG</code> and secrets under
-          Variables either way. Generate a public domain and set the service health check
-          to <code class="inline">/healthz</code>.
+          In your project choose <strong>New &rarr; Docker Image</strong> and enter
+          <code class="inline">ghcr.io/oluiy/fitguard:latest</code>. Add
+          <code class="inline">FITGUARD_CONFIG</code> and your provider keys under Variables, generate a public
+          domain, and set the health check to <code class="inline">/healthz</code>. Railway can pull a public GHCR
+          image directly; a private one needs their Pro plan, which is why the FitGuard package is public.
         </p>
         <p>
-          Attach a Railway Volume at <code class="inline">/var/data</code> and
-          set <code class="inline">data_dir: /var/data</code> if SQLite history
-          must survive. Railway volumes cannot be used with replicas. For
-          multiple replicas, use Redis for budget and cache state and treat
-          SQLite dashboards as per-instance.
+          Attach a Railway Volume mounted at <code class="inline">/data</code> and set
+          <code class="inline">data_dir: /data</code> if SQLite history must survive. Railway volumes cannot be
+          used with replicas. For multiple replicas, use Redis for budget and cache state and treat SQLite
+          dashboards as per-instance.
         </p>
         <div class="callout">
           <strong>Data rule:</strong> Redis does not store FitGuard's request
@@ -226,7 +269,7 @@ heroku container:release web -a fitguard-prod</pre
       <aside class="guide-toc">
         <div class="label">On this page</div>
         <a href="#shared">Shared setup</a><a href="#render">Render</a
-        ><a href="#heroku">Heroku</a><a href="#railway">Railway</a>
+        ><a href="#fly">Fly.io</a><a href="#heroku">Heroku</a><a href="#railway">Railway</a>
       </aside>
     </div>
     <footer class="site-footer">

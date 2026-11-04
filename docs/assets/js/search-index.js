@@ -197,6 +197,30 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "embeddings vector embed text-embedding input",
   },
   {
+    title: "502: provider rejected the API key",
+    section: "Operate · Troubleshooting",
+    url: "guide/troubleshooting.html#requests",
+    keywords: "502 upstream_error provider rejected api key 401 403 returned http all providers fallbacks failed wrong key terms acceptance 400 server log",
+  },
+  {
+    title: "GET /v1/models",
+    section: "Reference · API",
+    url: "guide/api-reference.html#models",
+    keywords: "models list model picker librechat open webui cursor continue models.list retrieve catalogue owned_by",
+  },
+  {
+    title: "POST /v1/responses",
+    section: "Reference · API",
+    url: "guide/api-reference.html#responses",
+    keywords: "responses api openai groq previous_response_id conversation background streaming reasoning web_search",
+  },
+  {
+    title: "Files and Batches",
+    section: "Reference · API",
+    url: "guide/api-reference.html#batches",
+    keywords: "batch batches files upload jsonl completion_window half price 50% discount output file settle cancel openai groq",
+  },
+  {
     title: "POST /v1/images/generations",
     section: "Reference · API",
     url: "guide/api-reference.html#images",
@@ -301,10 +325,34 @@ window.FITGUARD_SEARCH_INDEX = [
     keywords: "verify checklist healthz dashboard acceptance test production confirm",
   },
   {
-    title: "Render, Heroku, and Railway",
+    title: "Run the published image",
+    section: "Operate · Deployment",
+    url: "guide/deployment-docker.html#published",
+    keywords: "docker run ghcr ghcr.io image pull published prebuilt container no build go build multi-arch arm64 amd64 latest version tag pin",
+  },
+  {
+    title: "Render, Fly.io, Heroku, and Railway",
     section: "Operate · Deployment",
     url: "guide/deployment-paas.html",
-    keywords: "heroku railway render paas port env cloud platform",
+    keywords: "heroku railway render fly flyio paas port env cloud platform image ghcr blueprint",
+  },
+  {
+    title: "Postgres storage (no persistent disk)",
+    section: "Operate · Deployment",
+    url: "guide/deployment-paas.html#postgres",
+    keywords: "postgres postgresql database_url storage backend state database no disk heroku multiple instances reset password",
+  },
+  {
+    title: "Deploy to Render (Blueprint)",
+    section: "Operate · Deployment",
+    url: "guide/deployment-paas.html#render",
+    keywords: "render.yaml blueprint render deploy image disk persistent starter free tier spin down cold start",
+  },
+  {
+    title: "Deploy to Fly.io",
+    section: "Operate · Deployment",
+    url: "guide/deployment-paas.html#fly",
+    keywords: "fly.io fly.toml flyctl volume secrets machine cheapest deploy",
   },
   {
     title: "Persistence and operations",

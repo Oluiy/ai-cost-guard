@@ -92,7 +92,24 @@ func main() {
 		},
 	}
 
-	root.AddCommand(initCmd, runCmd, resetPasswordCmd, addProviderCmd)
+	var importFrom string
+	var importForce bool
+	importCmd := &cobra.Command{
+		Use:   "import-history",
+		Short: "Copy request history from a SQLite file into the configured database",
+		Long: "Copies the request log from a SQLite fitguard.db into the database the config points at " +
+			"(normally Postgres), keeping every row's original timestamp, so switching to Postgres doesn't " +
+			"reset your dashboard. The SQLite file is only read. Refuses to run into a database that already " +
+			"has history, since a second run would double-count it.",
+		Example: "  fitguard import-history --from ./data/fitguard.db --config prod.yaml",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cli.RunImportHistory(configPath, importFrom, importForce)
+		},
+	}
+	importCmd.Flags().StringVar(&importFrom, "from", "", "path to the SQLite fitguard.db (default: <data_dir>/fitguard.db)")
+	importCmd.Flags().BoolVar(&importForce, "force", false, "import even if the destination already has request rows")
+
+	root.AddCommand(initCmd, runCmd, resetPasswordCmd, addProviderCmd, importCmd)
 
 	if err := root.Execute(); err != nil {
 		pterm.Error.Println(err)

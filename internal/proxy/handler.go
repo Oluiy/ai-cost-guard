@@ -176,6 +176,7 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 		statusCode   int
 		usedModel    string
 		lastErr      error
+		lastFailure  string
 	)
 	for _, attemptModel := range attempts {
 		providerName := RouteProvider(attemptModel)
@@ -186,7 +187,8 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 		b, u, fr, sc, err := provider.ChatCompletion(c.Context(), attemptModel, rawBody)
 		if err != nil || sc >= 500 || sc == 429 {
 			lastErr = err
-			warnf("provider %s (model %s) failed: %v (status %d), trying fallback", providerName, attemptModel, err, sc)
+			lastFailure = describeFailure(providerName, sc)
+			logUpstreamFailure(providerName, attemptModel, "request", sc, err, b)
 			continue
 		}
 		respBody, usage, finishReason, statusCode, usedModel = b, u, fr, sc, attemptModel
@@ -196,7 +198,7 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 
 	if lastErr != nil || usedModel == "" {
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON("all providers/fallbacks failed", "upstream_error"))
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(allFailedMessage(lastFailure), "upstream_error"))
 	}
 
 	// 4. finish_reason: "length" means the response was truncated.
@@ -284,6 +286,7 @@ func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawB
 	var session StreamSession
 	var usedModel string
 	var lastErr error
+	var lastFailure string
 	for _, attemptModel := range attempts {
 		providerName := RouteProvider(attemptModel)
 		provider, ok := h.Providers[providerName]
@@ -293,7 +296,10 @@ func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawB
 		s, sc, err := provider.OpenStream(c.Context(), attemptModel, rawBody)
 		if err != nil || sc >= 500 || sc == 429 {
 			lastErr = err
-			warnf("provider %s (model %s) failed to open stream: %v (status %d), trying fallback", providerName, attemptModel, err, sc)
+			lastFailure = describeFailure(providerName, sc)
+			// An open-stream error already carries the upstream body in
+			// its text, so it goes through the same masking.
+			logUpstreamFailure(providerName, attemptModel, "stream", sc, err, nil)
 			continue
 		}
 		session, usedModel, lastErr = s, attemptModel, nil
@@ -303,7 +309,7 @@ func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawB
 	if lastErr != nil || session == nil {
 		release(0)
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON("all providers/fallbacks failed", "upstream_error"))
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(allFailedMessage(lastFailure), "upstream_error"))
 	}
 
 	setSSEHeaders(c)

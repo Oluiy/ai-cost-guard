@@ -83,3 +83,57 @@ func TestChatModelsFor_ExcludesImageAndAudioModels(t *testing.T) {
 		t.Error("ChatModelsFor should still include real chat models like gpt-4o")
 	}
 }
+
+// TestCompute_CachedTokensAreDiscounted is the fix for cached workloads
+// being mis-reported: 1000 input tokens, 800 of them cache reads, must be
+// charged at the discounted rate for those 800, not the full input rate.
+func TestCompute_CachedTokensAreDiscounted(t *testing.T) {
+	b := Compute("gpt-4o", TokenUsage{Prompt: 1000, Cached: 800, Completion: 100})
+	p := Table["gpt-4o"]
+	wantInput := 0.2 * p.InputPer1K
+	wantCached := 0.8 * p.CachedInputPer1K
+	wantOut := 0.1 * p.OutputPer1K
+	if diff := b.Total() - (wantInput + wantCached + wantOut); diff > 1e-12 || diff < -1e-12 {
+		t.Fatalf("total %v, want %v", b.Total(), wantInput+wantCached+wantOut)
+	}
+	if b.Total() >= 1.0*p.InputPer1K+0.1*p.OutputPer1K {
+		t.Fatal("cached tokens were not discounted")
+	}
+}
+
+// Anthropic bills cache writes at a premium; an unverified model must fall
+// back to the full input rate (over-report) instead of a zero rate.
+func TestCompute_CacheWriteAndUnverifiedFallback(t *testing.T) {
+	b := Compute("claude-sonnet-5", TokenUsage{Prompt: 1000, CacheWrite: 1000})
+	if want := Table["claude-sonnet-5"].CacheWritePer1K; b.CacheWriteUSD != want {
+		t.Fatalf("cache write cost %v, want %v", b.CacheWriteUSD, want)
+	}
+	// o1 has no verified cached rate, so cached tokens bill at full price.
+	b = Compute("o1", TokenUsage{Prompt: 1000, Cached: 1000})
+	if want := Table["o1"].InputPer1K; b.CachedUSD != want {
+		t.Fatalf("unverified cached rate: got %v, want full input rate %v", b.CachedUSD, want)
+	}
+}
+
+func TestCompute_MalformedCountsNeverGoNegative(t *testing.T) {
+	b := Compute("gpt-4o", TokenUsage{Prompt: 100, Cached: 500, CacheWrite: 500})
+	if b.Total() < 0 || b.InputUSD < 0 {
+		t.Fatalf("negative cost from malformed counts: %+v", b)
+	}
+}
+
+// Calculate must stay equal to Compute with no cache fields, since the
+// embeddings path and older callers still use it.
+func TestCalculate_MatchesComputeWithoutCache(t *testing.T) {
+	if got, want := Calculate("gpt-4o", 1234, 567), Compute("gpt-4o", TokenUsage{Prompt: 1234, Completion: 567}).Total(); got != want {
+		t.Fatalf("Calculate=%v Compute=%v", got, want)
+	}
+}
+
+func TestAnthropicCurrentModelsHaveExplicitEntries(t *testing.T) {
+	for _, m := range []string{"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"} {
+		if _, ok := Table[m]; !ok {
+			t.Errorf("%s missing from Table; it would prefix-match an older model with the wrong cache rate", m)
+		}
+	}
+}

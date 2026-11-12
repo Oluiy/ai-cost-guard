@@ -127,3 +127,56 @@ func EstimateAudioTranscriptionCost(model string, fileSizeBytes int64) float64 {
 	durationSeconds := float64(fileSizeBytes) / minAudioBytesPerSecond
 	return CalculateAudioTranscriptionCost(model, durationSeconds)
 }
+
+// EstimateResponsesPromptTokens sizes a /v1/responses request: its
+// "instructions" plus "input", which is a string or an array of items whose
+// content is a string or a list of parts (input_text, input_image...).
+func EstimateResponsesPromptTokens(payload map[string]any) int {
+	total := 0
+	if s, ok := payload["instructions"].(string); ok {
+		total += len(s) / 4
+	}
+	switch input := payload["input"].(type) {
+	case string:
+		total += len(input) / 4
+	case []any:
+		for _, item := range input {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			switch content := m["content"].(type) {
+			case string:
+				total += len(content) / 4
+			case []any:
+				for _, part := range content {
+					pm, ok := part.(map[string]any)
+					if !ok {
+						continue
+					}
+					if text, ok := pm["text"].(string); ok {
+						total += len(text) / 4
+					}
+					if pm["type"] == "input_image" {
+						total += imageTokenCeiling
+					}
+				}
+			}
+		}
+	}
+	if total == 0 {
+		total = 1
+	}
+	return total
+}
+
+// EstimateResponsesCost is the worst-case reservation for a /v1/responses
+// request: the sized prompt plus max_output_tokens (or the same default
+// ceiling chat uses when unset).
+func EstimateResponsesCost(model string, payload map[string]any) float64 {
+	out := DefaultMaxTokensEstimate
+	if v, ok := payload["max_output_tokens"].(float64); ok && v > 0 {
+		out = int(v)
+	}
+	return Calculate(model, EstimateResponsesPromptTokens(payload), out)
+}

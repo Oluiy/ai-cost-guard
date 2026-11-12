@@ -17,6 +17,14 @@ type Price struct {
 	// excluded from chat fallback lists.
 	Embedding bool
 
+	// CachedInputPer1K is the discounted rate for input tokens served from
+	// the provider's prompt cache; CacheWritePer1K is the (higher) rate for
+	// tokens written to it, which only Anthropic bills separately. Zero
+	// means "not verified for this model": those tokens are billed at the
+	// full InputPer1K instead, which can only over-report, never hide spend.
+	CachedInputPer1K float64
+	CacheWritePer1K  float64
+
 	// PerImage is USD per generated image, for /v1/images/generations
 	// models billed flat-per-image (most of them). Exactly one of
 	// PerImage or InputPer1K/OutputPer1K is set for an image model —
@@ -49,40 +57,46 @@ func isChatModel(p Price) bool {
 // console.groq.com/docs/models, docs.together.ai/docs/serverless-models).
 var Table = map[string]Price{
 	// OpenAI
-	"gpt-5":         {InputPer1K: 0.00125, OutputPer1K: 0.010, Provider: "openai"},
-	"gpt-5-mini":    {InputPer1K: 0.00025, OutputPer1K: 0.002, Provider: "openai"},
-	"gpt-5-nano":    {InputPer1K: 0.00005, OutputPer1K: 0.0004, Provider: "openai"},
-	"gpt-4o":        {InputPer1K: 0.0025, OutputPer1K: 0.010, Provider: "openai"},
-	"gpt-4o-mini":   {InputPer1K: 0.00015, OutputPer1K: 0.0006, Provider: "openai"},
-	"gpt-4.1":       {InputPer1K: 0.002, OutputPer1K: 0.008, Provider: "openai"},
-	"gpt-4.1-mini":  {InputPer1K: 0.0004, OutputPer1K: 0.0016, Provider: "openai"},
-	"gpt-4.1-nano":  {InputPer1K: 0.0001, OutputPer1K: 0.0004, Provider: "openai"},
+	"gpt-5":         {InputPer1K: 0.00125, OutputPer1K: 0.010, CachedInputPer1K: 0.000125, Provider: "openai"},
+	"gpt-5-mini":    {InputPer1K: 0.00025, OutputPer1K: 0.002, CachedInputPer1K: 0.000025, Provider: "openai"},
+	"gpt-5-nano":    {InputPer1K: 0.00005, OutputPer1K: 0.0004, CachedInputPer1K: 0.000005, Provider: "openai"},
+	"gpt-4o":        {InputPer1K: 0.0025, OutputPer1K: 0.010, CachedInputPer1K: 0.00125, Provider: "openai"},
+	"gpt-4o-mini":   {InputPer1K: 0.00015, OutputPer1K: 0.0006, CachedInputPer1K: 0.000075, Provider: "openai"},
+	"gpt-4.1":       {InputPer1K: 0.002, OutputPer1K: 0.008, CachedInputPer1K: 0.0005, Provider: "openai"},
+	"gpt-4.1-mini":  {InputPer1K: 0.0004, OutputPer1K: 0.0016, CachedInputPer1K: 0.0001, Provider: "openai"},
+	"gpt-4.1-nano":  {InputPer1K: 0.0001, OutputPer1K: 0.0004, CachedInputPer1K: 0.000025, Provider: "openai"},
 	"gpt-4-turbo":   {InputPer1K: 0.010, OutputPer1K: 0.030, Provider: "openai"},
 	"gpt-4":         {InputPer1K: 0.030, OutputPer1K: 0.060, Provider: "openai"},
 	"gpt-3.5-turbo": {InputPer1K: 0.0005, OutputPer1K: 0.0015, Provider: "openai"},
 	"o1":            {InputPer1K: 0.015, OutputPer1K: 0.060, Provider: "openai"},
 	"o1-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
-	"o3":            {InputPer1K: 0.002, OutputPer1K: 0.008, Provider: "openai"},
+	"o3":            {InputPer1K: 0.002, OutputPer1K: 0.008, CachedInputPer1K: 0.0005, Provider: "openai"},
 	"o3-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
-	"o4-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, Provider: "openai"},
+	"o4-mini":       {InputPer1K: 0.0011, OutputPer1K: 0.0044, CachedInputPer1K: 0.000275, Provider: "openai"},
 
 	// Anthropic — current generation. Claude 3.x (3-opus, 3-5-sonnet,
 	// 3-7-sonnet, etc.) is fully retired on the direct API as of this
 	// writing; a request using those names now fails upstream, which is
 	// the actual cause of "claude-3-5-sonnet always fails" reports.
-	"claude-sonnet-5":   {InputPer1K: 0.002, OutputPer1K: 0.010, Provider: "anthropic"},
-	"claude-opus-5":     {InputPer1K: 0.005, OutputPer1K: 0.025, Provider: "anthropic"},
-	"claude-fable-5":    {InputPer1K: 0.010, OutputPer1K: 0.050, Provider: "anthropic"},
-	"claude-haiku-4-5":  {InputPer1K: 0.001, OutputPer1K: 0.005, Provider: "anthropic"},
-	"claude-sonnet-4-5": {InputPer1K: 0.003, OutputPer1K: 0.015, Provider: "anthropic"},
-	"claude-opus-4-5":   {InputPer1K: 0.005, OutputPer1K: 0.025, Provider: "anthropic"},
+	"claude-sonnet-5": {InputPer1K: 0.002, OutputPer1K: 0.010, CachedInputPer1K: 0.0002, CacheWritePer1K: 0.0025, Provider: "anthropic"},
+	"claude-opus-5":   {InputPer1K: 0.005, OutputPer1K: 0.025, CachedInputPer1K: 0.0005, CacheWritePer1K: 0.00625, Provider: "anthropic"},
+	"claude-fable-5":  {InputPer1K: 0.010, OutputPer1K: 0.050, CachedInputPer1K: 0.001, CacheWritePer1K: 0.0125, Provider: "anthropic"},
+	// Added 2026-10 from the Anthropic pricing page. Without explicit
+	// entries these prefix-match their older siblings, whose cache-read
+	// rates are 2-4x higher, so cached workloads on them were mis-priced.
+	"claude-opus-5-5":   {InputPer1K: 0.004, OutputPer1K: 0.020, CachedInputPer1K: 0.0002, CacheWritePer1K: 0.005, Provider: "anthropic"},
+	"claude-sonnet-5-5": {InputPer1K: 0.002, OutputPer1K: 0.010, CachedInputPer1K: 0.0001, CacheWritePer1K: 0.0025, Provider: "anthropic"},
+	"claude-fable-5-1":  {InputPer1K: 0.010, OutputPer1K: 0.050, CachedInputPer1K: 0.00025, CacheWritePer1K: 0.0125, Provider: "anthropic"},
+	"claude-haiku-4-5":  {InputPer1K: 0.001, OutputPer1K: 0.005, CachedInputPer1K: 0.0001, CacheWritePer1K: 0.00125, Provider: "anthropic"},
+	"claude-sonnet-4-5": {InputPer1K: 0.003, OutputPer1K: 0.015, CachedInputPer1K: 0.0003, CacheWritePer1K: 0.00375, Provider: "anthropic"},
+	"claude-opus-4-5":   {InputPer1K: 0.005, OutputPer1K: 0.025, CachedInputPer1K: 0.0005, CacheWritePer1K: 0.00625, Provider: "anthropic"},
 
 	// Google Gemini
 	"gemini-3.5-flash":      {InputPer1K: 0.0015, OutputPer1K: 0.009, Provider: "gemini"},
 	"gemini-3.5-flash-lite": {InputPer1K: 0.0003, OutputPer1K: 0.0025, Provider: "gemini"},
-	"gemini-2.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.010, Provider: "gemini"},
-	"gemini-2.5-flash":      {InputPer1K: 0.0003, OutputPer1K: 0.0025, Provider: "gemini"},
-	"gemini-2.5-flash-lite": {InputPer1K: 0.0001, OutputPer1K: 0.0004, Provider: "gemini"},
+	"gemini-2.5-pro":        {InputPer1K: 0.00125, OutputPer1K: 0.010, CachedInputPer1K: 0.000125, Provider: "gemini"},
+	"gemini-2.5-flash":      {InputPer1K: 0.0003, OutputPer1K: 0.0025, CachedInputPer1K: 0.00003, Provider: "gemini"},
+	"gemini-2.5-flash-lite": {InputPer1K: 0.0001, OutputPer1K: 0.0004, CachedInputPer1K: 0.00001, Provider: "gemini"},
 	"gemini-embedding-001":  {InputPer1K: 0.00015, Provider: "gemini", Embedding: true},
 
 	// Groq. gpt-oss-120b/20b are also hosted here, but deliberately not
@@ -232,6 +246,91 @@ func ChatModelsFor(providers []string) []string {
 			continue
 		}
 		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TokenUsage is one request's token counts as providers report them,
+// normalised so Prompt is always the TOTAL input (cached and cache-write
+// tokens included). Providers disagree on this: OpenAI and Gemini already
+// include cached tokens in their prompt count, Anthropic reports them
+// separately, so each provider adapter sums them before they get here.
+type TokenUsage struct {
+	Prompt     int
+	Cached     int // part of Prompt billed at the cached-read rate
+	CacheWrite int // part of Prompt billed at the cache-write rate
+	Completion int
+}
+
+// Breakdown is a request's cost split by what it was charged for. The
+// parts sum to Total, and are stored with each request so the dashboard
+// can explain a number using the prices in force when it was incurred.
+type Breakdown struct {
+	InputUSD      float64 // uncached input
+	CachedUSD     float64
+	CacheWriteUSD float64
+	OutputUSD     float64
+}
+
+// Scaled multiplies every part by f (a batch discount, say), keeping the
+// itemised parts summing to the total.
+func (b Breakdown) Scaled(f float64) Breakdown {
+	return Breakdown{InputUSD: b.InputUSD * f, CachedUSD: b.CachedUSD * f, CacheWriteUSD: b.CacheWriteUSD * f, OutputUSD: b.OutputUSD * f}
+}
+
+func (b Breakdown) Total() float64 {
+	return b.InputUSD + b.CachedUSD + b.CacheWriteUSD + b.OutputUSD
+}
+
+// Compute prices u for model. Cached and cache-write tokens fall back to
+// the full input rate when the model has no verified discount, so an
+// unverified model over-reports rather than hides spend.
+func Compute(model string, u TokenUsage) Breakdown {
+	p, _ := Lookup(model)
+	cached, write := u.Cached, u.CacheWrite
+	if cached < 0 {
+		cached = 0
+	}
+	if write < 0 {
+		write = 0
+	}
+	if cached+write > u.Prompt {
+		// Defensive: a malformed upstream count must not produce a
+		// negative uncached figure (and so a negative cost).
+		cached, write = min(cached, u.Prompt), 0
+	}
+	uncached := u.Prompt - cached - write
+
+	cachedRate, writeRate := p.CachedInputPer1K, p.CacheWritePer1K
+	if cachedRate == 0 {
+		cachedRate = p.InputPer1K
+	}
+	if writeRate == 0 {
+		writeRate = p.InputPer1K
+	}
+	return Breakdown{
+		InputUSD:      float64(uncached) / 1000.0 * p.InputPer1K,
+		CachedUSD:     float64(cached) / 1000.0 * cachedRate,
+		CacheWriteUSD: float64(write) / 1000.0 * writeRate,
+		OutputUSD:     float64(u.Completion) / 1000.0 * p.OutputPer1K,
+	}
+}
+
+// ModelsFor returns every priced model, of any kind (chat, embedding,
+// image, speech, transcription), served by one of the given providers,
+// sorted by name. Unlike ChatModelsFor this is the whole catalogue, for
+// GET /v1/models, where a client's model picker needs all of it.
+func ModelsFor(providers []string) []string {
+	allowed := make(map[string]bool, len(providers))
+	for _, p := range providers {
+		allowed[p] = true
+	}
+	var out []string
+	for name, price := range Table {
+		if allowed[price.Provider] {
+			out = append(out, name)
+		}
 	}
 	sort.Strings(out)
 	return out

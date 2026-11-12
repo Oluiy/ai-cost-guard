@@ -286,10 +286,31 @@ type anthropicResponse struct {
 	Role       string                   `json:"role"`
 	Model      string                   `json:"model"`
 	StopReason string                   `json:"stop_reason"`
-	Usage      struct {
-		InputTokens  int `json:"input_tokens"`
-		OutputTokens int `json:"output_tokens"`
-	} `json:"usage"`
+	Usage      anthropicUsage           `json:"usage"`
+}
+
+// anthropicUsage differs from OpenAI's convention in the way that matters
+// for billing: input_tokens counts only the UNCACHED remainder, with cache
+// reads and cache writes reported in separate fields. Reading input_tokens
+// alone silently drops every cached token from the count, so a heavily
+// cached workload looked far cheaper than it was.
+type anthropicUsage struct {
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+}
+
+// toUsage normalises to FitGuard's convention: PromptTokens is the total
+// input including both cache buckets. Writes are priced at the 5-minute
+// rate; a 1-hour write (billed higher) isn't distinguished here.
+func (u anthropicUsage) toUsage() Usage {
+	return Usage{
+		PromptTokens:     u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens,
+		CompletionTokens: u.OutputTokens,
+		CachedTokens:     u.CacheReadInputTokens,
+		CacheWriteTokens: u.CacheCreationInputTokens,
+	}
 }
 
 type anthropicResponseBlock struct {
@@ -361,7 +382,7 @@ func (p *AnthropicProvider) ChatCompletion(ctx context.Context, model string, ra
 
 	text, toolCalls := splitResponseBlocks(aResp.Content)
 	finishReason := mapAnthropicStopReason(aResp.StopReason)
-	usage := Usage{PromptTokens: aResp.Usage.InputTokens, CompletionTokens: aResp.Usage.OutputTokens}
+	usage := aResp.Usage.toUsage()
 
 	message := map[string]any{"role": "assistant", "content": text}
 	if len(toolCalls) > 0 {
@@ -441,9 +462,7 @@ type anthropicStreamEvent struct {
 	Type    string `json:"type"`
 	Index   int    `json:"index"`
 	Message struct {
-		Usage struct {
-			InputTokens int `json:"input_tokens"`
-		} `json:"usage"`
+		Usage anthropicUsage `json:"usage"`
 	} `json:"message"`
 	ContentBlock struct {
 		Type string `json:"type"`
@@ -456,9 +475,7 @@ type anthropicStreamEvent struct {
 		PartialJSON string `json:"partial_json"`
 		StopReason  string `json:"stop_reason"`
 	} `json:"delta"`
-	Usage struct {
-		OutputTokens int `json:"output_tokens"`
-	} `json:"usage"`
+	Usage anthropicUsage `json:"usage"`
 }
 
 // streamToolCallState accumulates one tool_use block's partial_json
@@ -546,7 +563,9 @@ func (s *anthropicStreamSession) Relay(w *bufio.Writer) (string, []map[string]an
 
 		switch lastEventType {
 		case "message_start":
-			usage.PromptTokens = evt.Message.Usage.InputTokens
+			// Input and cache counts are all here; message_delta later
+			// only supplies the running output count.
+			usage = evt.Message.Usage.toUsage()
 
 		case "content_block_start":
 			if evt.ContentBlock.Type == "tool_use" {

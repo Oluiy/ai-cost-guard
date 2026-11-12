@@ -219,9 +219,24 @@ type geminiCandidate struct {
 }
 
 type geminiUsageMetadata struct {
-	PromptTokenCount     int `json:"promptTokenCount"`
-	CandidatesTokenCount int `json:"candidatesTokenCount"`
-	TotalTokenCount      int `json:"totalTokenCount"`
+	PromptTokenCount        int `json:"promptTokenCount"`
+	CandidatesTokenCount    int `json:"candidatesTokenCount"`
+	TotalTokenCount         int `json:"totalTokenCount"`
+	CachedContentTokenCount int `json:"cachedContentTokenCount"`
+	// ThoughtsTokenCount is reported apart from candidatesTokenCount, but
+	// Google bills it as output ("response pricing is the sum of output
+	// tokens and thinking tokens"), so leaving it out under-reported every
+	// thinking-model request.
+	ThoughtsTokenCount int `json:"thoughtsTokenCount"`
+}
+
+// toUsage: promptTokenCount already includes cached content, like OpenAI.
+func (m geminiUsageMetadata) toUsage() Usage {
+	return Usage{
+		PromptTokens:     m.PromptTokenCount,
+		CompletionTokens: m.CandidatesTokenCount + m.ThoughtsTokenCount,
+		CachedTokens:     m.CachedContentTokenCount,
+	}
 }
 
 func mapGeminiFinishReason(reason string) string {
@@ -321,7 +336,7 @@ func (p *GeminiProvider) ChatCompletion(ctx context.Context, model string, rawBo
 	if len(gResp.Candidates) > 0 {
 		finishReason = mapGeminiFinishReason(gResp.Candidates[0].FinishReason)
 	}
-	usage := Usage{PromptTokens: gResp.UsageMetadata.PromptTokenCount, CompletionTokens: gResp.UsageMetadata.CandidatesTokenCount}
+	usage := gResp.UsageMetadata.toUsage()
 
 	message := map[string]any{"role": "assistant", "content": text}
 	if len(toolCalls) > 0 {
@@ -544,11 +559,14 @@ func (s *geminiStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
 			continue
 		}
-		if chunk.UsageMetadata.PromptTokenCount > 0 {
-			usage.PromptTokens = chunk.UsageMetadata.PromptTokenCount
+		// Counts are cumulative across chunks, so a later chunk's non-zero
+		// values supersede earlier ones.
+		u := chunk.UsageMetadata.toUsage()
+		if u.PromptTokens > 0 {
+			usage.PromptTokens, usage.CachedTokens = u.PromptTokens, u.CachedTokens
 		}
-		if chunk.UsageMetadata.CandidatesTokenCount > 0 {
-			usage.CompletionTokens = chunk.UsageMetadata.CandidatesTokenCount
+		if u.CompletionTokens > 0 {
+			usage.CompletionTokens = u.CompletionTokens
 		}
 		if len(chunk.Candidates) == 0 {
 			continue

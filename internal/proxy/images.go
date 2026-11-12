@@ -64,15 +64,15 @@ func (h *Handler) ImageGenerations(c *fiber.Ctx) error {
 
 	respBody, n, statusCode, err := provider.ImageGeneration(c.Context(), model, rawBody)
 	if err != nil {
-		warnf("provider %s (model %s) image generation failed: %v (status %d)", providerName, model, err, statusCode)
+		logUpstreamFailure(providerName, model, "image generation", statusCode, err, respBody)
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(err.Error(), "upstream_error"))
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(clientFailureMessage(providerName, statusCode, err), "upstream_error"))
 	}
 
 	requestCost := cost.CalculateImageCost(model, n)
 	actualCost = requestCost
 
-	h.logRequest(userID, model, 0, 0, requestCost, time.Since(start), false, "", statusCode)
+	h.logRecord(unitRecord(userID, model, "image", float64(n), requestCost, time.Since(start), statusCode))
 
 	c.Set("Content-Type", "application/json")
 	return c.Status(fiber.StatusOK).Send(respBody)

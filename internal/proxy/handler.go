@@ -129,14 +129,22 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 		cacheKeyPayload[k] = v
 	}
 	cacheKey := cache.Key(model, cacheKeyPayload)
+	// A request that runs a provider-side tool (web search, code
+	// execution...) isn't a pure function of its body: serving a cached
+	// answer would hand back old search results as current. An empty key
+	// means "don't read or write the cache" for this request.
+	toolsRequested := serverToolsRequested(model, parsed)
+	if toolsRequested {
+		cacheKey = ""
+	}
 
 	if stream, _ := parsed["stream"].(bool); stream {
-		return h.chatCompletionsStream(c, userID, model, rawBody, parsed, cacheKey, start)
+		return h.chatCompletionsStream(c, userID, model, rawBody, parsed, cacheKey, toolsRequested, start)
 	}
 
 	// 1. Cache lookup, before budget: a hit costs nothing, so there's
 	// nothing to gate.
-	if h.Settings.CacheEnabled() && h.Cache != nil {
+	if cacheKey != "" && h.Settings.CacheEnabled() && h.Cache != nil {
 		if cached, ok := h.Cache.Get(c.Context(), cacheKey); ok {
 			h.logRequest(userID, model, 0, 0, 0, time.Since(start), true, "", fiber.StatusOK)
 			c.Set("X-Cache", "HIT")
@@ -207,13 +215,19 @@ func (h *Handler) ChatCompletions(c *fiber.Ctx) error {
 		c.Set("X-AI-Guard-Warning", "finish_reason=length: response was truncated, check max_tokens")
 	}
 
-	requestCost := cost.Calculate(usedModel, usage.PromptTokens, usage.CompletionTokens)
+	bd := cost.Compute(usedModel, usage.tokenUsage())
+	requestCost := bd.Total()
 	actualCost = requestCost
 
-	// 5. Log + cache the successful response.
-	h.logRequest(userID, usedModel, usage.PromptTokens, usage.CompletionTokens, requestCost, time.Since(start), false, finishReason, statusCode)
+	toolUses := serverToolUses(RouteProvider(usedModel), toolsRequested, usage.ToolUses)
+	if toolUses > 0 {
+		warnHeader(c, "server-side tool fees are not included in the logged cost")
+	}
 
-	if h.Settings.CacheEnabled() && h.Cache != nil {
+	// 5. Log + cache the successful response.
+	h.logRecord(chatRecord(userID, usedModel, usage, bd, toolUses, time.Since(start), finishReason, statusCode))
+
+	if cacheKey != "" && h.Settings.CacheEnabled() && h.Cache != nil {
 		ttl := time.Duration(h.Settings.CacheTTLSeconds()) * time.Second
 		setCtx, cancel := context.WithTimeout(context.Background(), backgroundOpTimeout)
 		err := h.Cache.Set(setCtx, cacheKey, respBody, ttl)
@@ -247,8 +261,8 @@ func setSSEHeaders(c *fiber.Ctx) {
 //     fallback attempt is tried before the client-visible stream starts.
 //  3. Because of (2), total failure still returns a normal 502, matching
 //     the non-streaming path, instead of a stream that dies partway through.
-func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawBody []byte, parsed map[string]any, cacheKey string, start time.Time) error {
-	if h.Settings.CacheEnabled() && h.Cache != nil {
+func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawBody []byte, parsed map[string]any, cacheKey string, toolsRequested bool, start time.Time) error {
+	if cacheKey != "" && h.Settings.CacheEnabled() && h.Cache != nil {
 		if cached, ok := h.Cache.Get(c.Context(), cacheKey); ok {
 			h.logRequest(userID, model, 0, 0, 0, time.Since(start), true, "", fiber.StatusOK)
 			var buf bytes.Buffer
@@ -331,11 +345,13 @@ func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawB
 			warnf("model %s hit finish_reason=length for user %s (possible truncation/runaway loop)", usedModel, userID)
 		}
 
-		requestCost := cost.Calculate(usedModel, usage.PromptTokens, usage.CompletionTokens)
+		bd := cost.Compute(usedModel, usage.tokenUsage())
+		requestCost := bd.Total()
 		release(requestCost)
-		h.logRequest(userID, usedModel, usage.PromptTokens, usage.CompletionTokens, requestCost, time.Since(start), false, finishReason, fiber.StatusOK)
+		toolUses := serverToolUses(RouteProvider(usedModel), toolsRequested, usage.ToolUses)
+		h.logRecord(chatRecord(userID, usedModel, usage, bd, toolUses, time.Since(start), finishReason, fiber.StatusOK))
 
-		if h.Settings.CacheEnabled() && h.Cache != nil {
+		if cacheKey != "" && h.Settings.CacheEnabled() && h.Cache != nil {
 			reconstructed := nonStreamOpenAIResponse("chatcmpl-"+randomSuffix(), usedModel, text, finishReason, usage, toolCalls)
 			ttl := time.Duration(h.Settings.CacheTTLSeconds()) * time.Second
 			setCtx, cancel := context.WithTimeout(context.Background(), backgroundOpTimeout)
@@ -350,12 +366,7 @@ func (h *Handler) chatCompletionsStream(c *fiber.Ctx, userID, model string, rawB
 }
 
 func (h *Handler) logRequest(userID, model string, promptTokens, completionTokens int, costUSD float64, latency time.Duration, cacheHit bool, finishReason string, statusCode int) {
-	if h.Store == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), backgroundOpTimeout)
-	defer cancel()
-	_, err := h.Store.Insert(ctx, logging.Record{
+	h.logRecord(logging.Record{
 		UserID:           userID,
 		Model:            model,
 		PromptTokens:     promptTokens,
@@ -366,7 +377,62 @@ func (h *Handler) logRequest(userID, model string, promptTokens, completionToken
 		FinishReason:     finishReason,
 		StatusCode:       statusCode,
 	})
-	if err != nil {
+}
+
+// logRecord persists one request. Everything that logs goes through here.
+func (h *Handler) logRecord(rec logging.Record) {
+	if h.Store == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), backgroundOpTimeout)
+	defer cancel()
+	if _, err := h.Store.Insert(ctx, rec); err != nil {
 		warnf("failed to log request: %v", err)
 	}
+}
+
+// chatRecord builds the log row for a completed chat request, itemising
+// the cost so the dashboard can show what each part of it was charged for.
+func chatRecord(userID, model string, u Usage, bd cost.Breakdown, toolUses int, latency time.Duration, finishReason string, statusCode int) logging.Record {
+	return logging.Record{
+		UserID:            userID,
+		Model:             model,
+		PromptTokens:      u.PromptTokens,
+		CompletionTokens:  u.CompletionTokens,
+		CachedTokens:      u.CachedTokens,
+		CacheWriteTokens:  u.CacheWriteTokens,
+		CostUSD:           bd.Total(),
+		InputCostUSD:      bd.InputUSD,
+		CachedCostUSD:     bd.CachedUSD,
+		CacheWriteCostUSD: bd.CacheWriteUSD,
+		OutputCostUSD:     bd.OutputUSD,
+		ToolUses:          toolUses,
+		Kind:              "chat",
+		LatencyMS:         latency.Milliseconds(),
+		FinishReason:      finishReason,
+		StatusCode:        statusCode,
+	}
+}
+
+// unitRecord builds the log row for a request billed per unit rather than
+// per token: images generated, characters spoken, seconds transcribed.
+func unitRecord(userID, model, kind string, units, costUSD float64, latency time.Duration, statusCode int) logging.Record {
+	return logging.Record{
+		UserID:     userID,
+		Model:      model,
+		CostUSD:    costUSD,
+		Kind:       kind,
+		Units:      units,
+		LatencyMS:  latency.Milliseconds(),
+		StatusCode: statusCode,
+	}
+}
+
+// warnHeader sets X-AI-Guard-Warning, joining with any warning already set
+// (finish_reason=length uses the same header).
+func warnHeader(c *fiber.Ctx, msg string) {
+	if prev := string(c.Response().Header.Peek("X-AI-Guard-Warning")); prev != "" {
+		msg = prev + "; " + msg
+	}
+	c.Set("X-AI-Guard-Warning", msg)
 }

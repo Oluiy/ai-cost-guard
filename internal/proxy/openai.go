@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
@@ -42,14 +43,31 @@ func NewOpenAICompatProvider(baseURL, apiKey, kind string) *OpenAICompatProvider
 	}
 }
 
+// openAIUsage is the usage block shared by non-streaming responses and the
+// final streaming chunk. prompt_tokens already INCLUDES cached tokens;
+// prompt_tokens_details.cached_tokens says how many of them were cache hits.
+type openAIUsage struct {
+	PromptTokens        int `json:"prompt_tokens"`
+	CompletionTokens    int `json:"completion_tokens"`
+	PromptTokensDetails struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details"`
+}
+
+func (u openAIUsage) toUsage() Usage {
+	return Usage{PromptTokens: u.PromptTokens, CompletionTokens: u.CompletionTokens, CachedTokens: u.PromptTokensDetails.CachedTokens}
+}
+
 type openAIResponse struct {
 	Choices []struct {
 		FinishReason string `json:"finish_reason"`
+		Message      struct {
+			// Groq lists each built-in tool it ran (browser_search,
+			// code_execution...) here; other providers omit it.
+			ExecutedTools []json.RawMessage `json:"executed_tools"`
+		} `json:"message"`
 	} `json:"choices"`
-	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-	} `json:"usage"`
+	Usage openAIUsage `json:"usage"`
 }
 
 type openAIEmbeddingsResponse struct {
@@ -126,9 +144,10 @@ func (p *OpenAICompatProvider) ChatCompletion(ctx context.Context, model string,
 	finishReason := ""
 	usage := Usage{}
 	if err := json.Unmarshal(respBody, &parsed); err == nil {
-		usage = Usage{PromptTokens: parsed.Usage.PromptTokens, CompletionTokens: parsed.Usage.CompletionTokens}
+		usage = parsed.Usage.toUsage()
 		if len(parsed.Choices) > 0 {
 			finishReason = parsed.Choices[0].FinishReason
+			usage.ToolUses = len(parsed.Choices[0].Message.ExecutedTools)
 		}
 	}
 
@@ -259,6 +278,11 @@ func (p *OpenAICompatProvider) AudioSpeech(ctx context.Context, model string, ra
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("rewriting model in request: %w", err)
 	}
+	if p.Kind == "groq" {
+		if err := validateGroqSpeech(model, body); err != nil {
+			return nil, 0, 0, err
+		}
+	}
 	var payload map[string]any
 	charCount := 0
 	if json.Unmarshal(body, &payload) == nil {
@@ -290,6 +314,49 @@ func (p *OpenAICompatProvider) AudioSpeech(ctx context.Context, model string, ra
 		return respBody, 0, resp.StatusCode, fmt.Errorf("upstream returned status %d", resp.StatusCode)
 	}
 	return respBody, charCount, resp.StatusCode, nil
+}
+
+// groqSpeechVoices are the voices each Groq Orpheus model accepts, from
+// console.groq.com/docs/text-to-speech/orpheus. They are not OpenAI's
+// (alloy, echo...), and `voice` is required.
+var groqSpeechVoices = map[string][]string{
+	"canopylabs/orpheus-v1-english":   {"autumn", "diana", "hannah", "austin", "daniel", "troy"},
+	"canopylabs/orpheus-arabic-saudi": {"abdullah", "fahad", "sultan", "lulwa", "noura", "aisha"},
+}
+
+// groqSpeechMaxChars is Groq's per-request input limit for Orpheus.
+const groqSpeechMaxChars = 200
+
+// validateGroqSpeech turns the three ways an OpenAI-style speech request
+// is rejected by Groq (an OpenAI voice name, a non-wav format, input over
+// 200 characters) into a clear 400 up front. Left to Groq, each one is a
+// bare "HTTP 400" to the caller.
+func validateGroqSpeech(model string, body []byte) error {
+	var req struct {
+		Input  string `json:"input"`
+		Voice  string `json:"voice"`
+		Format string `json:"response_format"`
+	}
+	if json.Unmarshal(body, &req) != nil {
+		return nil // not our job to second-guess a body we can't read
+	}
+	if voices, known := groqSpeechVoices[model]; known {
+		ok := false
+		for _, v := range voices {
+			ok = ok || v == req.Voice
+		}
+		if !ok {
+			return &requestError{fmt.Sprintf("voice %q is not available on %s; Groq's voices for it are: %s (\"voice\" is required)",
+				req.Voice, model, strings.Join(voices, ", "))}
+		}
+	}
+	if req.Format != "" && req.Format != "wav" {
+		return &requestError{fmt.Sprintf("Groq's speech models only produce wav; response_format %q is not supported (omit it or use \"wav\")", req.Format)}
+	}
+	if n := utf8.RuneCountInString(req.Input); n > groqSpeechMaxChars {
+		return &requestError{fmt.Sprintf("input is %d characters; Groq's speech models accept at most %d per request", n, groqSpeechMaxChars)}
+	}
+	return nil
 }
 
 // AudioTranscription is a pass-through for all three (OpenAI Whisper,
@@ -390,10 +457,7 @@ type streamChunkView struct {
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
-	Usage *struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-	} `json:"usage"`
+	Usage *openAIUsage `json:"usage"`
 }
 
 // toolCallAccumulator rebuilds one complete tool call from OpenAI's
@@ -503,7 +567,7 @@ func (s *openAIStreamSession) Relay(w *bufio.Writer) (string, []map[string]any, 
 			continue
 		}
 		if chunk.Usage != nil {
-			usage = Usage{PromptTokens: chunk.Usage.PromptTokens, CompletionTokens: chunk.Usage.CompletionTokens}
+			usage = chunk.Usage.toUsage()
 			haveExactUsage = true
 		}
 		if len(chunk.Choices) > 0 {

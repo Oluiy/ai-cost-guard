@@ -82,17 +82,19 @@ func (h *Handler) Embeddings(c *fiber.Ctx) error {
 
 	respBody, usage, statusCode, err := provider.Embeddings(c.Context(), model, rawBody)
 	if err != nil {
-		warnf("provider %s (model %s) embeddings failed: %v (status %d)", providerName, model, err, statusCode)
+		logUpstreamFailure(providerName, model, "embeddings", statusCode, err, respBody)
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
 		// Only one attempt here (no fallback), so the error is
 		// unambiguous and worth surfacing directly.
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(err.Error(), "upstream_error"))
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(clientFailureMessage(providerName, statusCode, err), "upstream_error"))
 	}
 
 	requestCost := cost.Calculate(model, usage.PromptTokens, 0)
 	actualCost = requestCost
 
-	h.logRequest(userID, model, usage.PromptTokens, 0, requestCost, time.Since(start), false, "", statusCode)
+	rec := unitRecord(userID, model, "embedding", float64(usage.PromptTokens), requestCost, time.Since(start), statusCode)
+	rec.PromptTokens, rec.InputCostUSD = usage.PromptTokens, requestCost
+	h.logRecord(rec)
 
 	if h.Settings.CacheEnabled() && h.Cache != nil {
 		ttl := time.Duration(h.Settings.CacheTTLSeconds()) * time.Second

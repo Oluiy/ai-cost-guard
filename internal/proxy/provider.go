@@ -6,12 +6,30 @@ import (
 	"bufio"
 	"context"
 	"io"
+
+	"github.com/Oluiy/ai-cost-guard/internal/cost"
 )
 
 // Usage is normalized token usage for a single completion.
 type Usage struct {
+	// PromptTokens is the TOTAL input, cached and cache-write tokens
+	// included, whatever the provider's own convention (Anthropic reports
+	// them separately; its adapter sums them here).
 	PromptTokens     int
 	CompletionTokens int
+	// CachedTokens and CacheWriteTokens are the parts of PromptTokens the
+	// provider billed at its prompt-cache rates.
+	CachedTokens     int
+	CacheWriteTokens int
+	// ToolUses counts server-side tool executions (web search, code
+	// execution...) the provider reported for this request. Those are
+	// billed per use rather than per token and are NOT priced yet, so a
+	// non-zero count means the logged cost is a floor, not the full bill.
+	ToolUses int
+}
+
+func (u Usage) tokenUsage() cost.TokenUsage {
+	return cost.TokenUsage{Prompt: u.PromptTokens, Cached: u.CachedTokens, CacheWrite: u.CacheWriteTokens, Completion: u.CompletionTokens}
 }
 
 // Provider forwards an OpenAI-shaped chat completion request to an upstream

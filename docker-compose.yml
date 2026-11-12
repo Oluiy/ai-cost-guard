@@ -6,7 +6,9 @@
 # config edit, if Redis isn't already there to point at.
 services:
   fitguard:
-    build: .
+    image: ghcr.io/oluiy/fitguard:latest
+    # To build from this checkout instead (e.g. you've modified FitGuard),
+    # replace the line above with `build: .`
     ports:
       - "8787:8787"
     volumes:
@@ -33,6 +35,22 @@ services:
       - redis-data:/data
     # No exposed port to the host on purpose: only the fitguard service
     # needs to reach it, over the compose-internal network as `redis:6379`.
+
+  # Optional: Postgres instead of the SQLite file. Uncomment this service,
+  # add `postgres` to fitguard's depends_on, and in config.yaml set
+  #   storage: {backend: postgres, postgres_url: "${DATABASE_URL}"}
+  # with DATABASE_URL=postgres://fitguard:CHANGE_ME@postgres:5432/fitguard?sslmode=disable
+  # Settings (budgets, keys, dashboard login) then live in the database too,
+  # so config.yaml can be mounted read-only.
+  #
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: fitguard
+  #     POSTGRES_PASSWORD: CHANGE_ME
+  #     POSTGRES_DB: fitguard
+  #   volumes:
+  #     - pg-data:/var/lib/postgresql/data
 
 volumes:
   fitguard-data:

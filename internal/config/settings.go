@@ -33,6 +33,9 @@ type Settings struct {
 	mu   sync.RWMutex
 	path string
 	cfg  *Config
+	// store, when set, is where runtime-mutable settings are persisted
+	// instead of the config file (see StorageConfig).
+	store StateStore
 }
 
 // NewSettings wraps cfg for live updates, persisting to path on change.
@@ -244,14 +247,12 @@ func (s *Settings) Apply(e Editable) (issuedKeys map[string]string, err error) {
 	s.cfg.Fallback = fallback
 	s.cfg.Keys = keys
 
-	if s.path != "" {
-		if err := Save(s.path, s.cfg); err != nil {
-			s.cfg.Cache = prevCache
-			s.cfg.Users = prevUsers
-			s.cfg.Fallback = prevFallback
-			s.cfg.Keys = prevKeys
-			return nil, fmt.Errorf("persisting settings: %w", err)
-		}
+	if err := s.persistLocked(); err != nil {
+		s.cfg.Cache = prevCache
+		s.cfg.Users = prevUsers
+		s.cfg.Fallback = prevFallback
+		s.cfg.Keys = prevKeys
+		return nil, fmt.Errorf("persisting settings: %w", err)
 	}
 	return issued, nil
 }

@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -446,4 +447,59 @@ func TestOpen_DatabaseFileIsNotWorldReadable(t *testing.T) {
 	if perm := info.Mode().Perm(); perm&0o077 != 0 {
 		t.Errorf("database is %o, want owner-only (0600): group/other can read the request log", perm)
 	}
+}
+
+// TestOpenUpgradesAPreDetailDatabase is the upgrade path real users hit:
+// a fitguard.db created by an older release has none of the per-request
+// detail columns. Opening it must add them in place, keep every existing
+// row readable, and let new rows store the detail.
+func TestOpenUpgradesAPreDetailDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	old, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.Exec(`CREATE TABLE requests (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, user_id TEXT NOT NULL,
+		model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL, completion_tokens INTEGER NOT NULL,
+		cost_usd REAL NOT NULL, latency_ms INTEGER NOT NULL, cache_hit INTEGER NOT NULL,
+		finish_reason TEXT, status_code INTEGER NOT NULL);
+		INSERT INTO requests (timestamp, user_id, model, prompt_tokens, completion_tokens, cost_usd, latency_ms, cache_hit, finish_reason, status_code)
+		VALUES (strftime('%Y-%m-%d %H:%M:%f','now'), 'alice', 'gpt-4o', 10, 5, 0.25, 100, 0, 'stop', 200)`); err != nil {
+		t.Fatal(err)
+	}
+	old.Close()
+
+	store, err := Open(path) // must migrate, not fail
+	if err != nil {
+		t.Fatalf("Open on an old database failed: %v", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+	rows, _, err := store.ListRequests(ctx, time.Now().Add(-time.Hour), time.Time{}, "", "", "", "time", 10, 0)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("old row unreadable after upgrade: rows=%d err=%v", len(rows), err)
+	}
+	if rows[0].CostUSD != 0.25 || rows[0].CachedTokens != 0 || rows[0].Kind != "" {
+		t.Fatalf("old row should read back with zero detail, got %+v", rows[0])
+	}
+
+	if _, err := store.Insert(ctx, Record{UserID: "bob", Model: "gpt-4o", PromptTokens: 1000, CachedTokens: 800,
+		CostUSD: 0.5, InputCostUSD: 0.1, CachedCostUSD: 0.2, OutputCostUSD: 0.2, ToolUses: 2, Kind: "chat"}); err != nil {
+		t.Fatalf("insert with detail: %v", err)
+	}
+	rows, _, _ = store.ListRequests(ctx, time.Now().Add(-time.Hour), time.Time{}, "bob", "", "", "time", 10, 0)
+	if len(rows) != 1 || rows[0].CachedTokens != 800 || rows[0].CachedCostUSD != 0.2 || rows[0].ToolUses != 2 || rows[0].Kind != "chat" {
+		t.Fatalf("detail did not round-trip: %+v", rows)
+	}
+
+	// Opening an already-upgraded database must be a no-op, not an error
+	// from re-adding existing columns.
+	store.Close()
+	again, err := Open(path)
+	if err != nil {
+		t.Fatalf("reopening an upgraded database failed: %v", err)
+	}
+	again.Close()
 }

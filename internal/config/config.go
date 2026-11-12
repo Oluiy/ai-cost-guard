@@ -38,6 +38,15 @@ type Config struct {
 	// operator can correct a stale price (or add a model the table
 	// doesn't know about yet) here, without waiting on a fitguard release.
 	Pricing map[string]PricingOverride `yaml:"pricing"`
+	// Storage picks the request-log backend and where runtime-mutable
+	// settings live. Omitted means SQLite with settings in this file, the
+	// original behaviour.
+	Storage StorageConfig `yaml:"storage,omitempty"`
+
+	// FromEnv is true when this config came from FITGUARD_CONFIG rather
+	// than a file, which means nothing written back to the file would
+	// survive a restart (the env var wins every boot).
+	FromEnv bool `yaml:"-"`
 }
 
 // PricingOverride replaces (for a model already in the built-in table) or
@@ -68,7 +77,7 @@ type CacheConfig struct {
 
 // Budget defines a per-user spending limit.
 type Budget struct {
-	DailyLimitUSD float64 `yaml:"daily_limit_usd"`
+	DailyLimitUSD float64 `yaml:"daily_limit_usd" json:"daily_limit_usd"`
 }
 
 // BudgetBackendConfig selects where budget-enforcement state lives.
@@ -92,20 +101,20 @@ type RouteConfig struct {
 type DashboardConfig struct {
 	// SessionSecret signs session cookies. Generated once by `fitguard
 	// init` so sessions survive restarts.
-	SessionSecret string          `yaml:"session_secret"`
-	Users         []DashboardUser `yaml:"users"`
+	SessionSecret string          `yaml:"session_secret" json:"session_secret"`
+	Users         []DashboardUser `yaml:"users" json:"users"`
 	// SessionTTLHours is how long a login stays valid. Defaults to 168
 	// (7 days). Sessions can't be revoked individually; rotating
 	// SessionSecret via `fitguard reset-dashboard-password` invalidates
 	// all of them at once.
-	SessionTTLHours int `yaml:"session_ttl_hours"`
+	SessionTTLHours int `yaml:"session_ttl_hours" json:"session_ttl_hours"`
 }
 
 // DashboardUser is one dashboard login. Only the bcrypt hash is stored,
 // never the password itself.
 type DashboardUser struct {
-	Username     string `yaml:"username"`
-	PasswordHash string `yaml:"password_hash"`
+	Username     string `yaml:"username" json:"username"`
+	PasswordHash string `yaml:"password_hash" json:"password_hash"`
 }
 
 const DefaultPort = 8787
@@ -129,8 +138,10 @@ func expandBracedEnvVars(s string) string {
 // config.yaml goes into one environment variable instead.
 func Load(path string) (*Config, error) {
 	var data []byte
+	fromEnv := false
 	if env := os.Getenv("FITGUARD_CONFIG"); env != "" {
 		data = []byte(env)
+		fromEnv = true
 	} else {
 		var err error
 		data, err = os.ReadFile(path)
@@ -161,6 +172,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config %s: %w", path, err)
 	}
 
+	cfg.FromEnv = fromEnv
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -181,6 +193,9 @@ func (c *Config) Validate() error {
 	}
 	if len(c.Providers) == 0 {
 		return fmt.Errorf("config must define at least one provider under `providers:`")
+	}
+	if err := c.Storage.validate(); err != nil {
+		return err
 	}
 	if c.Cache.TTL <= 0 {
 		c.Cache.TTL = 300
@@ -248,6 +263,12 @@ func (c *Config) Warnings() []string {
 	if len(c.Keys) == 0 {
 		warnings = append(warnings, "no keys configured — running in single-tenant mode: "+
 			"every request is unauthenticated and shares one \"default\" budget")
+	}
+
+	if c.FromEnv && !c.Storage.StateInDatabase() {
+		warnings = append(warnings, "config comes from FITGUARD_CONFIG but settings are stored in it, and an "+
+			"environment variable can't be written back: dashboard changes (budgets, keys, password) are lost on "+
+			"every restart. Set `storage: {state: database}` (or use the postgres backend) to keep them")
 	}
 
 	if len(c.Dashboard.Users) == 0 {

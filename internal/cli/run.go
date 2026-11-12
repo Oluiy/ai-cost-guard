@@ -32,10 +32,6 @@ func RunServer(configPath string) error {
 		return fmt.Errorf("run 'fitguard init' first, or check your config: %w", err)
 	}
 
-	for _, w := range cfg.Warnings() {
-		pterm.Warning.Println(w)
-	}
-
 	if len(cfg.Pricing) > 0 {
 		overrides := make(map[string]cost.Price, len(cfg.Pricing))
 		for model, o := range cfg.Pricing {
@@ -48,14 +44,23 @@ func RunServer(configPath string) error {
 		pterm.Info.Printfln("pricing: %d model price override(s) applied from config", len(cfg.Pricing))
 	}
 
-	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
-		return fmt.Errorf("creating data_dir %q: %w", cfg.DataDir, err)
-	}
-
-	dbPath := filepath.Join(cfg.DataDir, "fitguard.db")
-	store, err := logging.Open(dbPath)
-	if err != nil {
-		return fmt.Errorf("opening request log %q: %w", dbPath, err)
+	var store *logging.Store
+	if cfg.Storage.IsPostgres() {
+		store, err = logging.OpenPostgres(cfg.Storage.PostgresURL)
+		if err != nil {
+			return fmt.Errorf("connecting to postgres at %s: %w (is it running and reachable?)",
+				maskDBURL(cfg.Storage.PostgresURL), err)
+		}
+		pterm.Info.Printfln("storage: postgres @ %s", maskDBURL(cfg.Storage.PostgresURL))
+	} else {
+		if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
+			return fmt.Errorf("creating data_dir %q: %w", cfg.DataDir, err)
+		}
+		dbPath := filepath.Join(cfg.DataDir, "fitguard.db")
+		store, err = logging.Open(dbPath)
+		if err != nil {
+			return fmt.Errorf("opening request log %q: %w", dbPath, err)
+		}
 	}
 	defer store.Close()
 
@@ -80,6 +85,45 @@ func RunServer(configPath string) error {
 	// Shared by the proxy (reads), the budget enforcer (reads), and the
 	// dashboard (writes), so a settings change is visible immediately.
 	settings := config.NewSettings(configPath, cfg)
+	if cfg.Storage.StateInDatabase() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		seeded, err := settings.AttachStore(ctx, store)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if seeded {
+			pterm.Info.Println("settings: stored in the database (seeded once from the config; the database is the source of truth from now on)")
+		} else {
+			pterm.Info.Println("settings: loaded from the database (budgets, keys and dashboard login there override the config file)")
+		}
+		// Pick up changes made through another instance, or by
+		// `fitguard reset-dashboard-password` run elsewhere.
+		reloadCtx, stopReload := context.WithCancel(context.Background())
+		defer stopReload()
+		go func() {
+			t := time.NewTicker(30 * time.Second)
+			defer t.Stop()
+			for {
+				select {
+				case <-reloadCtx.Done():
+					return
+				case <-t.C:
+					rc, cancel := context.WithTimeout(reloadCtx, 10*time.Second)
+					if err := settings.Reload(rc); err != nil {
+						pterm.Warning.Printfln("settings reload failed (keeping current values): %v", err)
+					}
+					cancel()
+				}
+			}
+		}()
+	}
+
+	// After the attach: the database may hold keys or a dashboard login
+	// the config file doesn't, which changes which warnings apply.
+	for _, w := range cfg.Warnings() {
+		pterm.Warning.Println(w)
+	}
 
 	var enforcer budget.Enforcer
 	switch cfg.BudgetBackend.Backend {
@@ -185,6 +229,16 @@ func maskRedisURL(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return "[redis url]"
+	}
+	u.User = nil
+	return u.String()
+}
+
+// maskDBURL strips embedded credentials before a database URL is logged.
+func maskDBURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "[database url]"
 	}
 	u.User = nil
 	return u.String()

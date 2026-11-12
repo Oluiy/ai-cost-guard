@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/subtle"
+
 	"encoding/json"
 	"strings"
 	"time"
@@ -84,7 +84,10 @@ func errorJSON(message, typ string) fiber.Map {
 // header against configured virtual keys. With no keys configured,
 // fitguard is single-tenant: every caller is "default".
 func (h *Handler) authenticate(c *fiber.Ctx) (userID string, ok bool) {
-	if len(h.Cfg.Keys) == 0 {
+	// Read through Settings, not h.Cfg: keys are runtime-mutable (the
+	// dashboard issues them, another instance may have), and reading the
+	// map directly raced with those writes and never saw a reload.
+	if !h.Settings.HasKeys() {
 		return "default", true
 	}
 	auth := c.Get("Authorization")
@@ -92,15 +95,7 @@ func (h *Handler) authenticate(c *fiber.Ctx) (userID string, ok bool) {
 	if !hasBearer || token == "" {
 		return "", false
 	}
-	// Constant-time comparison against every configured key, not just
-	// until the first match, so timing can't leak which keys are close.
-	tokenBytes := []byte(token)
-	for key, uid := range h.Cfg.Keys {
-		if len(key) == len(token) && subtle.ConstantTimeCompare([]byte(key), tokenBytes) == 1 {
-			userID, ok = uid, true
-		}
-	}
-	return userID, ok
+	return h.Settings.UserForKey(token)
 }
 
 // ChatCompletions handles POST /v1/chat/completions.

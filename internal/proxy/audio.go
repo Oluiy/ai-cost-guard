@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -61,19 +62,54 @@ func (h *Handler) AudioSpeech(c *fiber.Ctx) error {
 	}
 
 	respBody, charCount, statusCode, err := provider.AudioSpeech(c.Context(), model, rawBody)
+	var badReq *requestError
+	if errors.As(err, &badReq) {
+		return c.Status(fiber.StatusBadRequest).JSON(errorJSON(badReq.Error(), "invalid_request_error"))
+	}
 	if err != nil {
-		warnf("provider %s (model %s) audio speech failed: %v (status %d)", providerName, model, err, statusCode)
+		logUpstreamFailure(providerName, model, "speech", statusCode, err, respBody)
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(err.Error(), "upstream_error"))
+		msg := clientFailureMessage(providerName, statusCode, err)
+		if providerName == "groq" && statusCode == fiber.StatusBadRequest {
+			// The request passed FitGuard's own checks, so what's left is on
+			// Groq's side; its Orpheus models have asked for model terms to
+			// be accepted in the console before first use.
+			msg += ". If your voice, format and input length are valid, the model may need its terms accepted in the Groq console (console.groq.com/playground)"
+		}
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(msg, "upstream_error"))
 	}
 
 	requestCost := cost.CalculateAudioSpeechCost(model, charCount)
 	actualCost = requestCost
 
-	h.logRequest(userID, model, 0, 0, requestCost, time.Since(start), false, "", statusCode)
+	h.logRecord(unitRecord(userID, model, "speech", float64(charCount), requestCost, time.Since(start), statusCode))
 
-	c.Set("Content-Type", "audio/mpeg")
+	c.Set("Content-Type", speechContentType(providerName, parsed))
 	return c.Status(fiber.StatusOK).Send(respBody)
+}
+
+// speechContentType labels the audio by the format that was asked for.
+// It used to say audio/mpeg unconditionally, which is wrong for Groq (wav
+// only) and for any other requested format.
+func speechContentType(providerName string, req map[string]any) string {
+	format, _ := req["response_format"].(string)
+	if format == "" && providerName == "groq" {
+		format = "wav"
+	}
+	switch format {
+	case "wav":
+		return "audio/wav"
+	case "opus":
+		return "audio/opus"
+	case "aac":
+		return "audio/aac"
+	case "flac":
+		return "audio/flac"
+	case "pcm":
+		return "audio/pcm"
+	default:
+		return "audio/mpeg"
+	}
 }
 
 // AudioTranscriptions handles POST /v1/audio/transcriptions
@@ -145,15 +181,15 @@ func (h *Handler) AudioTranscriptions(c *fiber.Ctx) error {
 
 	respBody, durationSeconds, statusCode, err := provider.AudioTranscription(c.Context(), model, f, fileHeader.Filename, formFields)
 	if err != nil {
-		warnf("provider %s (model %s) transcription failed: %v (status %d)", providerName, model, err, statusCode)
+		logUpstreamFailure(providerName, model, "transcription", statusCode, err, respBody)
 		h.logRequest(userID, model, 0, 0, 0, time.Since(start), false, "", fiber.StatusBadGateway)
-		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(err.Error(), "upstream_error"))
+		return c.Status(fiber.StatusBadGateway).JSON(errorJSON(clientFailureMessage(providerName, statusCode, err), "upstream_error"))
 	}
 
 	requestCost := cost.CalculateAudioTranscriptionCost(model, durationSeconds)
 	actualCost = requestCost
 
-	h.logRequest(userID, model, 0, 0, requestCost, time.Since(start), false, "", statusCode)
+	h.logRecord(unitRecord(userID, model, "transcription", durationSeconds, requestCost, time.Since(start), statusCode))
 
 	c.Set("Content-Type", "application/json")
 	return c.Status(fiber.StatusOK).Send(respBody)

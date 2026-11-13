@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -253,5 +254,69 @@ func TestGroqAudioSpeech_WireContract(t *testing.T) {
 	}
 	if string(out) != "RIFF-fake-wav" {
 		t.Errorf("got %q, want the audio bytes relayed unchanged", out)
+	}
+}
+
+// GROQ-TTS-PREVIEW: the three ways an OpenAI-style speech request is
+// rejected by Groq must come back as a clear 400 from FitGuard, without
+// ever reaching Groq.
+func TestGroqAudioSpeech_RejectsWhatGroqWouldRefuse(t *testing.T) {
+	var upstreamCalls int
+	srv := stubProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		io.WriteString(w, "RIFF")
+	})
+	p := NewOpenAICompatProvider(srv.URL, "k", "groq")
+	m := "canopylabs/orpheus-v1-english"
+	long := strings.Repeat("a", 201)
+
+	cases := map[string]struct{ body, want string }{
+		"openai voice":  {`{"input":"hi","voice":"alloy"}`, "troy"},
+		"missing voice": {`{"input":"hi"}`, "voice"},
+		"mp3":           {`{"input":"hi","voice":"troy","response_format":"mp3"}`, "wav"},
+		"too long":      {`{"input":"` + long + `","voice":"troy"}`, "200"},
+	}
+	for name, c := range cases {
+		_, _, _, err := p.AudioSpeech(context.Background(), m, []byte(c.body))
+		var re *requestError
+		if !errors.As(err, &re) || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v, want a requestError mentioning %q", name, err, c.want)
+		}
+	}
+	if upstreamCalls != 0 {
+		t.Fatalf("rejected requests reached Groq %d times", upstreamCalls)
+	}
+
+	for _, ok := range []string{
+		`{"input":"hi","voice":"hannah","response_format":"wav"}`,
+		`{"input":"` + strings.Repeat("é", 200) + `","voice":"austin"}`, // 200 characters, 400 bytes
+	} {
+		if _, _, _, err := p.AudioSpeech(context.Background(), m, []byte(ok)); err != nil {
+			t.Errorf("valid request refused: %v (%.60s)", err, ok)
+		}
+	}
+	if _, _, _, err := p.AudioSpeech(context.Background(), "canopylabs/orpheus-arabic-saudi", []byte(`{"input":"hi","voice":"troy"}`)); err == nil {
+		t.Error("an English voice must not be accepted on the Arabic model")
+	}
+}
+
+func TestSpeechContentType(t *testing.T) {
+	cases := []struct {
+		provider, format, want string
+	}{
+		{"groq", "", "audio/wav"},
+		{"openai", "", "audio/mpeg"},
+		{"openai", "mp3", "audio/mpeg"},
+		{"openai", "wav", "audio/wav"},
+		{"openai", "flac", "audio/flac"},
+	}
+	for _, c := range cases {
+		req := map[string]any{}
+		if c.format != "" {
+			req["response_format"] = c.format
+		}
+		if got := speechContentType(c.provider, req); got != c.want {
+			t.Errorf("%s/%q = %s, want %s", c.provider, c.format, got, c.want)
+		}
 	}
 }

@@ -1,0 +1,46 @@
+# Fly.io: runs FitGuard from the published container image. No build step.
+# The smallest always-on machine plus a 1GB volume is roughly $2.30/month.
+#
+# One-time setup (full walkthrough: docs/guide/deployment-paas.html#fly):
+#   fly launch --no-deploy --copy-config --name <your-app-name>
+#   fly volumes create fitguard_data --size 1 --region <region>
+#   fly secrets set FITGUARD_CONFIG="$(cat config.production.yaml)" OPENAI_API_KEY=...
+#   fly deploy
+#
+# config.production.yaml comes from `fitguard init` on your own machine,
+# with `data_dir: /data` and `port: 8787` set in it.
+
+app = "fitguard"          # must be globally unique: change it
+primary_region = "iad"    # pick the region nearest your app
+
+[build]
+  image = "ghcr.io/oluiy/fitguard:latest"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  # Never stop the machine: FitGuard sits in front of every AI call, so a
+  # cold start would land on a user request. Both off, per Fly's guidance
+  # to set auto_stop and auto_start together.
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  # One machine only: the volume below attaches to a single machine, and
+  # the SQLite file on it can't be shared between instances.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+# fitguard.db (the request log behind the dashboard) lives here and
+# survives redeploys. Create it first: `fly volumes create fitguard_data`.
+[[mounts]]
+  source = "fitguard_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

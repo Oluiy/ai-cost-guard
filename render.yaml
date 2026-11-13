@@ -1,0 +1,38 @@
+# Render Blueprint: deploys FitGuard from the published container image.
+# No build step, no Go toolchain: Render pulls ghcr.io/oluiy/fitguard.
+#
+# Setup (the full walkthrough is docs/guide/deployment-paas.html#render):
+#   1. fitguard init --config config.production.yaml   (on your own machine)
+#      then set `port: ${PORT}` and `data_dir: /data` in that file.
+#   2. Render dashboard > New > Blueprint > pick this repo.
+#   3. Paste config.production.yaml's contents when asked for FITGUARD_CONFIG,
+#      and your provider key(s) when asked for them.
+services:
+  - type: web
+    name: fitguard
+    runtime: image
+    image:
+      url: ghcr.io/oluiy/fitguard:latest
+    # A persistent disk needs a paid instance; the free tier has no disk and
+    # spins down after 15 idle minutes, which a proxy in front of every AI
+    # call can't tolerate anyway.
+    plan: starter
+    healthCheckPath: /healthz
+    # fitguard.db (the request log behind the dashboard) lives here. A disk
+    # is single-instance and disables zero-downtime deploys, so don't scale
+    # this service horizontally with it attached.
+    disk:
+      name: fitguard-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      # The whole config.yaml as one value. `sync: false` makes Render ask
+      # for it once at creation instead of storing it in this public file.
+      - key: FITGUARD_CONFIG
+        sync: false
+      # Referenced from the config as ${OPENAI_API_KEY}. Add one per
+      # provider you use; delete the ones you don't.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

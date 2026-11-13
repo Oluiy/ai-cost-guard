@@ -42,6 +42,30 @@ archives:
       - LICENSE
       - README.md
 
+# Container image, published to GHCR on every release tag, as one multi-arch
+# image built from the same binaries as the archives above (see
+# Dockerfile.release). `docker pull ghcr.io/oluiy/fitguard` picks the right
+# architecture on its own.
+dockers_v2:
+  - id: fitguard
+    ids: [fitguard]
+    dockerfile: Dockerfile.release
+    images:
+      - "ghcr.io/oluiy/fitguard"
+    tags:
+      - "{{ .Version }}"
+      # A prerelease tag (v0.2.0-rc1) must not move "latest".
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.title": "fitguard"
+      "org.opencontainers.image.description": "Self-hosted, OpenAI-compatible AI gateway that stops runaway LLM bills"
+      "org.opencontainers.image.source": "https://github.com/Oluiy/ai-cost-guard"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.licenses": "Apache-2.0"
+
 checksum:
   # A fixed name (no version in it) so install.sh doesn't need to know
   # the release tag to find the checksum file.

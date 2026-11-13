@@ -1,0 +1,28 @@
+# The image published to GHCR by GoReleaser (see `dockers:` in
+# .goreleaser.yaml). Unlike the root Dockerfile, this one does not compile
+# anything: GoReleaser has already built and tested the release binary and
+# places it in the build context, so the image is byte-for-byte the same
+# fitguard that ships in the GitHub release archives. Use the root
+# Dockerfile only if you want to build from source.
+#
+# distroless/static rather than scratch: it brings the CA certificate
+# bundle (fitguard's whole job is HTTPS calls to model providers) and
+# tzdata, with no shell or package manager to patch. It runs as root on
+# purpose: a volume mounted at /data (Fly, Render, Railway) is root-owned,
+# and a non-root user would fail to write fitguard.db into it, which is
+# exactly the kind of first-deploy surprise this image exists to remove.
+FROM gcr.io/distroless/static-debian12
+
+# GoReleaser lays the binary out per platform in the build context
+# (linux/amd64/fitguard, linux/arm64/fitguard) and buildx sets this.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/fitguard /fitguard
+
+# fitguard.db and config.yaml default to the working directory, so putting
+# it at /data means a volume mounted there holds both with no extra config.
+WORKDIR /data
+
+EXPOSE 8787
+ENTRYPOINT ["/fitguard"]
+# Only the default arguments: `docker run <image> init` still works.
+CMD ["run", "--config", "/data/config.yaml"]

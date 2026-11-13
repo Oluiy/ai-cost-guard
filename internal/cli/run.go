@@ -144,6 +144,9 @@ func RunServer(configPath string) error {
 		pterm.Info.Println("budget enforcement: fail-closed (a key with no configured budget is refused)")
 	}
 	handler := proxy.New(cfg, settings, c, enforcer, store)
+	settleCtx, stopSettling := context.WithCancel(context.Background())
+	defer stopSettling()
+	handler.StartBatchSettler(settleCtx, 2*time.Minute)
 
 	app := fiber.New(fiber.Config{
 		AppName:               "fitguard",

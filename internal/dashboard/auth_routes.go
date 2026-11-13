@@ -31,14 +31,15 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		username string
 		found    bool
 	)
-	for _, u := range h.Cfg.Users {
+	d := h.dash()
+	for _, u := range d.Users {
 		if subtle.ConstantTimeCompare([]byte(u.Username), []byte(req.Username)) == 1 {
 			hash, username, found = u.PasswordHash, u.Username, true
 		}
 	}
 
 	if auth.VerifyPasswordConstantTime(hash, found, req.Password) {
-		auth.SetSessionCookie(c, h.Cfg.SessionSecret, username, auth.SessionTTL(h.Cfg.SessionTTLHours))
+		auth.SetSessionCookie(c, d.SessionSecret, username, auth.SessionTTL(d.SessionTTLHours))
 		return c.JSON(fiber.Map{"ok": true})
 	}
 

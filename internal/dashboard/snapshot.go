@@ -53,6 +53,7 @@ type requestRow struct {
 	CompTokens   int     `json:"completion_tokens"`
 	LatencyMS    int64   `json:"latency_ms"`
 	FinishReason string  `json:"finish_reason"`
+	costDetail
 }
 
 type timeseriesRow struct {
@@ -189,7 +190,7 @@ func (h *Handler) buildSnapshot(ctx context.Context, rng, userFilter, providerFi
 		topRows = append(topRows, requestRow{
 			Timestamp: r.Timestamp.Format(time.RFC3339), UserID: r.UserID, Model: r.Model,
 			CostUSD: r.CostUSD, PromptTokens: r.PromptTokens, CompTokens: r.CompletionTokens,
-			LatencyMS: r.LatencyMS, FinishReason: r.FinishReason,
+			LatencyMS: r.LatencyMS, FinishReason: r.FinishReason, costDetail: detailOf(r),
 		})
 	}
 

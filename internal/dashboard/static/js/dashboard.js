@@ -564,7 +564,9 @@
       addCell(tr, fmtInt(r.prompt_tokens + r.completion_tokens), "num");
       addCell(tr, fmtInt(r.latency_ms) + "ms", "num");
       addCell(tr, fmtUSD(r.cost_usd), "num");
+      CostDetail.attach(tr, r, 6);
       tbody.appendChild(tr);
+      CostDetail.afterInsert(tr);
     });
   }
 
@@ -686,7 +688,9 @@
       addCell(tr, fmtInt(r.prompt_tokens + r.completion_tokens), "num");
       addCell(tr, fmtInt(r.latency_ms) + "ms", "num");
       addCell(tr, fmtUSD(r.cost_usd), "num");
+      CostDetail.attach(tr, r, 8);
       tbody.appendChild(tr);
+      CostDetail.afterInsert(tr);
     });
   }
 

@@ -1,0 +1,113 @@
+/* Expandable cost detail (see js/cost-detail.js). Uses the dashboard's
+   existing colour tokens so it follows the light/dark theme. */
+
+tr.expandable {
+  cursor: pointer;
+}
+
+tr.expandable:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+/* Chevron in the first cell: the affordance that says "this opens". */
+tr.expandable td:first-child::before {
+  content: "\25B8";
+  display: inline-block;
+  width: 1em;
+  margin-right: 4px;
+  color: var(--text-muted);
+}
+
+tr.expandable[aria-expanded="true"] td:first-child::before {
+  content: "\25BE";
+}
+
+tr.detail-row td {
+  padding: 0;
+  background: var(--page);
+  border-bottom: 1px solid var(--gridline);
+}
+
+tr.detail-row:hover td {
+  background: var(--page);
+}
+
+.cd-panel {
+  padding: 14px 18px 16px 30px;
+  cursor: default;
+}
+
+.cd-title {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.cd-table {
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 12px;
+}
+
+.cd-table tbody td {
+  padding: 5px 10px 5px 0;
+  border-bottom: 1px solid var(--gridline);
+}
+
+.cd-table thead th {
+  padding: 4px 10px 4px 0;
+}
+
+.cd-table tr.cd-total td {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: none;
+  padding-top: 8px;
+}
+
+.cd-note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 560px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--series-1-wash);
+}
+
+.cd-note.good {
+  background: var(--status-good-wash);
+}
+
+.cd-note.warn {
+  background: var(--status-warning-wash);
+}
+
+.cd-note.muted {
+  background: transparent;
+  color: var(--text-muted);
+  padding-left: 0;
+}
+
+.cd-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 16px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+}
+
+.cd-meta dt {
+  color: var(--text-muted);
+}
+
+.cd-meta dd {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}

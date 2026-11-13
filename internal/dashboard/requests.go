@@ -37,6 +37,7 @@ type requestListRow struct {
 	FinishReason string  `json:"finish_reason"`
 	CacheHit     bool    `json:"cache_hit"`
 	StatusCode   int     `json:"status_code"`
+	costDetail
 }
 
 const (
@@ -103,6 +104,7 @@ func (h *Handler) Requests(c *fiber.Ctx) error {
 			Timestamp: r.Timestamp.Format(time.RFC3339), UserID: r.UserID, Model: r.Model,
 			CostUSD: r.CostUSD, PromptTokens: r.PromptTokens, CompTokens: r.CompletionTokens,
 			LatencyMS: r.LatencyMS, FinishReason: r.FinishReason, CacheHit: r.CacheHit, StatusCode: r.StatusCode,
+			costDetail: detailOf(r),
 		})
 	}
 
@@ -186,13 +188,18 @@ func (h *Handler) Report(c *fiber.Ctx) error {
 	buf.WriteString(fmt.Sprintf("# Requests: %d, Total spend: $%.4f, Cache hit rate: %.1f%%\n",
 		summary.Requests, summary.TotalCostUSD, cacheHitRate*100))
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"timestamp", "user_id", "model", "provider", "status_code", "cache_hit", "prompt_tokens", "completion_tokens", "latency_ms", "cost_usd"})
+	_ = w.Write([]string{"timestamp", "user_id", "model", "provider", "status_code", "cache_hit", "prompt_tokens", "completion_tokens", "latency_ms", "cost_usd",
+		"cached_tokens", "cache_write_tokens", "input_cost_usd", "cached_cost_usd", "cache_write_cost_usd", "output_cost_usd", "tool_uses"})
 	for _, r := range records {
 		provider, _ := cost.ProviderFor(r.Model)
 		_ = w.Write([]string{
 			r.Timestamp.Format(time.RFC3339), csvSafe(r.UserID), csvSafe(r.Model), csvSafe(provider), strconv.Itoa(r.StatusCode), strconv.FormatBool(r.CacheHit),
 			strconv.Itoa(r.PromptTokens), strconv.Itoa(r.CompletionTokens), strconv.FormatInt(r.LatencyMS, 10),
 			strconv.FormatFloat(r.CostUSD, 'f', -1, 64),
+			strconv.Itoa(r.CachedTokens), strconv.Itoa(r.CacheWriteTokens),
+			strconv.FormatFloat(r.InputCostUSD, 'f', -1, 64), strconv.FormatFloat(r.CachedCostUSD, 'f', -1, 64),
+			strconv.FormatFloat(r.CacheWriteCostUSD, 'f', -1, 64), strconv.FormatFloat(r.OutputCostUSD, 'f', -1, 64),
+			strconv.Itoa(r.ToolUses),
 		})
 	}
 	w.Flush()

@@ -20,20 +20,35 @@ var staticFS embed.FS
 // Handler serves the dashboard UI and its JSON/SSE data feeds.
 type Handler struct {
 	Store *logging.Store
-	Cfg   config.DashboardConfig
+	// Cfg is the dashboard login as it was at startup. It's only the
+	// fallback: when Live is set, dash() reads the live copy instead.
+	Cfg config.DashboardConfig
 	// Live enables the settings endpoints when set; nil answers 501.
 	Live *config.Settings
-
-	// validUsernames is precomputed once at construction.
-	validUsernames map[string]bool
 }
 
 func New(store *logging.Store, cfg config.DashboardConfig) *Handler {
-	valid := make(map[string]bool, len(cfg.Users))
-	for _, u := range cfg.Users {
+	return &Handler{Store: store, Cfg: cfg}
+}
+
+// dash returns the current dashboard login settings. With settings wired
+// in (the normal case) that's the live copy, so a password reset or a new
+// operator, made here or through another instance, takes effect without a
+// restart. Reading the startup snapshot instead is what made a reset
+// invisible until the next boot.
+func (h *Handler) dash() config.DashboardConfig {
+	if h.Live != nil {
+		return h.Live.Dashboard()
+	}
+	return h.Cfg
+}
+
+func usernameSet(d config.DashboardConfig) map[string]bool {
+	valid := make(map[string]bool, len(d.Users))
+	for _, u := range d.Users {
 		valid[u.Username] = true
 	}
-	return &Handler{Store: store, Cfg: cfg, validUsernames: valid}
+	return valid
 }
 
 // WithSettings enables the live-settings endpoints on h.
@@ -45,7 +60,7 @@ func (h *Handler) WithSettings(live *config.Settings) *Handler {
 // requiresLogin reports whether a dashboard login has been set up. If
 // not, the dashboard is reachable with no login.
 func (h *Handler) requiresLogin() bool {
-	return len(h.Cfg.Users) > 0
+	return len(h.dash().Users) > 0
 }
 
 // Register mounts the dashboard routes on app.
@@ -80,8 +95,9 @@ func (h *Handler) requireAuth(c *fiber.Ctx) error {
 	if !h.requiresLogin() {
 		return c.Next()
 	}
-	username, ok := auth.VerifySessionToken(h.Cfg.SessionSecret, c.Cookies(auth.CookieName))
-	if !ok || !h.validUsernames[username] {
+	d := h.dash()
+	username, ok := auth.VerifySessionToken(d.SessionSecret, c.Cookies(auth.CookieName))
+	if !ok || !usernameSet(d)[username] {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": fiber.Map{"message": "login required", "type": "unauthorized"},
 		})
@@ -114,7 +130,7 @@ func staticHandler(assets fs.FS, dir string) fiber.Handler {
 // caller isn't authenticated, the real dashboard otherwise.
 func (h *Handler) Index(c *fiber.Ctx) error {
 	page := "static/index.html"
-	if h.requiresLogin() && !auth.Authenticated(c, h.Cfg.SessionSecret, h.validUsernames) {
+	if d := h.dash(); len(d.Users) > 0 && !auth.Authenticated(c, d.SessionSecret, usernameSet(d)) {
 		page = "static/login.html"
 	}
 	b, err := staticFS.ReadFile(page)
